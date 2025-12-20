@@ -20,12 +20,18 @@ export const recipeAlternativeSchema = z.object({
   cuisine: z.string(),
 });
 
+export const recipeStyleSchema = z.enum(['creative', 'umami', 'protein', 'seasonal']);
+export type RecipeStyle = z.infer<typeof recipeStyleSchema>;
+
 export const api = {
   recipes: {
     process: {
       method: 'POST' as const,
       path: '/api/recipes/process',
-      input: z.object({ url: z.string().url() }),
+      input: z.object({ 
+        url: z.string().url(),
+        style: recipeStyleSchema.default('creative'),
+      }),
       responses: {
         200: z.object({ 
           message: z.string(), 

@@ -26,14 +26,22 @@ export async function registerRoutes(
 
       // Check if ALT_RECIPES is enabled
       if (process.env.ALT_RECIPES === "on") {
-        console.log("Generating 9 creative recipe alternatives...");
+        const style = input.style || 'creative';
+        console.log(`Generating 9 ${style} recipe alternatives...`);
+        
+        const systemPrompts: Record<string, string> = {
+          creative: "You are a creative chef. Generate exactly 9 unique recipe alternatives inspired by the given recipe URL. Return a JSON array with objects containing: title (creative name), description (one sentence), cuisine (type of cuisine). Be creative and diverse in your suggestions.",
+          umami: "You are a creative chef. Generate exactly 9 unique recipe alternatives that have more umami flavor and ingredients inspired by the given recipe URL. Return a JSON array with objects containing: title (creative name), description (one sentence), cuisine (type of cuisine). Be creative and diverse in your suggestions.",
+          protein: "You are a creative chef. Generate exactly 9 unique recipe alternatives that have more protein inspired by the given recipe URL. Feel free to add more proteins and/or switch out ingredients to give it more protein. Return a JSON array with objects containing: title (creative name), description (one sentence), cuisine (type of cuisine). Be creative and diverse in your suggestions.",
+          seasonal: "You are a creative chef. Generate exactly 9 seasonal (eg: if it is fall, make them more fall inspired) recipe alternatives inspired by the given recipe URL. Return a JSON array with objects containing: title (creative name), description (one sentence), cuisine (type of cuisine). Be creative and diverse in your suggestions.",
+        };
         
         const response = await openai.chat.completions.create({
           model: "gpt-4o-mini",
           messages: [
             {
               role: "system",
-              content: "You are a creative chef. Generate exactly 9 unique recipe alternatives inspired by the given recipe URL. Return a JSON array with objects containing: title (creative name), description (one sentence), cuisine (type of cuisine). Be creative and diverse in your suggestions."
+              content: systemPrompts[style]
             },
             {
               role: "user",

@@ -7,17 +7,16 @@ import { Button } from "@/components/ui/button";
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { RecipeAlternative } from "@shared/routes";
+import type { RecipeAlternative, RecipeStyle } from "@shared/routes";
 
 export default function Home() {
   const [url, setUrl] = useState("");
   const [alternatives, setAlternatives] = useState<RecipeAlternative[]>([]);
+  const [activeStyle, setActiveStyle] = useState<RecipeStyle | null>(null);
   const { mutate, isPending } = useProcessRecipe();
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleSubmit = (style: RecipeStyle) => {
     const urlSchema = z.string().url({ message: "Please enter a valid URL starting with http:// or https://" });
     const result = urlSchema.safeParse(url);
 
@@ -30,9 +29,10 @@ export default function Home() {
       return;
     }
 
-    console.log("Processing Recipe URL:", url);
+    console.log(`Processing Recipe URL with style "${style}":`, url);
+    setActiveStyle(style);
 
-    mutate(url, {
+    mutate({ url, style }, {
       onSuccess: (data) => {
         toast({
           title: "Recipe Processed",
@@ -50,6 +50,7 @@ export default function Home() {
         }
         
         setUrl("");
+        setActiveStyle(null);
       },
       onError: (error) => {
         toast({
@@ -57,6 +58,7 @@ export default function Home() {
           description: error.message,
           variant: "destructive",
         });
+        setActiveStyle(null);
       },
     });
   };
@@ -83,7 +85,7 @@ export default function Home() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4" data-testid="form-recipe">
+            <div className="space-y-4" data-testid="form-recipe">
               <div className="space-y-2">
                 <label
                   htmlFor="url-input"
@@ -110,12 +112,12 @@ export default function Home() {
 
               <div className="grid grid-cols-2 gap-3">
                 <Button
-                  type="submit"
+                  onClick={() => handleSubmit('creative')}
                   disabled={isPending || !url}
                   className="py-6"
                   data-testid="button-creative"
                 >
-                  {isPending ? (
+                  {isPending && activeStyle === 'creative' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <Sparkles className="w-4 h-4" />
@@ -123,12 +125,12 @@ export default function Home() {
                   <span>Creative</span>
                 </Button>
                 <Button
-                  type="submit"
+                  onClick={() => handleSubmit('umami')}
                   disabled={isPending || !url}
                   className="py-6"
                   data-testid="button-umami"
                 >
-                  {isPending ? (
+                  {isPending && activeStyle === 'umami' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <Flame className="w-4 h-4" />
@@ -136,12 +138,12 @@ export default function Home() {
                   <span>Umami</span>
                 </Button>
                 <Button
-                  type="submit"
+                  onClick={() => handleSubmit('protein')}
                   disabled={isPending || !url}
                   className="py-6"
                   data-testid="button-protein"
                 >
-                  {isPending ? (
+                  {isPending && activeStyle === 'protein' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <Dumbbell className="w-4 h-4" />
@@ -149,12 +151,12 @@ export default function Home() {
                   <span>More Protein</span>
                 </Button>
                 <Button
-                  type="submit"
+                  onClick={() => handleSubmit('seasonal')}
                   disabled={isPending || !url}
                   className="py-6"
                   data-testid="button-seasonal"
                 >
-                  {isPending ? (
+                  {isPending && activeStyle === 'seasonal' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <Leaf className="w-4 h-4" />
@@ -162,7 +164,7 @@ export default function Home() {
                   <span>Seasonal</span>
                 </Button>
               </div>
-            </form>
+            </div>
           </div>
           
           <div className="px-8 py-4 bg-secondary/50 border-t border-border/50 text-center">
