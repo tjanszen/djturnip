@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RecipeAlternative, RecipeStyle } from "@shared/routes";
+import steamedBroccoliImg from "@assets/generated_images/plain_steamed_broccoli.png";
+import cheesyBroccoliImg from "@assets/generated_images/cheesy_garlic_roasted_broccoli.png";
 
 export default function Home() {
   const [url, setUrl] = useState("");
@@ -176,7 +178,14 @@ export default function Home() {
       >
         <p className="text-center text-sm text-muted-foreground mb-6">See the magic in action</p>
         <div className="grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] gap-4 items-center">
-          <Card className="h-full" data-testid="card-example-original">
+          <Card className="h-full overflow-hidden" data-testid="card-example-original">
+            <div className="aspect-[4/3] overflow-hidden">
+              <img 
+                src={steamedBroccoliImg} 
+                alt="Plain steamed broccoli" 
+                className="w-full h-full object-cover"
+              />
+            </div>
             <CardHeader className="pb-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Original</p>
               <CardTitle className="text-lg font-medium">Steamed Broccoli</CardTitle>
@@ -196,7 +205,14 @@ export default function Home() {
             </div>
           </div>
 
-          <Card className="h-full border-primary/20 bg-primary/5" data-testid="card-example-remix">
+          <Card className="h-full border-primary/20 bg-primary/5 overflow-hidden" data-testid="card-example-remix">
+            <div className="aspect-[4/3] overflow-hidden">
+              <img 
+                src={cheesyBroccoliImg} 
+                alt="Cheesy garlic roasted broccoli" 
+                className="w-full h-full object-cover"
+              />
+            </div>
             <CardHeader className="pb-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-primary">Remixed</p>
               <CardTitle className="text-lg font-medium">Cheesy Garlic Roasted Broccoli</CardTitle>
