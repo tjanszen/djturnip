@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useProcessRecipe } from "@/hooks/use-recipes";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link2, ArrowRight, Loader2, ChefHat, Utensils } from "lucide-react";
+import { Link2, Loader2, ChefHat, Utensils, Sparkles, Flame, Dumbbell, Leaf } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -78,7 +79,7 @@ export default function Home() {
                 Recipe Parser
               </h1>
               <p className="text-muted-foreground text-balance">
-                Enter a recipe URL below to get 9 creative alternative recipes.
+                Enter a recipe URL and choose a style to get 9 alternative recipes.
               </p>
             </div>
 
@@ -107,24 +108,60 @@ export default function Home() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={isPending || !url}
-                className="w-full py-4 px-6 rounded-xl bg-primary text-primary-foreground font-medium text-lg shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 active:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-all duration-200 flex items-center justify-center gap-2 group"
-                data-testid="button-submit"
-              >
-                {isPending ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Processing...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Get Alternatives</span>
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  type="submit"
+                  disabled={isPending || !url}
+                  className="py-6"
+                  data-testid="button-creative"
+                >
+                  {isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  <span>Creative</span>
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isPending || !url}
+                  className="py-6"
+                  data-testid="button-umami"
+                >
+                  {isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Flame className="w-4 h-4" />
+                  )}
+                  <span>Umami</span>
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isPending || !url}
+                  className="py-6"
+                  data-testid="button-protein"
+                >
+                  {isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Dumbbell className="w-4 h-4" />
+                  )}
+                  <span>More Protein</span>
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isPending || !url}
+                  className="py-6"
+                  data-testid="button-seasonal"
+                >
+                  {isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Leaf className="w-4 h-4" />
+                  )}
+                  <span>Seasonal</span>
+                </Button>
+              </div>
             </form>
           </div>
           
