@@ -1,0 +1,85 @@
+# Recipe Alternatives Generator
+
+## Overview
+
+A web application that processes recipe URLs and generates creative recipe alternatives using AI. Users submit a recipe URL, and when the `ALT_RECIPES` environment variable is enabled, the system uses OpenAI to generate 9 unique recipe variations inspired by the original recipe.
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## System Architecture
+
+### Frontend Architecture
+- **Framework**: React with TypeScript
+- **Routing**: Wouter for lightweight client-side routing
+- **State Management**: TanStack React Query for server state and caching
+- **UI Components**: shadcn/ui component library built on Radix UI primitives
+- **Styling**: Tailwind CSS with CSS variables for theming
+- **Animations**: Framer Motion for smooth entry animations and micro-interactions
+- **Build Tool**: Vite for development and production builds
+
+### Backend Architecture
+- **Framework**: Express.js with TypeScript
+- **API Design**: RESTful endpoints with Zod schema validation
+- **Route Definitions**: Shared route contracts in `shared/routes.ts` with input/output schemas
+- **AI Integration**: OpenAI API (via Replit AI Integrations) for generating recipe alternatives
+- **Storage**: In-memory storage (`MemStorage` class) for development, with Drizzle ORM schema ready for PostgreSQL
+
+### Data Layer
+- **ORM**: Drizzle ORM with PostgreSQL dialect
+- **Schema Location**: `shared/schema.ts` contains all database table definitions
+- **Schema Validation**: drizzle-zod for generating Zod schemas from database tables
+- **Tables**: recipes, conversations, messages (chat functionality scaffolded)
+
+### Project Structure
+```
+client/           # React frontend
+  src/
+    components/ui/  # shadcn/ui components
+    hooks/          # Custom React hooks
+    pages/          # Page components
+    lib/            # Utilities and query client
+server/           # Express backend
+  routes.ts         # API route handlers
+  storage.ts        # Data storage abstraction
+  replit_integrations/  # AI integration utilities (batch, chat, image)
+shared/           # Shared code between frontend and backend
+  schema.ts         # Database schema definitions
+  routes.ts         # API route contracts
+```
+
+### Key Design Decisions
+
+1. **Shared Route Contracts**: API routes are defined once in `shared/routes.ts` with Zod schemas for both input validation and response typing, ensuring type safety across the full stack.
+
+2. **Feature Flag Pattern**: The `ALT_RECIPES` environment variable controls whether AI-generated alternatives are returned, allowing easy toggling of the feature.
+
+3. **Storage Abstraction**: The `IStorage` interface in `server/storage.ts` abstracts data persistence, currently using in-memory storage but designed for easy PostgreSQL migration.
+
+4. **Component Library**: Full shadcn/ui component set is installed, providing consistent, accessible UI primitives.
+
+## External Dependencies
+
+### AI Services
+- **OpenAI API**: Used via Replit AI Integrations for generating recipe alternatives
+  - Environment variables: `AI_INTEGRATIONS_OPENAI_API_KEY`, `AI_INTEGRATIONS_OPENAI_BASE_URL`
+  - Model: `gpt-4o-mini` for recipe generation, `gpt-image-1` for image generation (scaffolded)
+
+### Database
+- **PostgreSQL**: Configured via `DATABASE_URL` environment variable
+- **Drizzle Kit**: For database migrations (`npm run db:push`)
+
+### Environment Variables
+- `DATABASE_URL`: PostgreSQL connection string
+- `AI_INTEGRATIONS_OPENAI_API_KEY`: OpenAI API key
+- `AI_INTEGRATIONS_OPENAI_BASE_URL`: OpenAI API base URL
+- `ALT_RECIPES`: Set to "on" to enable AI recipe alternatives generation
+
+### Key NPM Packages
+- `@tanstack/react-query`: Data fetching and caching
+- `drizzle-orm` / `drizzle-zod`: Database ORM and schema validation
+- `zod`: Runtime type validation
+- `openai`: OpenAI SDK for AI integrations
+- `framer-motion`: Animation library
+- `wouter`: Lightweight React router
