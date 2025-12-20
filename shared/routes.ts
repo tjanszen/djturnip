@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertRecipeSchema, recipes } from './schema';
+import { insertRecipeSchema } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -14,6 +14,12 @@ export const errorSchemas = {
   }),
 };
 
+export const recipeAlternativeSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  cuisine: z.string(),
+});
+
 export const api = {
   recipes: {
     process: {
@@ -21,7 +27,11 @@ export const api = {
       path: '/api/recipes/process',
       input: z.object({ url: z.string().url() }),
       responses: {
-        200: z.object({ message: z.string(), url: z.string() }),
+        200: z.object({ 
+          message: z.string(), 
+          url: z.string(),
+          alternatives: z.array(recipeAlternativeSchema).optional(),
+        }),
         400: errorSchemas.validation,
       },
     },
@@ -39,3 +49,6 @@ export function buildUrl(path: string, params?: Record<string, string | number>)
   }
   return url;
 }
+
+export type RecipeAlternative = z.infer<typeof recipeAlternativeSchema>;
+export type ProcessRecipeResponse = z.infer<typeof api.recipes.process.responses[200]>;

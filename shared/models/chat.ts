@@ -1,22 +1,8 @@
-import { pgTable, text, serial, boolean, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
 
-export const recipes = pgTable("recipes", {
-  id: serial("id").primaryKey(),
-  url: text("url").notNull(),
-  isProcessed: boolean("is_processed").default(false),
-});
-
-export const insertRecipeSchema = createInsertSchema(recipes).pick({
-  url: true,
-});
-
-export type Recipe = typeof recipes.$inferSelect;
-export type InsertRecipe = z.infer<typeof insertRecipeSchema>;
-
-// Chat tables for OpenAI integration
 export const conversations = pgTable("conversations", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
@@ -46,9 +32,3 @@ export type InsertConversation = z.infer<typeof insertConversationSchema>;
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 
-// Recipe alternative type
-export interface RecipeAlternative {
-  title: string;
-  description: string;
-  cuisine: string;
-}

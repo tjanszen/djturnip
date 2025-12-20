@@ -1,19 +1,22 @@
 import { useState } from "react";
 import { useProcessRecipe } from "@/hooks/use-recipes";
 import { useToast } from "@/hooks/use-toast";
-import { motion } from "framer-motion";
-import { Link2, ArrowRight, Loader2, ChefHat } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Link2, ArrowRight, Loader2, ChefHat, Utensils } from "lucide-react";
 import { z } from "zod";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import type { RecipeAlternative } from "@shared/routes";
 
 export default function Home() {
   const [url, setUrl] = useState("");
+  const [alternatives, setAlternatives] = useState<RecipeAlternative[]>([]);
   const { mutate, isPending } = useProcessRecipe();
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Basic client-side validation using zod
     const urlSchema = z.string().url({ message: "Please enter a valid URL starting with http:// or https://" });
     const result = urlSchema.safeParse(url);
 
@@ -26,7 +29,6 @@ export default function Home() {
       return;
     }
 
-    // Log to console as requested
     console.log("Processing Recipe URL:", url);
 
     mutate(url, {
@@ -35,7 +37,18 @@ export default function Home() {
           title: "Recipe Processed",
           description: data.message,
         });
-        setUrl(""); // Clear input on success
+        
+        if (data.alternatives && data.alternatives.length > 0) {
+          console.log("Generated Recipe Alternatives:");
+          data.alternatives.forEach((alt, i) => {
+            console.log(`  ${i + 1}. ${alt.title}`);
+          });
+          setAlternatives(data.alternatives);
+        } else {
+          setAlternatives([]);
+        }
+        
+        setUrl("");
       },
       onError: (error) => {
         toast({
@@ -48,17 +61,14 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 md:p-8 bg-[url('https://images.unsplash.com/photo-1495195134817-aeb325a55b65?q=80&w=2952&auto=format&fit=crop')] bg-cover bg-center relative">
-      {/* Overlay to ensure readability on background image */}
-      <div className="absolute inset-0 bg-white/90 backdrop-blur-[2px] z-0" />
-
+    <div className="min-h-screen w-full flex flex-col items-center p-4 md:p-8 bg-background">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
-        className="w-full max-w-xl relative z-10"
+        className="w-full max-w-xl mt-8"
       >
-        <div className="bg-card/80 backdrop-blur-xl border border-white/20 shadow-xl rounded-2xl overflow-hidden">
+        <div className="bg-card border border-border shadow-lg rounded-2xl overflow-hidden">
           <div className="p-8 md:p-12 space-y-8">
             <div className="space-y-4 text-center">
               <div className="mx-auto w-12 h-12 bg-primary/5 rounded-full flex items-center justify-center mb-6">
@@ -68,11 +78,11 @@ export default function Home() {
                 Recipe Parser
               </h1>
               <p className="text-muted-foreground text-balance">
-                Enter a recipe URL below to extract ingredients and instructions instantly.
+                Enter a recipe URL below to get 9 creative alternative recipes.
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" data-testid="form-recipe">
               <div className="space-y-2">
                 <label
                   htmlFor="url-input"
@@ -92,6 +102,7 @@ export default function Home() {
                     placeholder="https://cooking.nytimes.com/..."
                     className="w-full pl-12 pr-4 py-4 bg-secondary/50 border border-transparent rounded-xl text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:bg-background focus:border-primary/20 focus:ring-4 focus:ring-primary/5 transition-all duration-200"
                     autoComplete="off"
+                    data-testid="input-url"
                   />
                 </div>
               </div>
@@ -100,6 +111,7 @@ export default function Home() {
                 type="submit"
                 disabled={isPending || !url}
                 className="w-full py-4 px-6 rounded-xl bg-primary text-primary-foreground font-medium text-lg shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0 active:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none transition-all duration-200 flex items-center justify-center gap-2 group"
+                data-testid="button-submit"
               >
                 {isPending ? (
                   <>
@@ -108,7 +120,7 @@ export default function Home() {
                   </>
                 ) : (
                   <>
-                    <span>Extract Recipe</span>
+                    <span>Get Alternatives</span>
                     <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </>
                 )}
@@ -118,11 +130,58 @@ export default function Home() {
           
           <div className="px-8 py-4 bg-secondary/50 border-t border-border/50 text-center">
             <p className="text-xs text-muted-foreground">
-              Supports most major cooking websites and blogs.
+              AI-powered recipe alternatives when ALT_RECIPES is enabled.
             </p>
           </div>
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {alternatives.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.5 }}
+            className="w-full max-w-6xl mt-12"
+          >
+            <h2 className="text-2xl font-serif font-medium text-center mb-8" data-testid="text-alternatives-title">
+              Creative Recipe Alternatives
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {alternatives.map((alt, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: index * 0.05 }}
+                >
+                  <Card className="h-full" data-testid={`card-recipe-${index}`}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between gap-2 flex-wrap">
+                        <CardTitle className="text-lg font-medium leading-tight" data-testid={`text-recipe-title-${index}`}>
+                          {alt.title}
+                        </CardTitle>
+                        <Badge variant="secondary" className="shrink-0" data-testid={`badge-cuisine-${index}`}>
+                          {alt.cuisine}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-start gap-3">
+                        <Utensils className="w-4 h-4 mt-1 text-muted-foreground shrink-0" />
+                        <p className="text-sm text-muted-foreground" data-testid={`text-recipe-description-${index}`}>
+                          {alt.description}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
