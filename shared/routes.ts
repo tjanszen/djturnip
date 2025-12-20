@@ -14,10 +14,14 @@ export const errorSchemas = {
   }),
 };
 
+export const recipeChangeSchema = z.object({
+  action: z.string(),
+  details: z.string(),
+});
+
 export const recipeAlternativeSchema = z.object({
   title: z.string(),
-  description: z.string(),
-  cuisine: z.string(),
+  changes: z.array(recipeChangeSchema),
 });
 
 export const recipeStyleSchema = z.enum(['creative', 'umami', 'protein', 'seasonal']);
@@ -56,5 +60,6 @@ export function buildUrl(path: string, params?: Record<string, string | number>)
   return url;
 }
 
+export type RecipeChange = z.infer<typeof recipeChangeSchema>;
 export type RecipeAlternative = z.infer<typeof recipeAlternativeSchema>;
 export type ProcessRecipeResponse = z.infer<typeof api.recipes.process.responses[200]>;

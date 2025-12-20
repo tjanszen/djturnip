@@ -6,7 +6,6 @@ import { Link2, Loader2, ChefHat, Utensils, Sparkles, Flame, Dumbbell, Leaf } fr
 import { Button } from "@/components/ui/button";
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import type { RecipeAlternative, RecipeStyle } from "@shared/routes";
 
 export default function Home() {
@@ -185,7 +184,7 @@ export default function Home() {
             className="w-full max-w-6xl mt-12"
           >
             <h2 className="text-2xl font-serif font-medium text-center mb-8" data-testid="text-alternatives-title">
-              Creative Recipe Alternatives
+              Recipe Modifications
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {alternatives.map((alt, index) => (
@@ -196,23 +195,29 @@ export default function Home() {
                   transition={{ duration: 0.4, delay: index * 0.05 }}
                 >
                   <Card className="h-full" data-testid={`card-recipe-${index}`}>
-                    <CardHeader className="pb-2">
-                      <div className="flex items-start justify-between gap-2 flex-wrap">
-                        <CardTitle className="text-lg font-medium leading-tight" data-testid={`text-recipe-title-${index}`}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-2">
+                        <Utensils className="w-4 h-4 text-primary shrink-0" />
+                        <CardTitle className="text-base font-medium leading-tight" data-testid={`text-recipe-title-${index}`}>
                           {alt.title}
                         </CardTitle>
-                        <Badge variant="secondary" className="shrink-0" data-testid={`badge-cuisine-${index}`}>
-                          {alt.cuisine}
-                        </Badge>
                       </div>
                     </CardHeader>
-                    <CardContent>
-                      <div className="flex items-start gap-3">
-                        <Utensils className="w-4 h-4 mt-1 text-muted-foreground shrink-0" />
-                        <p className="text-sm text-muted-foreground" data-testid={`text-recipe-description-${index}`}>
-                          {alt.description}
-                        </p>
-                      </div>
+                    <CardContent className="space-y-3">
+                      {alt.changes && alt.changes.length > 0 ? (
+                        alt.changes.map((change, changeIndex) => (
+                          <div key={changeIndex} className="space-y-1">
+                            <p className="text-sm font-medium text-foreground" data-testid={`text-action-${index}-${changeIndex}`}>
+                              {change.action}
+                            </p>
+                            <p className="text-sm text-muted-foreground pl-3 border-l-2 border-border" data-testid={`text-details-${index}-${changeIndex}`}>
+                              {change.details}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">No specific changes available</p>
+                      )}
                     </CardContent>
                   </Card>
                 </motion.div>
