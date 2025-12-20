@@ -77,10 +77,10 @@ export default function Home() {
                 <ChefHat className="w-6 h-6 text-primary" />
               </div>
               <h1 className="text-3xl md:text-4xl font-serif font-medium text-primary tracking-tight">
-                Recipe Parser
+                Recipe Remix
               </h1>
               <p className="text-muted-foreground text-balance">
-                Enter a recipe URL and choose a style to get 9 alternative recipes.
+                Remix any recipe for any occasion.
               </p>
             </div>
 
@@ -164,12 +164,6 @@ export default function Home() {
                 </Button>
               </div>
             </div>
-          </div>
-          
-          <div className="px-8 py-4 bg-secondary/50 border-t border-border/50 text-center">
-            <p className="text-xs text-muted-foreground">
-              AI-powered recipe alternatives when ALT_RECIPES is enabled.
-            </p>
           </div>
         </div>
       </motion.div>
