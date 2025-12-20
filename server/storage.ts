@@ -1,37 +1,23 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { type Recipe, type InsertRecipe } from "@shared/schema";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  createRecipe(recipe: InsertRecipe): Promise<Recipe>;
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<string, User>;
+  private recipes: Map<number, Recipe>;
+  private currentId: number;
 
   constructor() {
-    this.users = new Map();
+    this.recipes = new Map();
+    this.currentId = 1;
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async createRecipe(insertRecipe: InsertRecipe): Promise<Recipe> {
+    const id = this.currentId++;
+    const recipe: Recipe = { ...insertRecipe, id, isProcessed: false };
+    this.recipes.set(id, recipe);
+    return recipe;
   }
 }
 
