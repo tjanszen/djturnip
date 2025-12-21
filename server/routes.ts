@@ -77,6 +77,28 @@ STRICT REQUIREMENTS:
           alternatives.forEach((alt, i) => {
             console.log(`  ${i + 1}. ${alt.title}`);
           });
+          
+          // Add stock image URLs based on recipe title keywords
+          alternatives = alternatives.map((alt, index) => {
+            // Extract keywords from title and first change for better image matching
+            const titleWords = alt.title.toLowerCase().replace(/[^a-z\s]/g, '').split(' ').filter((w: string) => w.length > 3);
+            const firstChange = alt.changes?.[0]?.details?.toLowerCase().replace(/[^a-z\s]/g, '') || '';
+            const changeWords = firstChange.split(' ').filter((w: string) => w.length > 4).slice(0, 2);
+            
+            // Common food keywords to prioritize
+            const foodKeywords = ['chicken', 'beef', 'pork', 'fish', 'salmon', 'shrimp', 'pasta', 'rice', 'cheese', 'vegetable', 'salad', 'soup', 'bread', 'pizza', 'burger', 'steak', 'tofu', 'egg', 'bacon', 'sausage', 'mushroom', 'garlic', 'tomato', 'cream', 'spicy', 'grilled', 'roasted', 'baked'];
+            const foundFoodWords = [...titleWords, ...changeWords].filter((w: string) => foodKeywords.includes(w));
+            
+            // Build search query - use food words if found, otherwise use title words + "food"
+            const searchTerms = foundFoodWords.length > 0 
+              ? foundFoodWords.slice(0, 2).join(',') + ',food,dish'
+              : titleWords.slice(0, 2).join(',') + ',food,cooking';
+            
+            // Use Unsplash Source API with unique sig to get different images for each alternative
+            const imageUrl = `https://source.unsplash.com/400x300/?${encodeURIComponent(searchTerms)}&sig=${index}`;
+            
+            return { ...alt, imageUrl };
+          });
         } catch (parseError) {
           console.error("Failed to parse OpenAI response:", parseError);
         }
