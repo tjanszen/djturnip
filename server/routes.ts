@@ -89,13 +89,13 @@ STRICT REQUIREMENTS:
             const foodKeywords = ['chicken', 'beef', 'pork', 'fish', 'salmon', 'shrimp', 'pasta', 'rice', 'cheese', 'vegetable', 'salad', 'soup', 'bread', 'pizza', 'burger', 'steak', 'tofu', 'egg', 'bacon', 'sausage', 'mushroom', 'garlic', 'tomato', 'cream', 'spicy', 'grilled', 'roasted', 'baked'];
             const foundFoodWords = [...titleWords, ...changeWords].filter((w: string) => foodKeywords.includes(w));
             
-            // Build search query - use food words if found, otherwise use title words + "food"
+            // Build search query - use food words if found, otherwise use generic food terms
             const searchTerms = foundFoodWords.length > 0 
-              ? foundFoodWords.slice(0, 2).join(',') + ',food,dish'
-              : titleWords.slice(0, 2).join(',') + ',food,cooking';
+              ? foundFoodWords.slice(0, 2).join(',')
+              : 'food,dish';
             
-            // Use Unsplash Source API with unique sig to get different images for each alternative
-            const imageUrl = `https://source.unsplash.com/400x300/?${encodeURIComponent(searchTerms)}&sig=${index}`;
+            // Use LoremFlickr for free food images with cache-busting via index
+            const imageUrl = `https://loremflickr.com/400/300/${searchTerms}?lock=${index}`;
             
             return { ...alt, imageUrl };
           });
