@@ -246,17 +246,7 @@ export default function Home() {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <Card className="w-full overflow-hidden" data-testid={`card-swipe-${currentIndex}`}>
-                    {currentRecipe.imageUrl && (
-                      <div className="aspect-[4/3] overflow-hidden bg-muted">
-                        <img 
-                          src={currentRecipe.imageUrl} 
-                          alt={currentRecipe.title}
-                          className="w-full h-full object-cover"
-                          loading="eager"
-                        />
-                      </div>
-                    )}
+                  <Card className="w-full" data-testid={`card-swipe-${currentIndex}`}>
                     <CardHeader className="pb-3">
                       <div className="flex items-center gap-2">
                         <Utensils className="w-5 h-5 text-primary shrink-0" />
@@ -345,17 +335,7 @@ export default function Home() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: index * 0.1 }}
                   >
-                    <Card className="h-full overflow-hidden" data-testid={`card-saved-${index}`}>
-                      {recipe.imageUrl && (
-                        <div className="aspect-[4/3] overflow-hidden bg-muted">
-                          <img 
-                            src={recipe.imageUrl} 
-                            alt={recipe.title}
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                          />
-                        </div>
-                      )}
+                    <Card className="h-full" data-testid={`card-saved-${index}`}>
                       <CardHeader className="pb-3">
                         <div className="flex items-center gap-2">
                           <Heart className="w-4 h-4 text-primary shrink-0 fill-primary" />
