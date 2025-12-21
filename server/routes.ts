@@ -15,6 +15,88 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
+  // Fridge Cleanout endpoint - generate recipes from ingredients
+  app.post(api.recipes.fridge.path, async (req, res) => {
+    try {
+      const input = api.recipes.fridge.input.parse(req.body);
+      
+      console.log("Received ingredients:", input.ingredients);
+      console.log("ALT_RECIPES flag:", process.env.ALT_RECIPES || "off");
+
+      if (process.env.ALT_RECIPES === "on") {
+        console.log("Generating fridge cleanout recipes...");
+        
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content: `You are a helpful home cook assistant. Generate simple, quick recipes using the provided ingredients.
+
+STRICT REQUIREMENTS:
+1. Return a JSON object with a "recipes" array containing 6-8 recipes.
+2. Each recipe MUST have:
+   - "title": A descriptive recipe name (3-6 words)
+   - "cookTimeMinutes": A number between 5 and 25 (max 25 minutes!)
+   - "ingredients": An array of 4-8 ingredient strings with quantities (e.g., "2 eggs", "1 cup rice")
+   - "instructions": An array of 3-6 simple cooking steps
+
+3. PRIORITIES:
+   - Use the provided ingredients as the main components
+   - Keep it simple - no fancy techniques or equipment
+   - Assume basic pantry staples are available (salt, pepper, oil, butter, common spices)
+   - Recipes should be beginner-friendly
+   - Focus on practical weeknight meals
+
+4. Variety: Include a mix of meal types if possible (breakfast, lunch, dinner, snack).`
+            },
+            {
+              role: "user",
+              content: `Create simple recipes using these ingredients: ${input.ingredients}`
+            }
+          ],
+          response_format: { type: "json_object" },
+          max_tokens: 3000,
+        });
+
+        const content = response.choices[0]?.message?.content || "{}";
+        let recipes: { title: string; cookTimeMinutes: number; ingredients: string[]; instructions: string[] }[] = [];
+        
+        try {
+          const parsed = JSON.parse(content);
+          recipes = parsed.recipes || [];
+          
+          console.log("Generated Fridge Cleanout Recipes:");
+          recipes.forEach((recipe, i) => {
+            console.log(`  ${i + 1}. ${recipe.title} (${recipe.cookTimeMinutes} min)`);
+          });
+        } catch (parseError) {
+          console.error("Failed to parse OpenAI response:", parseError);
+        }
+
+        res.status(200).json({ 
+          message: "Recipes generated from your ingredients!",
+          recipes,
+        });
+      } else {
+        res.status(200).json({ 
+          message: "Recipe generation is disabled.",
+          recipes: [],
+        });
+      }
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      console.error("Error generating fridge recipes:", err);
+      throw err;
+    }
+  });
+
+  // Recipe Remix endpoint
   app.post(api.recipes.process.path, async (req, res) => {
     try {
       const input = api.recipes.process.input.parse(req.body);

@@ -1,27 +1,34 @@
 import { useState } from "react";
-import { useProcessRecipe } from "@/hooks/use-recipes";
+import { useProcessRecipe, useFridgeRecipes } from "@/hooks/use-recipes";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link2, Loader2, ChefHat, Utensils, Sparkles, Flame, Dumbbell, Leaf, ArrowLeft, X, Heart, RotateCcw } from "lucide-react";
+import { Link2, Loader2, ChefHat, Utensils, Sparkles, Flame, Dumbbell, Leaf, ArrowLeft, X, Heart, RotateCcw, Clock, Refrigerator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { RecipeAlternative, RecipeStyle } from "@shared/routes";
+import type { RecipeAlternative, RecipeStyle, FridgeRecipe } from "@shared/routes";
 
 type ViewState = "search" | "swiping" | "saved";
+type RecipeMode = "remix" | "fridge";
 
 export default function Home() {
   const [url, setUrl] = useState("");
+  const [ingredients, setIngredients] = useState("");
   const [alternatives, setAlternatives] = useState<RecipeAlternative[]>([]);
+  const [fridgeRecipes, setFridgeRecipes] = useState<FridgeRecipe[]>([]);
   const [activeStyle, setActiveStyle] = useState<RecipeStyle | null>(null);
   const [viewState, setViewState] = useState<ViewState>("search");
+  const [recipeMode, setRecipeMode] = useState<RecipeMode>("remix");
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [savedRecipes, setSavedRecipes] = useState<RecipeAlternative[]>([]);
+  const [savedRemixes, setSavedRemixes] = useState<RecipeAlternative[]>([]);
+  const [savedFridgeRecipes, setSavedFridgeRecipes] = useState<FridgeRecipe[]>([]);
   const [swipeDirection, setSwipeDirection] = useState<"left" | "right" | null>(null);
-  const { mutate, isPending } = useProcessRecipe();
+  
+  const { mutate: processRecipe, isPending: isProcessingRecipe } = useProcessRecipe();
+  const { mutate: generateFridgeRecipes, isPending: isGeneratingFridge } = useFridgeRecipes();
   const { toast } = useToast();
 
-  const handleSubmit = (style: RecipeStyle) => {
+  const handleRemixSubmit = (style: RecipeStyle) => {
     const urlSchema = z.string().url({ message: "Please enter a valid URL starting with http:// or https://" });
     const result = urlSchema.safeParse(url);
 
@@ -34,10 +41,10 @@ export default function Home() {
       return;
     }
 
-    console.log(`Processing Recipe URL with style "${style}":`, url);
     setActiveStyle(style);
+    setRecipeMode("remix");
 
-    mutate({ url, style }, {
+    processRecipe({ url, style }, {
       onSuccess: (data) => {
         toast({
           title: "Recipe Processed",
@@ -45,13 +52,9 @@ export default function Home() {
         });
         
         if (data.alternatives && data.alternatives.length > 0) {
-          console.log("Generated Recipe Alternatives:");
-          data.alternatives.forEach((alt, i) => {
-            console.log(`  ${i + 1}. ${alt.title}`);
-          });
           setAlternatives(data.alternatives);
           setCurrentIndex(0);
-          setSavedRecipes([]);
+          setSavedRemixes([]);
           setViewState("swiping");
         } else {
           setAlternatives([]);
@@ -71,17 +74,68 @@ export default function Home() {
     });
   };
 
+  const handleFridgeSubmit = () => {
+    if (!ingredients.trim()) {
+      toast({
+        title: "No ingredients",
+        description: "Please enter at least one ingredient",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setRecipeMode("fridge");
+
+    generateFridgeRecipes({ ingredients }, {
+      onSuccess: (data) => {
+        toast({
+          title: "Recipes Generated",
+          description: data.message,
+        });
+        
+        if (data.recipes && data.recipes.length > 0) {
+          setFridgeRecipes(data.recipes);
+          setCurrentIndex(0);
+          setSavedFridgeRecipes([]);
+          setViewState("swiping");
+        } else {
+          setFridgeRecipes([]);
+        }
+        
+        setIngredients("");
+      },
+      onError: (error) => {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      },
+    });
+  };
+
   const handleSwipe = (direction: "left" | "right") => {
-    const currentRecipe = alternatives[currentIndex];
     setSwipeDirection(direction);
     
-    if (direction === "right" && currentRecipe) {
-      setSavedRecipes(prev => [...prev, currentRecipe]);
+    if (direction === "right") {
+      if (recipeMode === "remix") {
+        const currentRecipe = alternatives[currentIndex];
+        if (currentRecipe) {
+          setSavedRemixes(prev => [...prev, currentRecipe]);
+        }
+      } else {
+        const currentRecipe = fridgeRecipes[currentIndex];
+        if (currentRecipe) {
+          setSavedFridgeRecipes(prev => [...prev, currentRecipe]);
+        }
+      }
     }
+    
+    const totalRecipes = recipeMode === "remix" ? alternatives.length : fridgeRecipes.length;
     
     setTimeout(() => {
       setSwipeDirection(null);
-      if (currentIndex < alternatives.length - 1) {
+      if (currentIndex < totalRecipes - 1) {
         setCurrentIndex(prev => prev + 1);
       } else {
         setViewState("saved");
@@ -92,11 +146,16 @@ export default function Home() {
   const handleBackToSearch = () => {
     setViewState("search");
     setAlternatives([]);
+    setFridgeRecipes([]);
     setCurrentIndex(0);
-    setSavedRecipes([]);
+    setSavedRemixes([]);
+    setSavedFridgeRecipes([]);
   };
 
-  const currentRecipe = alternatives[currentIndex];
+  const currentRemix = alternatives[currentIndex];
+  const currentFridgeRecipe = fridgeRecipes[currentIndex];
+  const totalRecipes = recipeMode === "remix" ? alternatives.length : fridgeRecipes.length;
+  const isPending = isProcessingRecipe || isGeneratingFridge;
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center p-4 md:p-8 bg-background">
@@ -108,8 +167,9 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="w-full max-w-xl mt-8"
+            className="w-full max-w-xl mt-8 space-y-8"
           >
+            {/* Recipe Remix Section */}
             <div className="bg-card border border-border shadow-lg rounded-2xl overflow-hidden">
               <div className="p-8 md:p-12 space-y-8">
                 <div className="space-y-4 text-center">
@@ -151,12 +211,12 @@ export default function Home() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <Button
-                      onClick={() => handleSubmit('creative')}
+                      onClick={() => handleRemixSubmit('creative')}
                       disabled={isPending || !url}
                       className="py-6"
                       data-testid="button-creative"
                     >
-                      {isPending && activeStyle === 'creative' ? (
+                      {isProcessingRecipe && activeStyle === 'creative' ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <Sparkles className="w-4 h-4" />
@@ -164,12 +224,12 @@ export default function Home() {
                       <span>Creative</span>
                     </Button>
                     <Button
-                      onClick={() => handleSubmit('umami')}
+                      onClick={() => handleRemixSubmit('umami')}
                       disabled={isPending || !url}
                       className="py-6"
                       data-testid="button-umami"
                     >
-                      {isPending && activeStyle === 'umami' ? (
+                      {isProcessingRecipe && activeStyle === 'umami' ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <Flame className="w-4 h-4" />
@@ -177,12 +237,12 @@ export default function Home() {
                       <span>Umami</span>
                     </Button>
                     <Button
-                      onClick={() => handleSubmit('protein')}
+                      onClick={() => handleRemixSubmit('protein')}
                       disabled={isPending || !url}
                       className="py-6"
                       data-testid="button-protein"
                     >
-                      {isPending && activeStyle === 'protein' ? (
+                      {isProcessingRecipe && activeStyle === 'protein' ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <Dumbbell className="w-4 h-4" />
@@ -190,12 +250,12 @@ export default function Home() {
                       <span>More Protein</span>
                     </Button>
                     <Button
-                      onClick={() => handleSubmit('seasonal')}
+                      onClick={() => handleRemixSubmit('seasonal')}
                       disabled={isPending || !url}
                       className="py-6"
                       data-testid="button-seasonal"
                     >
-                      {isPending && activeStyle === 'seasonal' ? (
+                      {isProcessingRecipe && activeStyle === 'seasonal' ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <Leaf className="w-4 h-4" />
@@ -206,10 +266,61 @@ export default function Home() {
                 </div>
               </div>
             </div>
+
+            {/* Fridge Cleanout Section */}
+            <div className="bg-card border border-border shadow-lg rounded-2xl overflow-hidden">
+              <div className="p-8 md:p-12 space-y-8">
+                <div className="space-y-4 text-center">
+                  <div className="mx-auto w-12 h-12 bg-primary/5 rounded-full flex items-center justify-center mb-6">
+                    <Refrigerator className="w-6 h-6 text-primary" />
+                  </div>
+                  <h2 className="text-3xl md:text-4xl font-serif font-medium text-primary tracking-tight">
+                    Fridge Cleanout
+                  </h2>
+                  <p className="text-muted-foreground text-balance">
+                    Use up what you have before it expires.
+                  </p>
+                </div>
+
+                <div className="space-y-4" data-testid="form-fridge">
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="ingredients-input"
+                      className="text-xs font-semibold uppercase tracking-wider text-muted-foreground ml-1"
+                    >
+                      What's in your fridge?
+                    </label>
+                    <textarea
+                      id="ingredients-input"
+                      value={ingredients}
+                      onChange={(e) => setIngredients(e.target.value)}
+                      placeholder="eggs, spinach, cheese, leftover rice..."
+                      rows={3}
+                      className="w-full px-4 py-4 bg-secondary/50 border border-transparent rounded-xl text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:bg-background focus:border-primary/20 focus:ring-4 focus:ring-primary/5 transition-all duration-200 resize-none"
+                      data-testid="input-ingredients"
+                    />
+                  </div>
+
+                  <Button
+                    onClick={handleFridgeSubmit}
+                    disabled={isPending || !ingredients.trim()}
+                    className="w-full py-6"
+                    data-testid="button-recipe-it"
+                  >
+                    {isGeneratingFridge ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Utensils className="w-4 h-4" />
+                    )}
+                    <span>Recipe It</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
           </motion.div>
         )}
 
-        {viewState === "swiping" && currentRecipe && (
+        {viewState === "swiping" && (
           <motion.div
             key="swiping"
             initial={{ opacity: 0, scale: 0.9 }}
@@ -228,51 +339,104 @@ export default function Home() {
                 <RotateCcw className="w-5 h-5" />
               </Button>
               <p className="text-sm text-muted-foreground">
-                {currentIndex + 1} of {alternatives.length}
+                {currentIndex + 1} of {totalRecipes}
               </p>
               <div className="w-9" />
             </div>
 
             <div className="relative w-full">
               <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentIndex}
-                  initial={{ opacity: 0, x: 50 }}
-                  animate={{ 
-                    opacity: 1, 
-                    x: swipeDirection === "left" ? -300 : swipeDirection === "right" ? 300 : 0,
-                    rotate: swipeDirection === "left" ? -10 : swipeDirection === "right" ? 10 : 0,
-                  }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <Card className="w-full" data-testid={`card-swipe-${currentIndex}`}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center gap-2">
-                        <Utensils className="w-5 h-5 text-primary shrink-0" />
-                        <CardTitle className="text-xl font-medium leading-tight" data-testid="text-swipe-title">
-                          {currentRecipe.title}
-                        </CardTitle>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {currentRecipe.changes && currentRecipe.changes.length > 0 ? (
-                        currentRecipe.changes.map((change, changeIndex) => (
-                          <div key={changeIndex} className="space-y-1">
-                            <p className="text-sm font-medium text-foreground" data-testid={`text-swipe-action-${changeIndex}`}>
-                              {change.action}
-                            </p>
-                            <p className="text-sm text-muted-foreground pl-3 border-l-2 border-border" data-testid={`text-swipe-details-${changeIndex}`}>
-                              {change.details}
-                            </p>
+                {recipeMode === "remix" && currentRemix && (
+                  <motion.div
+                    key={`remix-${currentIndex}`}
+                    initial={{ opacity: 0, x: 50 }}
+                    animate={{ 
+                      opacity: 1, 
+                      x: swipeDirection === "left" ? -300 : swipeDirection === "right" ? 300 : 0,
+                      rotate: swipeDirection === "left" ? -10 : swipeDirection === "right" ? 10 : 0,
+                    }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Card className="w-full" data-testid={`card-swipe-${currentIndex}`}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-2">
+                          <Utensils className="w-5 h-5 text-primary shrink-0" />
+                          <CardTitle className="text-xl font-medium leading-tight" data-testid="text-swipe-title">
+                            {currentRemix.title}
+                          </CardTitle>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {currentRemix.changes && currentRemix.changes.length > 0 ? (
+                          currentRemix.changes.map((change, changeIndex) => (
+                            <div key={changeIndex} className="space-y-1">
+                              <p className="text-sm font-medium text-foreground" data-testid={`text-swipe-action-${changeIndex}`}>
+                                {change.action}
+                              </p>
+                              <p className="text-sm text-muted-foreground pl-3 border-l-2 border-border" data-testid={`text-swipe-details-${changeIndex}`}>
+                                {change.details}
+                              </p>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-muted-foreground italic">No specific changes available</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )}
+
+                {recipeMode === "fridge" && currentFridgeRecipe && (
+                  <motion.div
+                    key={`fridge-${currentIndex}`}
+                    initial={{ opacity: 0, x: 50 }}
+                    animate={{ 
+                      opacity: 1, 
+                      x: swipeDirection === "left" ? -300 : swipeDirection === "right" ? 300 : 0,
+                      rotate: swipeDirection === "left" ? -10 : swipeDirection === "right" ? 10 : 0,
+                    }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Card className="w-full" data-testid={`card-swipe-fridge-${currentIndex}`}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Utensils className="w-5 h-5 text-primary shrink-0" />
+                            <CardTitle className="text-xl font-medium leading-tight" data-testid="text-fridge-title">
+                              {currentFridgeRecipe.title}
+                            </CardTitle>
                           </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-muted-foreground italic">No specific changes available</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </motion.div>
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <Clock className="w-4 h-4" />
+                            <span className="text-sm">{currentFridgeRecipe.cookTimeMinutes} min</span>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div>
+                          <p className="text-sm font-medium text-foreground mb-2">Ingredients</p>
+                          <ul className="text-sm text-muted-foreground space-y-1">
+                            {currentFridgeRecipe.ingredients.map((ingredient, i) => (
+                              <li key={i} className="pl-3 border-l-2 border-border">{ingredient}</li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground mb-2">Instructions</p>
+                          <ol className="text-sm text-muted-foreground space-y-2">
+                            {currentFridgeRecipe.instructions.map((step, i) => (
+                              <li key={i} className="pl-3 border-l-2 border-primary/30">
+                                <span className="font-medium text-foreground">{i + 1}.</span> {step}
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )}
               </AnimatePresence>
             </div>
 
@@ -297,7 +461,7 @@ export default function Home() {
             </div>
 
             <p className="text-xs text-muted-foreground mt-4">
-              Skip or save this remix
+              Skip or save this recipe
             </p>
           </motion.div>
         )}
@@ -321,62 +485,127 @@ export default function Home() {
                 New Recipe
               </Button>
               <h2 className="text-2xl font-serif font-medium" data-testid="text-saved-title">
-                Your Saved Remixes
+                {recipeMode === "remix" ? "Your Saved Remixes" : "Your Saved Recipes"}
               </h2>
               <div className="w-24" />
             </div>
 
-            {savedRecipes.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {savedRecipes.map((recipe, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: index * 0.1 }}
-                  >
-                    <Card className="h-full" data-testid={`card-saved-${index}`}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center gap-2">
-                          <Heart className="w-4 h-4 text-primary shrink-0 fill-primary" />
-                          <CardTitle className="text-base font-medium leading-tight" data-testid={`text-saved-title-${index}`}>
-                            {recipe.title}
-                          </CardTitle>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {recipe.changes && recipe.changes.length > 0 ? (
-                          recipe.changes.map((change, changeIndex) => (
-                            <div key={changeIndex} className="space-y-1">
-                              <p className="text-sm font-medium text-foreground">
-                                {change.action}
-                              </p>
-                              <p className="text-sm text-muted-foreground pl-3 border-l-2 border-border">
-                                {change.details}
-                              </p>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-sm text-muted-foreground italic">No specific changes available</p>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-16">
-                <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-                  <Heart className="w-8 h-8 text-muted-foreground" />
+            {recipeMode === "remix" ? (
+              savedRemixes.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {savedRemixes.map((recipe, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: index * 0.1 }}
+                    >
+                      <Card className="h-full" data-testid={`card-saved-${index}`}>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center gap-2">
+                            <Heart className="w-4 h-4 text-primary shrink-0 fill-primary" />
+                            <CardTitle className="text-base font-medium leading-tight" data-testid={`text-saved-title-${index}`}>
+                              {recipe.title}
+                            </CardTitle>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {recipe.changes && recipe.changes.length > 0 ? (
+                            recipe.changes.map((change, changeIndex) => (
+                              <div key={changeIndex} className="space-y-1">
+                                <p className="text-sm font-medium text-foreground">
+                                  {change.action}
+                                </p>
+                                <p className="text-sm text-muted-foreground pl-3 border-l-2 border-border">
+                                  {change.details}
+                                </p>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic">No specific changes available</p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  ))}
                 </div>
-                <h3 className="text-lg font-medium mb-2">No recipes saved</h3>
-                <p className="text-muted-foreground mb-6">
-                  You didn't save any remixes this time. Try again with a new recipe!
-                </p>
-                <Button onClick={handleBackToSearch} data-testid="button-try-again">
-                  Try Another Recipe
-                </Button>
-              </div>
+              ) : (
+                <div className="text-center py-16">
+                  <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                    <Heart className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">No recipes saved</h3>
+                  <p className="text-muted-foreground mb-6">
+                    You didn't save any remixes this time. Try again with a new recipe!
+                  </p>
+                  <Button onClick={handleBackToSearch} data-testid="button-try-again">
+                    Try Another Recipe
+                  </Button>
+                </div>
+              )
+            ) : (
+              savedFridgeRecipes.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {savedFridgeRecipes.map((recipe, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: index * 0.1 }}
+                    >
+                      <Card className="h-full" data-testid={`card-saved-fridge-${index}`}>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <Heart className="w-4 h-4 text-primary shrink-0 fill-primary" />
+                              <CardTitle className="text-base font-medium leading-tight">
+                                {recipe.title}
+                              </CardTitle>
+                            </div>
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Clock className="w-4 h-4" />
+                              <span className="text-sm">{recipe.cookTimeMinutes} min</span>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div>
+                            <p className="text-sm font-medium text-foreground mb-2">Ingredients</p>
+                            <ul className="text-sm text-muted-foreground space-y-1">
+                              {recipe.ingredients.map((ingredient, i) => (
+                                <li key={i} className="pl-3 border-l-2 border-border">{ingredient}</li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-foreground mb-2">Instructions</p>
+                            <ol className="text-sm text-muted-foreground space-y-2">
+                              {recipe.instructions.map((step, i) => (
+                                <li key={i} className="pl-3 border-l-2 border-primary/30">
+                                  <span className="font-medium text-foreground">{i + 1}.</span> {step}
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-16">
+                  <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                    <Heart className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">No recipes saved</h3>
+                  <p className="text-muted-foreground mb-6">
+                    You didn't save any recipes this time. Try again with different ingredients!
+                  </p>
+                  <Button onClick={handleBackToSearch} data-testid="button-try-again">
+                    Try Different Ingredients
+                  </Button>
+                </div>
+              )
             )}
           </motion.div>
         )}
