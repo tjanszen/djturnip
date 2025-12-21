@@ -22,6 +22,7 @@ export const recipeChangeSchema = z.object({
 export const recipeAlternativeSchema = z.object({
   title: z.string(),
   changes: z.array(recipeChangeSchema),
+  imageUrl: z.string().optional(),
 });
 
 export const recipeStyleSchema = z.enum(['creative', 'umami', 'protein', 'seasonal']);
