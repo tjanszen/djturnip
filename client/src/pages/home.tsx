@@ -2,13 +2,11 @@ import { useState } from "react";
 import { useProcessRecipe } from "@/hooks/use-recipes";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link2, Loader2, ChefHat, Utensils, Sparkles, Flame, Dumbbell, Leaf, ArrowRight, ArrowLeft, X, Heart, RotateCcw } from "lucide-react";
+import { Link2, Loader2, ChefHat, Utensils, Sparkles, Flame, Dumbbell, Leaf, ArrowLeft, X, Heart, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RecipeAlternative, RecipeStyle } from "@shared/routes";
-import steamedBroccoliImg from "@assets/generated_images/plain_steamed_broccoli.png";
-import cheesyBroccoliImg from "@assets/generated_images/cheesy_garlic_roasted_broccoli.png";
 
 type ViewState = "search" | "swiping" | "saved";
 
@@ -380,76 +378,6 @@ export default function Home() {
                 </Button>
               </div>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {viewState === "search" && alternatives.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.5 }}
-            className="w-full max-w-3xl mt-12"
-          >
-            <p className="text-center text-sm text-muted-foreground mb-6">See the magic in action</p>
-            <div className="grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] gap-4 items-center">
-              <Card className="h-full overflow-hidden" data-testid="card-example-original">
-                <div className="aspect-[4/3] overflow-hidden">
-                  <img 
-                    src={steamedBroccoliImg} 
-                    alt="Plain steamed broccoli" 
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <CardHeader className="pb-2">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Original</p>
-                  <CardTitle className="text-lg font-medium">Steamed Broccoli</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>Broccoli florets</li>
-                    <li>Water</li>
-                    <li>Salt</li>
-                  </ul>
-                </CardContent>
-              </Card>
-
-              <div className="hidden md:flex items-center justify-center">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <ArrowRight className="w-5 h-5 text-primary" />
-                </div>
-              </div>
-
-              <Card className="h-full border-primary/20 bg-primary/5 overflow-hidden" data-testid="card-example-remix">
-                <div className="aspect-[4/3] overflow-hidden">
-                  <img 
-                    src={cheesyBroccoliImg} 
-                    alt="Cheesy garlic roasted broccoli" 
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <CardHeader className="pb-2">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-primary">Remixed</p>
-                  <CardTitle className="text-lg font-medium">Cheesy Garlic Roasted Broccoli</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-foreground">Add Cheese</p>
-                    <p className="text-sm text-muted-foreground pl-3 border-l-2 border-primary/30">
-                      Top with shredded parmesan and broil until golden
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-foreground">Roast with Garlic</p>
-                    <p className="text-sm text-muted-foreground pl-3 border-l-2 border-primary/30">
-                      Toss with olive oil, minced garlic, and roast at 425F
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
           </motion.div>
         )}
       </AnimatePresence>
