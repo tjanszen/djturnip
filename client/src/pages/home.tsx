@@ -299,10 +299,7 @@ export default function Home() {
 
             {/* Featured Recipe Spotlight */}
             <div className="space-y-6 py-4">
-              <div className="text-center space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Featured Recipe
-                </p>
+              <div className="text-center">
                 <h3 className="text-xl font-serif font-medium text-foreground">
                   Try a quick remix
                 </h3>
