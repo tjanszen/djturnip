@@ -247,11 +247,8 @@ export default function Home() {
                     <ChefHat className="w-6 h-6 text-primary" />
                   </div>
                   <h1 className="text-3xl md:text-4xl font-serif font-medium text-primary tracking-tight">
-                    Recipe Remix
+                    Remix any recipe
                   </h1>
-                  <p className="text-muted-foreground text-balance">
-                    Remix any recipe for any occasion.
-                  </p>
                 </div>
 
                 <div className="space-y-4" data-testid="form-recipe">
