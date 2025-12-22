@@ -269,7 +269,7 @@ export default function Home() {
                           type="url"
                           value={url}
                           onChange={(e) => setUrl(e.target.value)}
-                          placeholder="https://cooking.nytimes.com/..."
+                          placeholder="https://allrecipes.com/..."
                           className="w-full pl-12 pr-4 py-4 bg-secondary/50 border border-transparent rounded-xl text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:bg-background focus:border-primary/20 focus:ring-4 focus:ring-primary/5 transition-all duration-200"
                           autoComplete="off"
                           data-testid="input-url"
