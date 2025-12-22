@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useProcessRecipe, useFridgeRecipes } from "@/hooks/use-recipes";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -17,6 +17,7 @@ const featuredRecipes = [
   {
     id: "turkish-pasta",
     title: "Turkish Pasta",
+    description: "Creamy tomato sauce with a hint of spice and fresh herbs",
     url: "https://foolproofliving.com/turkish-pasta/",
     image: turkishPastaImg,
     tag: "Trending",
@@ -25,6 +26,7 @@ const featuredRecipes = [
   {
     id: "gigi-hadid-pasta",
     title: "Gigi Hadid Pasta",
+    description: "The viral spicy vodka pasta that took social media by storm",
     url: "https://healthyfitnessmeals.com/gigi-hadid-pasta/",
     image: gigiHadidPastaImg,
     tag: "Popular",
@@ -33,6 +35,7 @@ const featuredRecipes = [
   {
     id: "marry-me-chicken-soup",
     title: "Marry Me Chicken Soup",
+    description: "Rich and comforting soup with sun-dried tomatoes and parmesan",
     url: "https://www.allrecipes.com/marry-me-chicken-soup-recipe-8421914",
     image: marryMeChickenSoupImg,
     tag: "Most Remixed",
@@ -56,23 +59,11 @@ export default function Home() {
   const [savedFridgeRecipes, setSavedFridgeRecipes] = useState<FridgeRecipe[]>([]);
   const [swipeDirection, setSwipeDirection] = useState<"left" | "right" | null>(null);
   const [activeQuickRemix, setActiveQuickRemix] = useState<string | null>(null);
-  
-  const carouselRef = useRef<HTMLDivElement>(null);
+  const [spotlightIndex, setSpotlightIndex] = useState(0);
   
   const { mutate: processRecipe, isPending: isProcessingRecipe } = useProcessRecipe();
   const { mutate: generateFridgeRecipes, isPending: isGeneratingFridge } = useFridgeRecipes();
   const { toast } = useToast();
-  
-  const scrollCarousel = (direction: "left" | "right") => {
-    if (carouselRef.current) {
-      const firstCard = carouselRef.current.querySelector('[data-testid^="card-featured-"]');
-      const scrollAmount = firstCard ? (firstCard as HTMLElement).offsetWidth + 16 : 280;
-      carouselRef.current.scrollBy({
-        left: direction === "left" ? -scrollAmount : scrollAmount,
-        behavior: "smooth",
-      });
-    }
-  };
   
   const handleQuickRemix = (recipeUrl: string, recipeId: string) => {
     setActiveQuickRemix(recipeId);
@@ -306,76 +297,114 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Featured Recipes Carousel */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-foreground">Try a quick remix</h3>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => scrollCarousel("left")}
-                    data-testid="button-carousel-left"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => scrollCarousel("right")}
-                    data-testid="button-carousel-right"
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </Button>
-                </div>
+            {/* Featured Recipe Spotlight */}
+            <div className="space-y-6 py-4">
+              <div className="text-center space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Featured Recipe
+                </p>
+                <h3 className="text-xl font-serif font-medium text-foreground">
+                  Try a quick remix
+                </h3>
               </div>
               
-              <div
-                ref={carouselRef}
-                className="flex gap-4 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4 snap-x snap-mandatory"
-                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-              >
-                {featuredRecipes.map((recipe) => (
-                  <div
-                    key={recipe.id}
-                    className="flex-shrink-0 w-64 snap-start"
-                    data-testid={`card-featured-${recipe.id}`}
+              <div className="relative">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={featuredRecipes[spotlightIndex].id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                    className="flex flex-col items-center"
+                    data-testid={`card-featured-${featuredRecipes[spotlightIndex].id}`}
                   >
-                    <Card className="overflow-hidden h-full">
-                      <div className="relative aspect-square">
-                        <img
-                          src={recipe.image}
-                          alt={recipe.title}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute top-3 left-3">
-                          <Badge variant="secondary" className="gap-1 bg-background/90 backdrop-blur-sm">
-                            <recipe.tagIcon className="w-3 h-3" />
-                            {recipe.tag}
-                          </Badge>
+                    <div className="w-full max-w-sm mx-auto">
+                      <div className="relative rounded-2xl overflow-hidden shadow-lg bg-card">
+                        <div className="aspect-[4/3] relative">
+                          <img
+                            src={featuredRecipes[spotlightIndex].image}
+                            alt={featuredRecipes[spotlightIndex].title}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                          <div className="absolute top-4 left-4">
+                            <Badge variant="secondary" className="gap-1.5 bg-background/95 backdrop-blur-sm shadow-sm">
+                              {(() => {
+                                const TagIcon = featuredRecipes[spotlightIndex].tagIcon;
+                                return <TagIcon className="w-3 h-3" />;
+                              })()}
+                              {featuredRecipes[spotlightIndex].tag}
+                            </Badge>
+                          </div>
+                        </div>
+                        
+                        <div className="p-6 space-y-4 text-center">
+                          <div className="space-y-2">
+                            <h4 className="text-xl font-medium text-foreground">
+                              {featuredRecipes[spotlightIndex].title}
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              {featuredRecipes[spotlightIndex].description}
+                            </p>
+                          </div>
+                          
+                          <Button
+                            onClick={() => handleQuickRemix(featuredRecipes[spotlightIndex].url, featuredRecipes[spotlightIndex].id)}
+                            disabled={isPending || activeQuickRemix !== null}
+                            size="lg"
+                            className="w-full rounded-full py-6 text-base font-medium shadow-md"
+                            data-testid={`button-remix-${featuredRecipes[spotlightIndex].id}`}
+                          >
+                            {activeQuickRemix === featuredRecipes[spotlightIndex].id ? (
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                              <Sparkles className="w-5 h-5" />
+                            )}
+                            <span>Remix This Recipe</span>
+                          </Button>
                         </div>
                       </div>
-                      <CardContent className="p-4 space-y-3">
-                        <h4 className="font-medium text-foreground leading-tight">
-                          {recipe.title}
-                        </h4>
-                        <Button
-                          onClick={() => handleQuickRemix(recipe.url, recipe.id)}
-                          disabled={isPending || activeQuickRemix !== null}
-                          className="w-full"
-                          data-testid={`button-remix-${recipe.id}`}
-                        >
-                          {activeQuickRemix === recipe.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Sparkles className="w-4 h-4" />
-                          )}
-                          <span>Remix It</span>
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </div>
-                ))}
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+              
+              <div className="flex items-center justify-center gap-4 pt-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setSpotlightIndex((prev) => (prev === 0 ? featuredRecipes.length - 1 : prev - 1))}
+                  className="rounded-full"
+                  data-testid="button-spotlight-prev"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </Button>
+                
+                <div className="flex items-center gap-2">
+                  {featuredRecipes.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSpotlightIndex(index)}
+                      className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                        index === spotlightIndex 
+                          ? "bg-primary w-6" 
+                          : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
+                      }`}
+                      data-testid={`button-spotlight-dot-${index}`}
+                    />
+                  ))}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setSpotlightIndex((prev) => (prev === featuredRecipes.length - 1 ? 0 : prev + 1))}
+                  className="rounded-full"
+                  data-testid="button-spotlight-next"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </Button>
               </div>
             </div>
 
