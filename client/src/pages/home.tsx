@@ -1,12 +1,44 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useProcessRecipe, useFridgeRecipes } from "@/hooks/use-recipes";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link2, Loader2, ChefHat, Utensils, Sparkles, Flame, Dumbbell, Leaf, ArrowLeft, X, Heart, RotateCcw, Clock, Refrigerator } from "lucide-react";
+import { Link2, Loader2, ChefHat, Utensils, Sparkles, Flame, Dumbbell, Leaf, ArrowLeft, X, Heart, RotateCcw, Clock, Refrigerator, TrendingUp, Star, Repeat, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RecipeAlternative, RecipeStyle, FridgeRecipe } from "@shared/routes";
+
+import turkishPastaImg from "@assets/turkish_pasta_1766420895437.png";
+import gigiHadidPastaImg from "@assets/gigi_hadid_pasta_1766420895438.png";
+import marryMeChickenSoupImg from "@assets/merry_me_chicken_soup_1766420895433.png";
+
+const featuredRecipes = [
+  {
+    id: "turkish-pasta",
+    title: "Turkish Pasta",
+    url: "https://foolproofliving.com/turkish-pasta/",
+    image: turkishPastaImg,
+    tag: "Trending",
+    tagIcon: TrendingUp,
+  },
+  {
+    id: "gigi-hadid-pasta",
+    title: "Gigi Hadid Pasta",
+    url: "https://healthyfitnessmeals.com/gigi-hadid-pasta/",
+    image: gigiHadidPastaImg,
+    tag: "Popular",
+    tagIcon: Star,
+  },
+  {
+    id: "marry-me-chicken-soup",
+    title: "Marry Me Chicken Soup",
+    url: "https://www.allrecipes.com/marry-me-chicken-soup-recipe-8421914",
+    image: marryMeChickenSoupImg,
+    tag: "Most Remixed",
+    tagIcon: Repeat,
+  },
+];
 
 type ViewState = "search" | "swiping" | "saved";
 type RecipeMode = "remix" | "fridge";
@@ -23,10 +55,57 @@ export default function Home() {
   const [savedRemixes, setSavedRemixes] = useState<RecipeAlternative[]>([]);
   const [savedFridgeRecipes, setSavedFridgeRecipes] = useState<FridgeRecipe[]>([]);
   const [swipeDirection, setSwipeDirection] = useState<"left" | "right" | null>(null);
+  const [activeQuickRemix, setActiveQuickRemix] = useState<string | null>(null);
+  
+  const carouselRef = useRef<HTMLDivElement>(null);
   
   const { mutate: processRecipe, isPending: isProcessingRecipe } = useProcessRecipe();
   const { mutate: generateFridgeRecipes, isPending: isGeneratingFridge } = useFridgeRecipes();
   const { toast } = useToast();
+  
+  const scrollCarousel = (direction: "left" | "right") => {
+    if (carouselRef.current) {
+      const firstCard = carouselRef.current.querySelector('[data-testid^="card-featured-"]');
+      const scrollAmount = firstCard ? (firstCard as HTMLElement).offsetWidth + 16 : 280;
+      carouselRef.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  };
+  
+  const handleQuickRemix = (recipeUrl: string, recipeId: string) => {
+    setActiveQuickRemix(recipeId);
+    setRecipeMode("remix");
+
+    processRecipe({ url: recipeUrl, style: "creative" }, {
+      onSuccess: (data) => {
+        toast({
+          title: "Recipe Processed",
+          description: data.message,
+        });
+        
+        if (data.alternatives && data.alternatives.length > 0) {
+          setAlternatives(data.alternatives);
+          setCurrentIndex(0);
+          setSavedRemixes([]);
+          setViewState("swiping");
+        } else {
+          setAlternatives([]);
+        }
+        
+        setActiveQuickRemix(null);
+      },
+      onError: (error) => {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        setActiveQuickRemix(null);
+      },
+    });
+  };
 
   const handleRemixSubmit = (style: RecipeStyle) => {
     const urlSchema = z.string().url({ message: "Please enter a valid URL starting with http:// or https://" });
@@ -264,6 +343,79 @@ export default function Home() {
                     </Button>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Featured Recipes Carousel */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-foreground">Try a quick remix</h3>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => scrollCarousel("left")}
+                    data-testid="button-carousel-left"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => scrollCarousel("right")}
+                    data-testid="button-carousel-right"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </Button>
+                </div>
+              </div>
+              
+              <div
+                ref={carouselRef}
+                className="flex gap-4 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4 snap-x snap-mandatory"
+                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+              >
+                {featuredRecipes.map((recipe) => (
+                  <div
+                    key={recipe.id}
+                    className="flex-shrink-0 w-64 snap-start"
+                    data-testid={`card-featured-${recipe.id}`}
+                  >
+                    <Card className="overflow-hidden h-full">
+                      <div className="relative aspect-square">
+                        <img
+                          src={recipe.image}
+                          alt={recipe.title}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute top-3 left-3">
+                          <Badge variant="secondary" className="gap-1 bg-background/90 backdrop-blur-sm">
+                            <recipe.tagIcon className="w-3 h-3" />
+                            {recipe.tag}
+                          </Badge>
+                        </div>
+                      </div>
+                      <CardContent className="p-4 space-y-3">
+                        <h4 className="font-medium text-foreground leading-tight">
+                          {recipe.title}
+                        </h4>
+                        <Button
+                          onClick={() => handleQuickRemix(recipe.url, recipe.id)}
+                          disabled={isPending || activeQuickRemix !== null}
+                          className="w-full"
+                          data-testid={`button-remix-${recipe.id}`}
+                        >
+                          {activeQuickRemix === recipe.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Sparkles className="w-4 h-4" />
+                          )}
+                          <span>Remix It</span>
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
+                ))}
               </div>
             </div>
 
