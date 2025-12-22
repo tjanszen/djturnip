@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useProcessRecipe, useFridgeRecipes } from "@/hooks/use-recipes";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link2, Loader2, ChefHat, Utensils, Sparkles, Flame, Dumbbell, Leaf, ArrowLeft, X, Heart, RotateCcw, Clock, Refrigerator, TrendingUp, Star, Repeat, ChevronLeft, ChevronRight } from "lucide-react";
+import { Link2, Loader2, ChefHat, Utensils, Sparkles, ArrowLeft, X, Heart, RotateCcw, Clock, Refrigerator, TrendingUp, Star, Repeat, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { z } from "zod";
@@ -271,76 +271,36 @@ export default function Home() {
                     >
                       Recipe Link
                     </label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors duration-200">
-                        <Link2 className="w-5 h-5" />
+                    <div className="flex gap-3">
+                      <div className="relative group flex-1">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors duration-200">
+                          <Link2 className="w-5 h-5" />
+                        </div>
+                        <input
+                          id="url-input"
+                          type="url"
+                          value={url}
+                          onChange={(e) => setUrl(e.target.value)}
+                          placeholder="https://cooking.nytimes.com/..."
+                          className="w-full pl-12 pr-4 py-4 bg-secondary/50 border border-transparent rounded-xl text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:bg-background focus:border-primary/20 focus:ring-4 focus:ring-primary/5 transition-all duration-200"
+                          autoComplete="off"
+                          data-testid="input-url"
+                        />
                       </div>
-                      <input
-                        id="url-input"
-                        type="url"
-                        value={url}
-                        onChange={(e) => setUrl(e.target.value)}
-                        placeholder="https://cooking.nytimes.com/..."
-                        className="w-full pl-12 pr-4 py-4 bg-secondary/50 border border-transparent rounded-xl text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:bg-background focus:border-primary/20 focus:ring-4 focus:ring-primary/5 transition-all duration-200"
-                        autoComplete="off"
-                        data-testid="input-url"
-                      />
+                      <Button
+                        onClick={() => handleRemixSubmit('creative')}
+                        disabled={isPending || !url}
+                        className="px-6 py-4 h-auto"
+                        data-testid="button-creative"
+                      >
+                        {isProcessingRecipe && activeStyle === 'creative' ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-4 h-4" />
+                        )}
+                        <span>Remix</span>
+                      </Button>
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      onClick={() => handleRemixSubmit('creative')}
-                      disabled={isPending || !url}
-                      className="py-6"
-                      data-testid="button-creative"
-                    >
-                      {isProcessingRecipe && activeStyle === 'creative' ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Sparkles className="w-4 h-4" />
-                      )}
-                      <span>Creative</span>
-                    </Button>
-                    <Button
-                      onClick={() => handleRemixSubmit('umami')}
-                      disabled={isPending || !url}
-                      className="py-6"
-                      data-testid="button-umami"
-                    >
-                      {isProcessingRecipe && activeStyle === 'umami' ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Flame className="w-4 h-4" />
-                      )}
-                      <span>Umami</span>
-                    </Button>
-                    <Button
-                      onClick={() => handleRemixSubmit('protein')}
-                      disabled={isPending || !url}
-                      className="py-6"
-                      data-testid="button-protein"
-                    >
-                      {isProcessingRecipe && activeStyle === 'protein' ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Dumbbell className="w-4 h-4" />
-                      )}
-                      <span>More Protein</span>
-                    </Button>
-                    <Button
-                      onClick={() => handleRemixSubmit('seasonal')}
-                      disabled={isPending || !url}
-                      className="py-6"
-                      data-testid="button-seasonal"
-                    >
-                      {isProcessingRecipe && activeStyle === 'seasonal' ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Leaf className="w-4 h-4" />
-                      )}
-                      <span>Seasonal</span>
-                    </Button>
                   </div>
                 </div>
               </div>
