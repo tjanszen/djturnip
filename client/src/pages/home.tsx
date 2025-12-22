@@ -12,16 +12,26 @@ import type { RecipeAlternative, RecipeStyle, FridgeRecipe } from "@shared/route
 import turkishPastaImg from "@assets/turkish_pasta_1766420895437.png";
 import gigiHadidPastaImg from "@assets/gigi_hadid_pasta_1766420895438.png";
 import marryMeChickenSoupImg from "@assets/merry_me_chicken_soup_1766420895433.png";
+import porkDumplingLasagnaImg from "@assets/pork_dumpling_lasagna_1766424099051.png";
 
 const featuredRecipes = [
+  {
+    id: "pork-dumpling-lasagna",
+    title: "Pork Dumpling Lasagna",
+    description: "A viral fusion of juicy pork dumplings layered lasagna-style with chili oil",
+    url: "https://themodernnonna.com/viral-pork-dumpling-lasagna/",
+    image: porkDumplingLasagnaImg,
+    tag: "Trending",
+    tagIcon: TrendingUp,
+  },
   {
     id: "turkish-pasta",
     title: "Turkish Pasta",
     description: "Creamy tomato sauce with a hint of spice and fresh herbs",
     url: "https://foolproofliving.com/turkish-pasta/",
     image: turkishPastaImg,
-    tag: "Trending",
-    tagIcon: TrendingUp,
+    tag: "Popular",
+    tagIcon: Star,
   },
   {
     id: "gigi-hadid-pasta",
