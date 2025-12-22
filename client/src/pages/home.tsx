@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useProcessRecipe, useFridgeRecipes } from "@/hooks/use-recipes";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link2, Loader2, ChefHat, Utensils, Sparkles, ArrowLeft, X, Heart, RotateCcw, Clock, Refrigerator, TrendingUp, Star, Repeat, ChevronLeft, ChevronRight } from "lucide-react";
+import { Link2, Loader2, ChefHat, Utensils, Sparkles, ArrowLeft, Heart, RotateCcw, Clock, Refrigerator, TrendingUp, Star, Repeat, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { z } from "zod";
@@ -582,19 +582,19 @@ export default function Home() {
               <Button
                 size="lg"
                 variant="outline"
-                className="w-16 h-16 rounded-full"
+                className="w-16 h-16 rounded-full text-2xl"
                 onClick={() => handleSwipe("left")}
                 data-testid="button-swipe-left"
               >
-                <X className="w-8 h-8 text-muted-foreground" />
+                <span role="img" aria-label="Skip">🤮</span>
               </Button>
               <Button
                 size="lg"
-                className="w-16 h-16 rounded-full bg-primary"
+                className="w-16 h-16 rounded-full bg-primary text-2xl"
                 onClick={() => handleSwipe("right")}
                 data-testid="button-swipe-right"
               >
-                <Heart className="w-8 h-8" />
+                <span role="img" aria-label="Save">😋</span>
               </Button>
             </div>
 
