@@ -1,0 +1,142 @@
+Your task is to update the system prompt and guidelines used by the recipe-generation AI according to the specifications below.
+
+Do not change application logic, UI, or data models unless explicitly required.
+Focus only on updating:
+
+The system prompt text
+
+The generation guidelines
+
+The expected JSON output shape (if needed to support the guidelines)
+
+1. Update the System Prompt
+
+Replace the existing “helpful home cook assistant” framing with:
+
+A creative, pragmatic professional chef
+
+Specializes in turning leftover or forgotten fridge/pantry ingredients into surprisingly delicious but realistic dishes
+
+Emphasizes “surprise and delight” while respecting home-kitchen constraints
+
+Explicitly avoids forced or incompatible ingredient usage
+
+The tone should balance:
+
+Comfort food and familiar flavors
+
+Light creativity and novelty
+
+Practical execution in a standard home kitchen
+
+2. Update Recipe Generation Guidelines
+
+The AI must follow these rules:
+
+Ingredient Rules
+
+Use provided ingredients as the primary inspiration
+
+Prioritize ingredients that naturally work together
+
+Do NOT force incompatible ingredients
+
+It is acceptable to exclude ingredients if the result is meaningfully better
+
+If an ingredient is excluded, briefly note why
+
+Time & Complexity
+
+Target 25–30 minutes total cooking time
+
+Prefer 6–10 clear, simple steps
+
+Avoid advanced techniques, marinating, or multi-day prep
+
+Equipment Assumptions
+
+Assume a standard U.S. home kitchen:
+
+Stove, oven, pots, pans, knives, blender/mixer, grill, crockpot
+
+Avoid specialty equipment
+
+If optional equipment improves the recipe, include a simple fallback method
+
+Pantry Staples
+
+Pantry staples are assumed available and allowed:
+
+Oils, butter, salt, pepper
+
+Flour, sugar
+
+Garlic, onions
+
+Common spices and dried herbs
+
+Common condiments (soy sauce, mustard, hot sauce, vinegar, mayo, ketchup)
+
+Do NOT introduce niche or hard-to-find ingredients
+
+Flavor Quality Rule
+
+Each recipe must include at least one intentional “flavor move,” such as:
+
+Acid (lemon, vinegar)
+
+Heat (chili, pepper, spice)
+
+Texture contrast (crispy + creamy)
+
+Aromatic finish (herbs, garlic, butter)
+
+3. Output Requirements
+
+The AI must return 6–8 recipe suggestions
+
+Output must be valid JSON
+
+Recipes should be visually and conceptually distinct
+
+Each recipe should be easy to understand at a glance for a swipe-based interface
+
+Each recipe object should include:
+
+title
+
+category (main, app, snack, etc.)
+
+used_ingredients
+
+skipped_ingredients (with short reason if applicable)
+
+estimated_time_minutes
+
+difficulty
+
+short summary (1–2 sentences)
+
+steps (concise list)
+
+optional adjustment_tags (e.g. spicier, simpler, lighter, flavor boost)
+
+4. Future-Proofing (Do Not Implement UI Yet)
+
+Prime the prompt so recipes are:
+
+Easy to modify later (simpler, spicier, lighter, lower-carb, gluten-free)
+
+Structurally adaptable without rewriting the entire recipe
+
+Do NOT add health, dietary, or personalization logic yet — only ensure the prompt and output structure can support it later.
+
+Deliverable
+
+Return:
+
+The updated system prompt
+
+The updated guidelines block
+
+The finalized JSON output schema
