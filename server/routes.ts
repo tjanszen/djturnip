@@ -39,7 +39,7 @@ STRICT REQUIREMENTS:
    - "title": A descriptive recipe name (3-6 words)
    - "category": One of "main", "appetizer", "snack", "breakfast", "lunch", "dinner", "side", "dessert"
    - "used_ingredients": Array of ingredients from the user's list that are used
-   - "skipped_ingredients": Array of objects with "ingredient" and "reason" for any user ingredients NOT used (e.g., {"ingredient": "pickles", "reason": "incompatible with the Asian flavor profile"})
+   - "skipped_ingredients": Array of objects with EXACTLY these keys: "ingredient" (string) and "reason" (string). Example: [{"ingredient": "pickles", "reason": "incompatible with Asian flavor profile"}]. NEVER output strings like ["pickles", "reason: incompatible"] - always use the object format!
    - "estimated_time_minutes": Number between 10-30 (target 25-30 min max)
    - "difficulty": One of "easy", "medium", "hard"
    - "summary": 1-2 sentence description of the dish
@@ -108,6 +108,33 @@ Remember: Prioritize flavor and practicality over using every single ingredient.
         try {
           const parsed = JSON.parse(content);
           recipes = parsed.recipes || [];
+          
+          // Normalize skipped_ingredients to handle malformed AI responses
+          recipes = recipes.map(recipe => {
+            if (recipe.skipped_ingredients && Array.isArray(recipe.skipped_ingredients)) {
+              recipe.skipped_ingredients = recipe.skipped_ingredients
+                .map((item: unknown) => {
+                  // Already correct format
+                  if (typeof item === 'object' && item !== null && 'ingredient' in item && 'reason' in item) {
+                    return item as { ingredient: string; reason: string };
+                  }
+                  // String format like "ingredient: reason" or just "ingredient"
+                  if (typeof item === 'string') {
+                    const colonIndex = item.indexOf(':');
+                    if (colonIndex > 0) {
+                      return {
+                        ingredient: item.substring(0, colonIndex).trim(),
+                        reason: item.substring(colonIndex + 1).trim()
+                      };
+                    }
+                    return { ingredient: item, reason: 'not used in this recipe' };
+                  }
+                  return null;
+                })
+                .filter((item: unknown): item is { ingredient: string; reason: string } => item !== null);
+            }
+            return recipe;
+          });
           
           console.log("Generated Fridge Cleanout Recipes:");
           recipes.forEach((recipe, i) => {
