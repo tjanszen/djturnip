@@ -547,19 +547,52 @@ export default function Home() {
                     <Card className="w-full" data-testid={`card-swipe-fridge-${currentIndex}`}>
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <Utensils className="w-5 h-5 text-primary shrink-0" />
                             <CardTitle className="text-xl font-medium leading-tight" data-testid="text-fridge-title">
                               {currentFridgeRecipe.title}
                             </CardTitle>
                           </div>
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <Clock className="w-4 h-4" />
-                            <span className="text-sm">{currentFridgeRecipe.cookTimeMinutes} min</span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="secondary" className="capitalize text-xs">
+                              {currentFridgeRecipe.category}
+                            </Badge>
+                            <Badge variant="outline" className="capitalize text-xs">
+                              {currentFridgeRecipe.difficulty}
+                            </Badge>
                           </div>
                         </div>
+                        <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            <span>{currentFridgeRecipe.estimated_time_minutes} min</span>
+                          </div>
+                        </div>
+                        {currentFridgeRecipe.summary && (
+                          <p className="text-sm text-muted-foreground mt-2">{currentFridgeRecipe.summary}</p>
+                        )}
                       </CardHeader>
                       <CardContent className="space-y-4">
+                        {currentFridgeRecipe.used_ingredients && currentFridgeRecipe.used_ingredients.length > 0 && (
+                          <div>
+                            <p className="text-sm font-medium text-foreground mb-2">Using your ingredients</p>
+                            <div className="flex flex-wrap gap-1">
+                              {currentFridgeRecipe.used_ingredients.map((ing, i) => (
+                                <Badge key={i} variant="secondary" className="text-xs">{ing}</Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {currentFridgeRecipe.skipped_ingredients && currentFridgeRecipe.skipped_ingredients.length > 0 && (
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground mb-1">Skipped</p>
+                            <ul className="text-xs text-muted-foreground space-y-0.5">
+                              {currentFridgeRecipe.skipped_ingredients.map((skip, i) => (
+                                <li key={i}>{skip.ingredient}: {skip.reason}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                         <div>
                           <p className="text-sm font-medium text-foreground mb-2">Ingredients</p>
                           <ul className="text-sm text-muted-foreground space-y-1">
@@ -569,15 +602,24 @@ export default function Home() {
                           </ul>
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-foreground mb-2">Instructions</p>
+                          <p className="text-sm font-medium text-foreground mb-2">Steps</p>
                           <ol className="text-sm text-muted-foreground space-y-2">
-                            {currentFridgeRecipe.instructions.map((step, i) => (
+                            {currentFridgeRecipe.steps.map((step, i) => (
                               <li key={i} className="pl-3 border-l-2 border-primary/30">
                                 <span className="font-medium text-foreground">{i + 1}.</span> {step}
                               </li>
                             ))}
                           </ol>
                         </div>
+                        {currentFridgeRecipe.adjustment_tags && currentFridgeRecipe.adjustment_tags.length > 0 && (
+                          <div className="pt-2 border-t border-border">
+                            <div className="flex flex-wrap gap-1">
+                              {currentFridgeRecipe.adjustment_tags.map((tag, i) => (
+                                <Badge key={i} variant="outline" className="text-xs">{tag}</Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -701,19 +743,52 @@ export default function Home() {
                       <Card className="h-full" data-testid={`card-saved-fridge-${index}`}>
                         <CardHeader className="pb-3">
                           <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <Heart className="w-4 h-4 text-primary shrink-0 fill-primary" />
                               <CardTitle className="text-base font-medium leading-tight">
                                 {recipe.title}
                               </CardTitle>
                             </div>
-                            <div className="flex items-center gap-1 text-muted-foreground">
-                              <Clock className="w-4 h-4" />
-                              <span className="text-sm">{recipe.cookTimeMinutes} min</span>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="secondary" className="capitalize text-xs">
+                                {recipe.category}
+                              </Badge>
+                              <Badge variant="outline" className="capitalize text-xs">
+                                {recipe.difficulty}
+                              </Badge>
                             </div>
                           </div>
+                          <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-4 h-4" />
+                              <span>{recipe.estimated_time_minutes} min</span>
+                            </div>
+                          </div>
+                          {recipe.summary && (
+                            <p className="text-sm text-muted-foreground mt-2">{recipe.summary}</p>
+                          )}
                         </CardHeader>
                         <CardContent className="space-y-4">
+                          {recipe.used_ingredients && recipe.used_ingredients.length > 0 && (
+                            <div>
+                              <p className="text-sm font-medium text-foreground mb-2">Using your ingredients</p>
+                              <div className="flex flex-wrap gap-1">
+                                {recipe.used_ingredients.map((ing, i) => (
+                                  <Badge key={i} variant="secondary" className="text-xs">{ing}</Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {recipe.skipped_ingredients && recipe.skipped_ingredients.length > 0 && (
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground mb-1">Skipped</p>
+                              <ul className="text-xs text-muted-foreground space-y-0.5">
+                                {recipe.skipped_ingredients.map((skip, i) => (
+                                  <li key={i}>{skip.ingredient}: {skip.reason}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                           <div>
                             <p className="text-sm font-medium text-foreground mb-2">Ingredients</p>
                             <ul className="text-sm text-muted-foreground space-y-1">
@@ -723,15 +798,24 @@ export default function Home() {
                             </ul>
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-foreground mb-2">Instructions</p>
+                            <p className="text-sm font-medium text-foreground mb-2">Steps</p>
                             <ol className="text-sm text-muted-foreground space-y-2">
-                              {recipe.instructions.map((step, i) => (
+                              {recipe.steps.map((step, i) => (
                                 <li key={i} className="pl-3 border-l-2 border-primary/30">
                                   <span className="font-medium text-foreground">{i + 1}.</span> {step}
                                 </li>
                               ))}
                             </ol>
                           </div>
+                          {recipe.adjustment_tags && recipe.adjustment_tags.length > 0 && (
+                            <div className="pt-2 border-t border-border">
+                              <div className="flex flex-wrap gap-1">
+                                {recipe.adjustment_tags.map((tag, i) => (
+                                  <Badge key={i} variant="outline" className="text-xs">{tag}</Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     </motion.div>

@@ -31,36 +31,79 @@ export async function registerRoutes(
           messages: [
             {
               role: "system",
-              content: `You are a helpful home cook assistant. Generate simple, quick recipes using the provided ingredients.
+              content: `You are a creative, pragmatic professional chef who specializes in turning leftover or forgotten fridge/pantry ingredients into surprisingly delicious but realistic dishes. You emphasize "surprise and delight" while respecting home-kitchen constraints. You explicitly avoid forced or incompatible ingredient usage. Your tone balances comfort food, light creativity, and practical execution in a standard home kitchen.
 
 STRICT REQUIREMENTS:
 1. Return a JSON object with a "recipes" array containing 6-8 recipes.
-2. Each recipe MUST have:
+2. Each recipe MUST have these exact fields:
    - "title": A descriptive recipe name (3-6 words)
-   - "cookTimeMinutes": A number between 5 and 25 (max 25 minutes!)
-   - "ingredients": An array of 4-8 ingredient strings with quantities (e.g., "2 eggs", "1 cup rice")
-   - "instructions": An array of 3-6 simple cooking steps
+   - "category": One of "main", "appetizer", "snack", "breakfast", "lunch", "dinner", "side", "dessert"
+   - "used_ingredients": Array of ingredients from the user's list that are used
+   - "skipped_ingredients": Array of objects with "ingredient" and "reason" for any user ingredients NOT used (e.g., {"ingredient": "pickles", "reason": "incompatible with the Asian flavor profile"})
+   - "estimated_time_minutes": Number between 10-30 (target 25-30 min max)
+   - "difficulty": One of "easy", "medium", "hard"
+   - "summary": 1-2 sentence description of the dish
+   - "ingredients": Full ingredient list with quantities (4-10 items)
+   - "steps": Array of 6-10 clear, simple cooking steps
+   - "adjustment_tags": Optional array like ["make it spicier", "simpler version", "lighter", "flavor boost", "lower-carb", "gluten-free"]
 
-3. PRIORITIES:
-   - Use the provided ingredients as the main components
-   - Keep it simple - no fancy techniques or equipment
-   - Assume basic pantry staples are available (salt, pepper, oil, butter, common spices)
-   - Recipes should be beginner-friendly
-   - Focus on practical weeknight meals
+INGREDIENT RULES:
+- Use provided ingredients as the PRIMARY inspiration
+- Prioritize ingredients that naturally work together
+- Do NOT force incompatible ingredients - it is acceptable to exclude ingredients if the result is meaningfully better
+- If excluding an ingredient, briefly note why in skipped_ingredients
 
-4. Variety: Include a mix of meal types if possible (breakfast, lunch, dinner, snack).`
+TIME & COMPLEXITY:
+- Target 25-30 minutes total cooking time
+- Prefer 6-10 clear, simple steps
+- Avoid advanced techniques, marinating, or multi-day prep
+
+EQUIPMENT ASSUMPTIONS:
+- Assume a standard U.S. home kitchen: stove, oven, pots, pans, knives, blender/mixer, grill, crockpot
+- Avoid specialty equipment
+- If optional equipment improves the recipe, include a simple fallback method in the steps
+
+PANTRY STAPLES (assumed available):
+- Oils, butter, salt, pepper
+- Flour, sugar
+- Garlic, onions
+- Common spices and dried herbs (paprika, cumin, oregano, basil, thyme, cinnamon, etc.)
+- Common condiments (soy sauce, mustard, hot sauce, vinegar, mayo, ketchup)
+- Do NOT introduce niche or hard-to-find ingredients
+
+FLAVOR QUALITY RULE:
+Each recipe MUST include at least one intentional "flavor move":
+- Acid (lemon, lime, vinegar)
+- Heat (chili, pepper, spice)
+- Texture contrast (crispy + creamy, crunchy + soft)
+- Aromatic finish (fresh herbs, garlic butter, toasted sesame)
+
+VARIETY: Ensure recipes are visually and conceptually distinct. Include a mix of meal types.`
             },
             {
               role: "user",
-              content: `Create simple recipes using these ingredients: ${input.ingredients}`
+              content: `Create delicious recipes using these ingredients from my fridge/pantry: ${input.ingredients}
+
+Remember: Prioritize flavor and practicality over using every single ingredient. Skip ingredients that don't work well together.`
             }
           ],
           response_format: { type: "json_object" },
-          max_tokens: 3000,
+          max_tokens: 4000,
         });
 
         const content = response.choices[0]?.message?.content || "{}";
-        let recipes: { title: string; cookTimeMinutes: number; ingredients: string[]; instructions: string[] }[] = [];
+        let recipes: Array<{
+          title: string;
+          category: string;
+          used_ingredients: string[];
+          skipped_ingredients?: Array<{ ingredient: string; reason: string }>;
+          estimated_time_minutes: number;
+          difficulty: string;
+          summary: string;
+          ingredients: string[];
+          steps: string[];
+          adjustment_tags?: string[];
+        }> = [];
         
         try {
           const parsed = JSON.parse(content);
@@ -68,7 +111,7 @@ STRICT REQUIREMENTS:
           
           console.log("Generated Fridge Cleanout Recipes:");
           recipes.forEach((recipe, i) => {
-            console.log(`  ${i + 1}. ${recipe.title} (${recipe.cookTimeMinutes} min)`);
+            console.log(`  ${i + 1}. ${recipe.title} (${recipe.category}, ${recipe.estimated_time_minutes} min, ${recipe.difficulty})`);
           });
         } catch (parseError) {
           console.error("Failed to parse OpenAI response:", parseError);

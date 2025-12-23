@@ -27,11 +27,23 @@ export const recipeAlternativeSchema = z.object({
 export const recipeStyleSchema = z.enum(['creative', 'umami', 'protein', 'seasonal']);
 export type RecipeStyle = z.infer<typeof recipeStyleSchema>;
 
+export const fridgeRecipeCategorySchema = z.enum(['main', 'appetizer', 'snack', 'breakfast', 'lunch', 'dinner', 'side', 'dessert']);
+export type FridgeRecipeCategory = z.infer<typeof fridgeRecipeCategorySchema>;
+
 export const fridgeRecipeSchema = z.object({
   title: z.string(),
-  cookTimeMinutes: z.number(),
-  ingredients: z.array(z.string()),
-  instructions: z.array(z.string()),
+  category: fridgeRecipeCategorySchema,
+  used_ingredients: z.array(z.string()).min(1),
+  skipped_ingredients: z.array(z.object({
+    ingredient: z.string(),
+    reason: z.string(),
+  })).optional(),
+  estimated_time_minutes: z.number().min(10).max(30),
+  difficulty: z.enum(['easy', 'medium', 'hard']),
+  summary: z.string(),
+  ingredients: z.array(z.string()).min(4).max(10),
+  steps: z.array(z.string()).min(6).max(10),
+  adjustment_tags: z.array(z.string()).optional(),
 });
 
 export type FridgeRecipe = z.infer<typeof fridgeRecipeSchema>;
