@@ -34,7 +34,7 @@ export async function registerRoutes(
               content: `You are a creative, pragmatic professional chef who specializes in turning leftover or forgotten fridge/pantry ingredients into surprisingly delicious but realistic dishes. You emphasize "surprise and delight" while respecting home-kitchen constraints. You explicitly avoid forced or incompatible ingredient usage. Your tone balances comfort food, light creativity, and practical execution in a standard home kitchen.
 
 STRICT REQUIREMENTS:
-1. Return a JSON object with a "recipes" array containing 6-8 recipes.
+1. Return a JSON object with a "recipes" array containing EXACTLY 6 recipes. This is mandatory - you MUST generate 6 different recipes, no fewer.
 2. Each recipe MUST have these exact fields:
    - "title": A descriptive recipe name (3-6 words)
    - "category": One of "main", "appetizer", "snack", "breakfast", "lunch", "dinner", "side", "dessert"
@@ -78,7 +78,18 @@ Each recipe MUST include at least one intentional "flavor move":
 - Texture contrast (crispy + creamy, crunchy + soft)
 - Aromatic finish (fresh herbs, garlic butter, toasted sesame)
 
-VARIETY: Ensure recipes are visually and conceptually distinct. Include a mix of meal types.`
+VARIETY: Ensure recipes are visually and conceptually distinct. Include a mix of meal types.
+
+RECIPE GENERATION STRATEGY (to ensure you generate 6 recipes):
+Think of different cooking methods and meal contexts:
+1. A quick stovetop dish
+2. A baked or roasted option
+3. A salad or cold dish
+4. A comfort food classic
+5. Something with an international twist (Asian, Mediterranean, Mexican, etc.)
+6. A breakfast or brunch idea
+
+FINAL REMINDER: You MUST return exactly 6 recipes in the "recipes" array. Fewer than 6 is unacceptable.`
             },
             {
               role: "user",
@@ -91,7 +102,7 @@ Remember: Prioritize flavor and practicality over using every single ingredient.
           max_tokens: 4000,
         });
 
-        const content = response.choices[0]?.message?.content || "{}";
+        let content = response.choices[0]?.message?.content || "{}";
         let recipes: Array<{
           title: string;
           category: string;
@@ -105,43 +116,90 @@ Remember: Prioritize flavor and practicality over using every single ingredient.
           adjustment_tags?: string[];
         }> = [];
         
-        try {
-          const parsed = JSON.parse(content);
-          recipes = parsed.recipes || [];
-          
-          // Normalize skipped_ingredients to handle malformed AI responses
-          recipes = recipes.map(recipe => {
-            if (recipe.skipped_ingredients && Array.isArray(recipe.skipped_ingredients)) {
-              recipe.skipped_ingredients = recipe.skipped_ingredients
-                .map((item: unknown) => {
-                  // Already correct format
-                  if (typeof item === 'object' && item !== null && 'ingredient' in item && 'reason' in item) {
-                    return item as { ingredient: string; reason: string };
-                  }
-                  // String format like "ingredient: reason" or just "ingredient"
-                  if (typeof item === 'string') {
-                    const colonIndex = item.indexOf(':');
-                    if (colonIndex > 0) {
-                      return {
-                        ingredient: item.substring(0, colonIndex).trim(),
-                        reason: item.substring(colonIndex + 1).trim()
-                      };
+        const MIN_RECIPES = 6;
+        let attempts = 0;
+        const MAX_ATTEMPTS = 2;
+        
+        while (attempts < MAX_ATTEMPTS) {
+          try {
+            const parsed = JSON.parse(content);
+            recipes = parsed.recipes || [];
+            
+            // Normalize skipped_ingredients to handle malformed AI responses
+            recipes = recipes.map(recipe => {
+              if (recipe.skipped_ingredients && Array.isArray(recipe.skipped_ingredients)) {
+                recipe.skipped_ingredients = recipe.skipped_ingredients
+                  .map((item: unknown) => {
+                    if (typeof item === 'object' && item !== null && 'ingredient' in item && 'reason' in item) {
+                      return item as { ingredient: string; reason: string };
                     }
-                    return { ingredient: item, reason: 'not used in this recipe' };
-                  }
-                  return null;
-                })
-                .filter((item: unknown): item is { ingredient: string; reason: string } => item !== null);
+                    if (typeof item === 'string') {
+                      const colonIndex = item.indexOf(':');
+                      if (colonIndex > 0) {
+                        return {
+                          ingredient: item.substring(0, colonIndex).trim(),
+                          reason: item.substring(colonIndex + 1).trim()
+                        };
+                      }
+                      return { ingredient: item, reason: 'not used in this recipe' };
+                    }
+                    return null;
+                  })
+                  .filter((item: unknown): item is { ingredient: string; reason: string } => item !== null);
+              }
+              return recipe;
+            });
+            
+            // Trim to exactly 6 recipes if we got more
+            if (recipes.length > MIN_RECIPES) {
+              console.log(`Trimming from ${recipes.length} to ${MIN_RECIPES} recipes`);
+              recipes = recipes.slice(0, MIN_RECIPES);
             }
-            return recipe;
-          });
-          
-          console.log("Generated Fridge Cleanout Recipes:");
-          recipes.forEach((recipe, i) => {
-            console.log(`  ${i + 1}. ${recipe.title} (${recipe.category}, ${recipe.estimated_time_minutes} min, ${recipe.difficulty})`);
-          });
-        } catch (parseError) {
-          console.error("Failed to parse OpenAI response:", parseError);
+            
+            console.log(`Generated ${recipes.length} Fridge Cleanout Recipes (attempt ${attempts + 1}):`);
+            recipes.forEach((recipe, i) => {
+              console.log(`  ${i + 1}. ${recipe.title} (${recipe.category}, ${recipe.estimated_time_minutes} min, ${recipe.difficulty})`);
+            });
+            
+            // Check if we have enough recipes
+            if (recipes.length >= MIN_RECIPES) {
+              break;
+            }
+            
+            // Not enough recipes - retry with a stronger prompt
+            attempts++;
+            if (attempts < MAX_ATTEMPTS) {
+              console.log(`Only got ${recipes.length} recipes, retrying to get ${MIN_RECIPES}...`);
+              const retryResponse = await openai.chat.completions.create({
+                model: "gpt-4o-mini",
+                messages: [
+                  {
+                    role: "system",
+                    content: `You are a creative chef. Generate EXACTLY 6 quick recipes using the given ingredients. You MUST return a JSON object with a "recipes" array containing exactly 6 items.
+
+Each recipe needs: title, category (main/appetizer/snack/breakfast/lunch/dinner/side/dessert), used_ingredients (array), skipped_ingredients (array of {ingredient, reason} objects or empty array), estimated_time_minutes (10-30), difficulty (easy/medium/hard), summary, ingredients (array with quantities), steps (array of 6-10 steps), adjustment_tags (optional array).
+
+Think of 6 different approaches: stovetop, baked, cold/salad, comfort food, international twist, breakfast option.`
+                  },
+                  {
+                    role: "user",
+                    content: `Create exactly 6 recipes using: ${input.ingredients}`
+                  }
+                ],
+                response_format: { type: "json_object" },
+                max_tokens: 4000,
+              });
+              content = retryResponse.choices[0]?.message?.content || "{}";
+            }
+          } catch (parseError) {
+            console.error("Failed to parse OpenAI response:", parseError);
+            break;
+          }
+        }
+        
+        // Log final result
+        if (recipes.length < MIN_RECIPES) {
+          console.log(`Warning: Only ${recipes.length} recipes generated after ${attempts + 1} attempts. Proceeding with available recipes.`);
         }
 
         res.status(200).json({ 
