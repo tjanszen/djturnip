@@ -48,9 +48,11 @@ STRICT REQUIREMENTS:
    - "adjustment_tags": Optional array like ["make it spicier", "simpler version", "lighter", "flavor boost", "lower-carb", "gluten-free"]
 
 INGREDIENT RULES:
-- Use provided ingredients as the PRIMARY inspiration
+- Use the provided ingredients as the PRIMARY inspiration
+- For the first 2-3 recipes, make a best effort to include ALL provided ingredients, even if the result is slightly more creative or unexpected
 - Prioritize ingredients that naturally work together
-- Do NOT force incompatible ingredients - it is acceptable to exclude ingredients if the result is meaningfully better
+- Do NOT force incompatible ingredients
+- If an ingredient truly does not belong in a recipe, it may be excluded only if the resulting dish is meaningfully better
 - If excluding an ingredient, briefly note why in skipped_ingredients
 
 TIME & COMPLEXITY:
