@@ -43,7 +43,7 @@ STRICT REQUIREMENTS:
    - "estimated_time_minutes": Number between 10-30 (target 25-30 min max)
    - "difficulty": One of "easy", "medium", "hard"
    - "summary": 1-2 sentence description of the dish
-   - "ingredients": Full ingredient list with quantities (4-10 items)
+   - "ingredients": Array of 4-10 STRINGS with quantity and ingredient (e.g., "2 cups diced chicken", "1 large carrot, sliced")
    - "steps": Array of 3-10 clear, simple cooking steps
    - "adjustment_tags": Optional array like ["make it spicier", "simpler version", "lighter", "flavor boost", "lower-carb", "gluten-free"]
 
@@ -127,8 +127,52 @@ Remember: Prioritize flavor and practicality over using every single ingredient.
             const parsed = JSON.parse(content);
             recipes = parsed.recipes || [];
             
-            // Normalize skipped_ingredients to handle malformed AI responses
+            // Normalize AI responses to handle malformed data
             recipes = recipes.map(recipe => {
+              // Normalize ingredients: convert objects to strings, trim, filter empty
+              if (recipe.ingredients && Array.isArray(recipe.ingredients)) {
+                recipe.ingredients = recipe.ingredients
+                  .map((item: unknown) => {
+                    if (typeof item === 'string') {
+                      return item.trim();
+                    }
+                    if (typeof item === 'object' && item !== null) {
+                      const obj = item as Record<string, unknown>;
+                      // Handle {name, quantity} or {ingredient, amount} formats
+                      const name = String(obj.name || obj.ingredient || obj.item || '').trim();
+                      const quantity = String(obj.quantity || obj.amount || '').trim();
+                      if (quantity && name) {
+                        return `${quantity} ${name}`;
+                      }
+                      return name || JSON.stringify(item);
+                    }
+                    return String(item).trim();
+                  })
+                  .filter((s: string) => s.length > 0);
+              }
+              
+              // Normalize category to valid lowercase enum values
+              const validCategories = ['main', 'appetizer', 'snack', 'breakfast', 'lunch', 'dinner', 'side', 'dessert'];
+              const categoryLower = (recipe.category || '').toLowerCase();
+              if (validCategories.includes(categoryLower)) {
+                recipe.category = categoryLower;
+              } else {
+                // Map common variations to valid categories
+                const categoryMap: Record<string, string> = {
+                  'comfort food': 'main',
+                  'comfort': 'main',
+                  'entree': 'main',
+                  'entrée': 'main',
+                  'meal': 'main',
+                  'brunch': 'breakfast',
+                  'starter': 'appetizer',
+                  'treat': 'dessert',
+                  'sweet': 'dessert',
+                };
+                recipe.category = categoryMap[categoryLower] || 'main';
+              }
+              
+              // Normalize skipped_ingredients to handle malformed AI responses
               if (recipe.skipped_ingredients && Array.isArray(recipe.skipped_ingredients)) {
                 recipe.skipped_ingredients = recipe.skipped_ingredients
                   .map((item: unknown) => {
