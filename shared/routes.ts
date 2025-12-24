@@ -42,7 +42,7 @@ export const fridgeRecipeSchema = z.object({
   difficulty: z.enum(['easy', 'medium', 'hard']),
   summary: z.string(),
   ingredients: z.array(z.string()).min(4).max(10),
-  steps: z.array(z.string()).min(6).max(10),
+  steps: z.array(z.string()).min(3).max(10),
   adjustment_tags: z.array(z.string()).optional(),
 });
 

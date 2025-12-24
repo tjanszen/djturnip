@@ -44,7 +44,7 @@ STRICT REQUIREMENTS:
    - "difficulty": One of "easy", "medium", "hard"
    - "summary": 1-2 sentence description of the dish
    - "ingredients": Full ingredient list with quantities (4-10 items)
-   - "steps": Array of 6-10 clear, simple cooking steps
+   - "steps": Array of 3-10 clear, simple cooking steps
    - "adjustment_tags": Optional array like ["make it spicier", "simpler version", "lighter", "flavor boost", "lower-carb", "gluten-free"]
 
 INGREDIENT RULES:
@@ -55,7 +55,7 @@ INGREDIENT RULES:
 
 TIME & COMPLEXITY:
 - Target 25-30 minutes total cooking time
-- Prefer 6-10 clear, simple steps
+- Prefer 3-10 clear, simple steps (simpler recipes can have fewer steps)
 - Avoid advanced techniques, marinating, or multi-day prep
 
 EQUIPMENT ASSUMPTIONS:
@@ -177,7 +177,7 @@ Remember: Prioritize flavor and practicality over using every single ingredient.
                     role: "system",
                     content: `You are a creative chef. Generate EXACTLY 6 quick recipes using the given ingredients. You MUST return a JSON object with a "recipes" array containing exactly 6 items.
 
-Each recipe needs: title, category (main/appetizer/snack/breakfast/lunch/dinner/side/dessert), used_ingredients (array), skipped_ingredients (array of {ingredient, reason} objects or empty array), estimated_time_minutes (10-30), difficulty (easy/medium/hard), summary, ingredients (array with quantities), steps (array of 6-10 steps), adjustment_tags (optional array).
+Each recipe needs: title, category (main/appetizer/snack/breakfast/lunch/dinner/side/dessert), used_ingredients (array), skipped_ingredients (array of {ingredient, reason} objects or empty array), estimated_time_minutes (10-30), difficulty (easy/medium/hard), summary, ingredients (array with quantities), steps (array of 3-10 steps), adjustment_tags (optional array).
 
 Think of 6 different approaches: stovetop, baked, cold/salad, comfort food, international twist, breakfast option.`
                   },
