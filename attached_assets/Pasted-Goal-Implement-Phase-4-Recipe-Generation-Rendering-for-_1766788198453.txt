@@ -1,0 +1,94 @@
+Goal: Implement **Phase 4 (Recipe Generation + Rendering)** for Fridge Cleanout Flow V1, per `docs/agent_memory/imp_plans/fridge_cleanout`, so the app generates **one** recipe via OpenAI (strict JSON) and renders the result screen reliably.
+
+Do:
+
+* Read and follow the **Phase 4** section in: `docs/agent_memory/imp_plans/fridge_cleanout`.
+* Keep everything gated behind `FRIDGE_NEW_FLOW_V1` (OFF by default). If flag OFF, do not change existing behavior.
+* Replace the Phase 3 “Generating placeholder” with real generation behavior:
+
+  * When the Generating screen mounts (or when user clicks Generate and you transition), call OpenAI **once** to generate **one** recipe using:
+
+    * `ingredients: string[]` (from the confirmation step; final list)
+    * `prefs: { servings, time, cuisine }` (from Phase 2)
+    * `allow_extras: boolean` (from Phase 3)
+  * Set `session.status="generating"` before calling.
+* Enforce a strict JSON output contract that matches this **RecipeDTO** (ingredients remain `string[]`):
+
+  * Required:
+
+    * `name: string`
+    * `summary: string`
+    * `servings: number`
+    * `time_minutes: number | null`
+    * `calories_per_serving: number | null`
+    * `ingredients: string[]`
+    * `steps: string[]`
+  * Optional:
+
+    * `added_extras: string[]` (only if `allow_extras=true` AND the model used extras)
+* Implement parsing + validation:
+
+  * Parse JSON only (no markdown). If response isn’t valid JSON, treat as failure.
+  * Validate required keys exist and have the correct basic types:
+
+    * `ingredients` is an array of strings
+    * `steps` is an array of strings with length >= 1
+    * `name/summary` non-empty
+* Retry policy (exactly once):
+
+  * Attempt #1: normal prompt
+  * If parse/validation fails, attempt #2: a “repair” prompt that includes:
+
+    * the invalid output (or error reason) and
+    * instruction: “Return ONLY valid JSON matching schema exactly.”
+  * If attempt #2 fails: set `session.status="error"` and show error screen.
+* Implement the **Recipe Result** screen:
+
+  * Display: name, summary, time_minutes (or friendly fallback), calories_per_serving (if present), servings
+  * Render ingredient list (strings) as bullets
+  * Render steps as numbered list
+  * If `allow_extras=true` and `added_extras` present, show a small “Added extras” section
+  * Provide at least one CTA:
+
+    * “Back” to confirmation screen (so user can edit ingredients and re-generate)
+    * Optional: “Generate again” (can just route back + re-run)
+* Implement an **Error** screen/state:
+
+  * Copy like “We couldn’t generate a recipe. Try again.”
+  * Buttons: “Try again” (re-run generation) and “Back” (to confirm)
+  * Log failure reason to console/logger.
+
+Prompting details (keep simple):
+
+* The generation prompt must:
+
+  * include prefs + allow_extras explicitly
+  * instruct the model to output JSON only
+  * if `allow_extras=false`: instruct “use only provided ingredients; do not add others” (you can allow water/salt/pepper only if that matches product stance—pick one stance and enforce it)
+  * if `allow_extras=true`: allow pantry staples and require listing any extras in `added_extras`
+
+Logging:
+
+* `fridge_flow_v1 session_id=<id> status=generating ingredients_count=<n> allow_extras=<bool>`
+* On success: `fridge_flow_v1 session_id=<id> status=done parse_retry=<0|1>`
+* On failure: `fridge_flow_v1 session_id=<id> status=error parse_retry=<0|1> error=<reason>`
+
+Gate via feature flag: `FRIDGE_NEW_FLOW_V1=off` by default.
+
+Proof:
+
+* Logs show `status=generating` then `status=done` on success.
+* Manual test (flag ON):
+
+  * Ingredients → Processing → Preferences → Confirm → Generate
+  * Recipe screen renders name, summary, ingredients, steps
+  * Toggle allow_extras ON and generate: if model uses extras, they appear under Added extras
+  * Force invalid JSON (temporarily by altering prompt or mocking) and verify exactly one retry happens, then either success or error screen.
+* Manual test (flag OFF):
+
+  * Existing CTA flow remains unchanged.
+
+Notes:
+
+* Keep ingredients as `string[]` end-to-end (no structured parsing).
+* Generate exactly **one** recipe per run; no multi-recipe UI in this phase.

@@ -93,8 +93,19 @@ const featuredRecipes = [
   },
 ];
 
-type ViewState = "search" | "swiping" | "saved" | "fridge-processing" | "fridge-prefs" | "fridge-confirm" | "fridge-generating";
+type ViewState = "search" | "swiping" | "saved" | "fridge-processing" | "fridge-prefs" | "fridge-confirm" | "fridge-generating" | "fridge-result" | "fridge-error";
 type RecipeMode = "remix" | "fridge";
+
+interface GeneratedRecipe {
+  name: string;
+  summary: string;
+  servings: number;
+  time_minutes: number | null;
+  calories_per_serving: number | null;
+  ingredients: string[];
+  steps: string[];
+  added_extras?: string[];
+}
 
 export default function Home() {
   const [url, setUrl] = useState("");
@@ -114,10 +125,49 @@ export default function Home() {
   const [cleanoutSession, setCleanoutSession] = useState<CleanoutSession | null>(null);
   const [newIngredient, setNewIngredient] = useState("");
   const [confirmValidationError, setConfirmValidationError] = useState<string | null>(null);
+  const [generatedRecipe, setGeneratedRecipe] = useState<GeneratedRecipe | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
   
   const { mutate: processRecipe, isPending: isProcessingRecipe } = useProcessRecipe();
   const { mutate: generateFridgeRecipes, isPending: isGeneratingFridge } = useFridgeRecipes();
   const { toast } = useToast();
+  
+  useEffect(() => {
+    if (viewState !== "fridge-generating" || !cleanoutSession) return;
+    
+    const generateRecipe = async () => {
+      try {
+        const response = await fetch('/api/recipes/generate-single', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ingredients: cleanoutSession.normalized_ingredients,
+            prefs: cleanoutSession.prefs,
+            allow_extras: cleanoutSession.allow_extras,
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.recipe) {
+          setGeneratedRecipe(data.recipe);
+          setCleanoutSession(prev => prev ? { ...prev, status: "done" } : null);
+          setViewState("fridge-result");
+        } else {
+          setGenerationError(data.error || "Failed to generate recipe");
+          setCleanoutSession(prev => prev ? { ...prev, status: "error", error_message: data.error } : null);
+          setViewState("fridge-error");
+        }
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "Network error";
+        setGenerationError(errorMsg);
+        setCleanoutSession(prev => prev ? { ...prev, status: "error", error_message: errorMsg } : null);
+        setViewState("fridge-error");
+      }
+    };
+    
+    generateRecipe();
+  }, [viewState, cleanoutSession?.session_id]);
   
   const handleQuickRemix = (recipeUrl: string, recipeId: string) => {
     setActiveQuickRemix(recipeId);
@@ -876,7 +926,7 @@ export default function Home() {
             className="w-full max-w-md mt-8"
           >
             <div className="bg-card border border-border shadow-lg rounded-2xl overflow-hidden">
-              <div className="p-8 flex flex-col items-center justify-center space-y-6">
+              <div className="p-8 flex flex-col items-center justify-center space-y-6 min-h-[200px]">
                 <Loader2 className="w-12 h-12 text-primary animate-spin" />
                 <div className="text-center">
                   <h2 className="text-2xl font-serif font-medium text-foreground" data-testid="text-generating-title">
@@ -886,9 +936,173 @@ export default function Home() {
                     Creating something delicious with your {cleanoutSession.normalized_ingredients.length} ingredients...
                   </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  (Phase 4 will add OpenAI generation)
-                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {viewState === "fridge-result" && generatedRecipe && (
+          <motion.div
+            key="fridge-result"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-lg mt-8"
+          >
+            <div className="bg-card border border-border shadow-lg rounded-2xl overflow-hidden">
+              <div className="p-8 space-y-6">
+                <div className="flex items-start gap-3">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setViewState("fridge-confirm");
+                      setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                    }}
+                    data-testid="button-result-back"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </Button>
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-serif font-medium text-foreground" data-testid="text-recipe-name">
+                      {generatedRecipe.name}
+                    </h2>
+                    <p className="text-muted-foreground mt-1" data-testid="text-recipe-summary">
+                      {generatedRecipe.summary}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-3 text-sm">
+                  <Badge variant="secondary" data-testid="badge-servings">
+                    {generatedRecipe.servings} servings
+                  </Badge>
+                  {generatedRecipe.time_minutes && (
+                    <Badge variant="secondary" data-testid="badge-time">
+                      <Clock className="w-3 h-3 mr-1" />
+                      {generatedRecipe.time_minutes} min
+                    </Badge>
+                  )}
+                  {generatedRecipe.calories_per_serving && (
+                    <Badge variant="secondary" data-testid="badge-calories">
+                      {generatedRecipe.calories_per_serving} cal/serving
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-lg font-medium text-foreground">Ingredients</h3>
+                  <ul className="space-y-2" data-testid="list-ingredients">
+                    {generatedRecipe.ingredients.map((ing, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <span className="text-primary mt-1">•</span>
+                        <span data-testid={`text-ingredient-${i}`}>{ing}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {generatedRecipe.added_extras && generatedRecipe.added_extras.length > 0 && (
+                  <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
+                    <p className="text-sm font-medium text-foreground">Added Extras</p>
+                    <div className="flex flex-wrap gap-2" data-testid="container-added-extras">
+                      {generatedRecipe.added_extras.map((extra, i) => (
+                        <Badge key={i} variant="outline" data-testid={`badge-extra-${i}`}>{extra}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  <h3 className="text-lg font-medium text-foreground">Steps</h3>
+                  <ol className="space-y-3" data-testid="list-steps">
+                    {generatedRecipe.steps.map((step, i) => (
+                      <li key={i} className="flex items-start gap-3 text-sm">
+                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium">
+                          {i + 1}
+                        </span>
+                        <span className="text-muted-foreground pt-0.5" data-testid={`text-step-${i}`}>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      setViewState("fridge-confirm");
+                      setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                    }}
+                    data-testid="button-edit-ingredients"
+                  >
+                    Edit Ingredients
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={() => {
+                      setViewState("fridge-generating");
+                      setCleanoutSession(prev => prev ? { ...prev, status: "generating" } : null);
+                    }}
+                    data-testid="button-generate-again"
+                  >
+                    Generate Again
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {viewState === "fridge-error" && (
+          <motion.div
+            key="fridge-error"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-md mt-8"
+          >
+            <div className="bg-card border border-border shadow-lg rounded-2xl overflow-hidden">
+              <div className="p-8 flex flex-col items-center justify-center space-y-6">
+                <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+                  <X className="w-8 h-8 text-destructive" />
+                </div>
+                <div className="text-center">
+                  <h2 className="text-2xl font-serif font-medium text-foreground" data-testid="text-error-title">
+                    Generation Failed
+                  </h2>
+                  <p className="text-muted-foreground mt-2" data-testid="text-error-message">
+                    {generationError || "We couldn't generate a recipe. Please try again."}
+                  </p>
+                </div>
+
+                <div className="flex gap-3 w-full">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      setViewState("fridge-confirm");
+                      setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                    }}
+                    data-testid="button-error-back"
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={() => {
+                      setGenerationError(null);
+                      setViewState("fridge-generating");
+                      setCleanoutSession(prev => prev ? { ...prev, status: "generating" } : null);
+                    }}
+                    data-testid="button-error-retry"
+                  >
+                    Try Again
+                  </Button>
+                </div>
               </div>
             </div>
           </motion.div>

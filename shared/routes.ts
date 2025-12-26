@@ -48,6 +48,19 @@ export const fridgeRecipeSchema = z.object({
 
 export type FridgeRecipe = z.infer<typeof fridgeRecipeSchema>;
 
+export const singleRecipeSchema = z.object({
+  name: z.string().min(1),
+  summary: z.string().min(1),
+  servings: z.number().min(1),
+  time_minutes: z.number().nullable(),
+  calories_per_serving: z.number().nullable(),
+  ingredients: z.array(z.string()).min(1),
+  steps: z.array(z.string()).min(1),
+  added_extras: z.array(z.string()).optional(),
+});
+
+export type SingleRecipe = z.infer<typeof singleRecipeSchema>;
+
 export const api = {
   recipes: {
     process: {
@@ -80,6 +93,28 @@ export const api = {
         400: errorSchemas.validation,
       },
     },
+    generateSingle: {
+      method: 'POST' as const,
+      path: '/api/recipes/generate-single',
+      input: z.object({
+        ingredients: z.array(z.string()).min(1),
+        prefs: z.object({
+          servings: z.number().min(1).max(12),
+          time: z.enum(['best', '15', '30', '60']),
+          cuisine: z.string(),
+        }),
+        allow_extras: z.boolean(),
+      }),
+      responses: {
+        200: z.object({
+          success: z.boolean(),
+          recipe: singleRecipeSchema.optional(),
+          error: z.string().optional(),
+          parse_retry: z.number(),
+        }),
+        400: errorSchemas.validation,
+      },
+    },
   },
 };
 
@@ -99,3 +134,4 @@ export type RecipeChange = z.infer<typeof recipeChangeSchema>;
 export type RecipeAlternative = z.infer<typeof recipeAlternativeSchema>;
 export type ProcessRecipeResponse = z.infer<typeof api.recipes.process.responses[200]>;
 export type FridgeRecipesResponse = z.infer<typeof api.recipes.fridge.responses[200]>;
+export type GenerateSingleResponse = z.infer<typeof api.recipes.generateSingle.responses[200]>;

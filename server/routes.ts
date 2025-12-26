@@ -270,6 +270,175 @@ Think of 6 different approaches: stovetop, baked, cold/salad, comfort food, inte
     }
   });
 
+  // Single Recipe Generation endpoint (V1 Flow)
+  app.post(api.recipes.generateSingle.path, async (req, res) => {
+    try {
+      const input = api.recipes.generateSingle.input.parse(req.body);
+      const { ingredients, prefs, allow_extras } = input;
+      
+      console.log(`fridge_flow_v1 generating ingredients_count=${ingredients.length} allow_extras=${allow_extras}`);
+      
+      if (process.env.FRIDGE_NEW_FLOW_V1 !== "on") {
+        return res.status(200).json({
+          success: false,
+          error: "V1 flow is disabled",
+          parse_retry: 0,
+        });
+      }
+
+      const timeInstruction = prefs.time === "best" 
+        ? "Choose the most appropriate cooking time for the recipe" 
+        : `Target cooking time: ${prefs.time} minutes`;
+      
+      const cuisineInstruction = prefs.cuisine === "any"
+        ? "Choose any cuisine style that works well with the ingredients"
+        : `Cuisine style: ${prefs.cuisine}`;
+      
+      const extrasInstruction = allow_extras
+        ? `You MAY add common pantry staples (oil, butter, salt, pepper, basic spices, garlic, onion, flour, sugar, common condiments) to improve the recipe. If you add any extras beyond the provided ingredients, you MUST list them in the "added_extras" array.`
+        : `Use ONLY the provided ingredients. You may use water, salt, and pepper, but do NOT add any other ingredients. Do NOT include "added_extras" in your response.`;
+
+      const systemPrompt = `You are a creative home chef. Generate exactly ONE recipe based on the given ingredients and preferences.
+
+STRICT REQUIREMENTS:
+1. Return a JSON object with these exact fields:
+   - "name": Recipe name (string, 3-8 words)
+   - "summary": Brief description (string, 1-2 sentences)
+   - "servings": Number of servings (number, must match the requested servings: ${prefs.servings})
+   - "time_minutes": Estimated cooking time in minutes (number or null)
+   - "calories_per_serving": Estimated calories per serving (number or null)
+   - "ingredients": Array of ingredient strings with quantities (e.g., ["2 cups chicken, diced", "1 large carrot, sliced"])
+   - "steps": Array of cooking step strings (at least 1 step)
+   ${allow_extras ? '- "added_extras": Array of any additional ingredients you added beyond the provided list (only if you added extras)' : ''}
+
+2. ${timeInstruction}
+3. ${cuisineInstruction}
+4. ${extrasInstruction}
+
+Return ONLY valid JSON. No markdown, no explanation, just the JSON object.`;
+
+      const userPrompt = `Create a recipe for ${prefs.servings} servings using these ingredients: ${ingredients.join(", ")}`;
+
+      let parseRetry = 0;
+      let lastError = "";
+      
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const messages = attempt === 0 
+            ? [
+                { role: "system" as const, content: systemPrompt },
+                { role: "user" as const, content: userPrompt }
+              ]
+            : [
+                { role: "system" as const, content: systemPrompt },
+                { role: "user" as const, content: userPrompt },
+                { role: "assistant" as const, content: lastError },
+                { role: "user" as const, content: `The previous response was invalid: ${lastError}. Return ONLY valid JSON matching the schema exactly. No markdown, no explanation.` }
+              ];
+
+          const response = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages,
+            response_format: { type: "json_object" },
+            max_tokens: 2000,
+          });
+
+          const content = response.choices[0]?.message?.content || "";
+          
+          // Try to parse JSON
+          let parsed;
+          try {
+            parsed = JSON.parse(content);
+          } catch {
+            lastError = `Invalid JSON: ${content.substring(0, 200)}`;
+            parseRetry = 1;
+            continue;
+          }
+
+          // Validate required fields
+          if (!parsed.name || typeof parsed.name !== 'string' || parsed.name.length === 0) {
+            lastError = "Missing or invalid 'name' field";
+            parseRetry = 1;
+            continue;
+          }
+          if (!parsed.summary || typeof parsed.summary !== 'string' || parsed.summary.length === 0) {
+            lastError = "Missing or invalid 'summary' field";
+            parseRetry = 1;
+            continue;
+          }
+          if (typeof parsed.servings !== 'number' || parsed.servings < 1) {
+            lastError = "Missing or invalid 'servings' field";
+            parseRetry = 1;
+            continue;
+          }
+          if (!Array.isArray(parsed.ingredients) || parsed.ingredients.length === 0) {
+            lastError = "Missing or invalid 'ingredients' array";
+            parseRetry = 1;
+            continue;
+          }
+          if (!parsed.ingredients.every((i: unknown) => typeof i === 'string')) {
+            lastError = "Ingredients must be strings";
+            parseRetry = 1;
+            continue;
+          }
+          if (!Array.isArray(parsed.steps) || parsed.steps.length === 0) {
+            lastError = "Missing or invalid 'steps' array";
+            parseRetry = 1;
+            continue;
+          }
+          if (!parsed.steps.every((s: unknown) => typeof s === 'string')) {
+            lastError = "Steps must be strings";
+            parseRetry = 1;
+            continue;
+          }
+
+          // Normalize optional fields
+          const recipe = {
+            name: parsed.name,
+            summary: parsed.summary,
+            servings: parsed.servings,
+            time_minutes: typeof parsed.time_minutes === 'number' ? parsed.time_minutes : null,
+            calories_per_serving: typeof parsed.calories_per_serving === 'number' ? parsed.calories_per_serving : null,
+            ingredients: parsed.ingredients,
+            steps: parsed.steps,
+            added_extras: allow_extras && Array.isArray(parsed.added_extras) ? parsed.added_extras : undefined,
+          };
+
+          console.log(`fridge_flow_v1 status=done parse_retry=${parseRetry}`);
+          
+          return res.status(200).json({
+            success: true,
+            recipe,
+            parse_retry: parseRetry,
+          });
+          
+        } catch (apiError) {
+          lastError = apiError instanceof Error ? apiError.message : "API call failed";
+          parseRetry = 1;
+        }
+      }
+
+      // Both attempts failed
+      console.log(`fridge_flow_v1 status=error parse_retry=${parseRetry} error=${lastError}`);
+      
+      return res.status(200).json({
+        success: false,
+        error: lastError || "Failed to generate recipe after 2 attempts",
+        parse_retry: parseRetry,
+      });
+      
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      console.error("Error generating single recipe:", err);
+      throw err;
+    }
+  });
+
   // Recipe Remix endpoint
   app.post(api.recipes.process.path, async (req, res) => {
     try {
