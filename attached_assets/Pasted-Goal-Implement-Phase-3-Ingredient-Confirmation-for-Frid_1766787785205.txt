@@ -1,0 +1,62 @@
+Goal: Implement **Phase 3 (Ingredient Confirmation)** for Fridge Cleanout Flow V1, per `docs/agent_memory/imp_plans/fridge_cleanout`, so users can review/edit the final `ingredients: string[]`, set `allow_extras`, and proceed to generation (Phase 4).
+
+Do:
+
+* Read and follow the **Phase 3** section in: `docs/agent_memory/imp_plans/fridge_cleanout`.
+* Keep everything gated behind `FRIDGE_NEW_FLOW_V1` (OFF by default). If flag OFF, do not change existing behavior.
+* Replace the Phase 2 “Confirm placeholder” with a real **Ingredient Confirmation** screen (route/view/component).
+* Screen requirements (lightweight, POC-friendly):
+
+  * Display the current `session.normalized_ingredients: string[]` as **chips/tags**.
+  * Each chip has a delete “x” that removes that ingredient from the list.
+  * Provide an **Add ingredient** input:
+
+    * free-form string (e.g. `1 tbsp soy sauce`)
+    * Add button (or Enter key) appends to the list
+    * Normalize the added string with the same Phase 1 rules: trim, ignore empty, dedupe exact matches
+  * Provide a toggle: **Allow extra ingredients** (default OFF):
+
+    * bind to `session.allow_extras: boolean`
+    * optional microcopy only if easy (keep short)
+  * Primary CTA: **Generate recipe**
+
+    * On click:
+
+      * Validate ingredient list non-empty
+      * If empty: block submit + show simple inline message like “Add at least 1 ingredient.”
+      * If valid:
+
+        * Set `session.status="generating"`
+        * Navigate to a **Generating** placeholder screen (since Phase 4 will do OpenAI)
+* Add a minimal **Generating placeholder** screen (if it doesn’t exist):
+
+  * Shows spinner + “Generating recipe…”
+  * Does NOT call OpenAI yet (Phase 4)
+  * It’s fine to just render and stop there for now.
+* Logging (console or app logger):
+
+  * On entering confirm: `fridge_flow_v1 session_id=<id> status=confirm ingredients_count=<n> allow_extras=<bool>`
+  * On delete/add: log `ingredients_count` updates (optional but nice)
+  * On Generate click success: `fridge_flow_v1 session_id=<id> status=generating ingredients_count=<n> allow_extras=<bool>`
+
+Gate via feature flag: `FRIDGE_NEW_FLOW_V1=off` by default.
+
+Proof:
+
+* Logs must show `status=confirm` then `status=generating` after clicking Generate with ≥1 ingredient.
+* Manual test (flag ON):
+
+  * Flow: Ingredients → Processing → Preferences → Confirm
+  * Delete one ingredient chip and verify it’s removed
+  * Add “1 tbsp soy sauce” and verify it appears (trimmed, deduped)
+  * Toggle allow_extras ON and verify it persists in session state
+  * Remove all ingredients → Generate button blocked with inline message
+  * Add one ingredient → Generate navigates to Generating placeholder screen
+* Manual test (flag OFF):
+
+  * Existing CTA flow remains unchanged
+
+Notes:
+
+* Keep ingredients as `string[]` end-to-end (no structured parsing).
+* Do not implement OpenAI calls in Phase 3; Phase 4 will handle generation + JSON validation.
