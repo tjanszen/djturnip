@@ -1,0 +1,55 @@
+Goal: Implement **Phase 1 (Flow Wiring + State Machine)** for Fridge Cleanout Flow V1 behind `FRIDGE_NEW_FLOW_V1`, so CTA routes into **Processing → Preferences** with normalized ingredients stored in session state.
+
+Do:
+
+* Add a feature flag `FRIDGE_NEW_FLOW_V1` (OFF by default) and gate the Fridge Cleanout main CTA handler:
+
+  * If flag OFF: keep the current behavior unchanged.
+  * If flag ON: do NOT call OpenAI; instead start the new flow.
+* Create a lightweight “cleanout session” state object (front-end state or existing app store—use whatever pattern the app already uses) with:
+
+  * `session_id` (uuid or timestamp string)
+  * `raw_ingredients: string[]` (exact user inputs)
+  * `normalized_ingredients: string[]` (Phase 1 normalization)
+  * `prefs` initialized to defaults: `{ servings: 2, time: "best", cuisine: "any" }`
+  * `allow_extras: false`
+  * `status: "processing" | "prefs" | "confirm" | "generating" | "done" | "error"` (Phase 1 uses processing+prefs only)
+* Implement ingredient normalization utility used when session is created:
+
+  * trim whitespace on each string
+  * drop empty strings after trimming
+  * dedupe exact matches (after trimming)
+  * keep strings intact (no parsing quantities; keep e.g. `"2 cups chicken"`)
+* Implement **Processing screen** (new view/route/component):
+
+  * shows simple animation/spinner + text like “Prepping your cleanout…”
+  * on mount, runs normalization (or uses already-normalized session) and then advances status to `prefs`
+  * ensure the Processing screen stays visible at least ~500ms to avoid flicker if normalization is instant
+* Implement **Preferences screen placeholder** (new view/route/component) for Phase 1:
+
+  * just render a title like “Preferences” and show the default values from session state (servings/time/cuisine)
+  * no editing needed yet; this is just to prove navigation + state wiring works
+* Add logging (console or your app logger) for Phase 1 transitions:
+
+  * `fridge_flow_v1 session_id=<id> status=<status> normalized_count=<n>`
+
+Gate via feature flag: `FRIDGE_NEW_FLOW_V1=off` by default.
+
+Proof:
+
+* Logs must include: `fridge_flow_v1 session_id=` and show `status=processing` then `status=prefs`
+* Manual test (flag ON):
+
+  * Enter ingredients: `[" 2 cups chicken ", "carrots", "carrots", ""]`
+  * Click CTA
+  * You see Processing screen briefly
+  * You land on Preferences placeholder screen
+  * Session state shows `normalized_ingredients=["2 cups chicken","carrots"]` and prefs defaults
+* Manual test (flag OFF):
+
+  * Existing behavior remains unchanged (whatever it currently does after CTA)
+
+Notes:
+
+* Keep all Phase 1 changes minimal and reversible.
+* Do not implement confirmation, generation, or any OpenAI calls in this phase.

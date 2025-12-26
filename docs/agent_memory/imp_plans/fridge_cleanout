@@ -1,0 +1,286 @@
+# Implementation Plan — Fridge Cleanout Flow V1 (POC/MVP)
+
+Owner: TBD  
+Status: Draft  
+Feature flag: FRIDGE_NEW_FLOW_V1 (OFF by default)  
+Scope: Replace “CTA → generate several recipes” with a lightweight guided flow:
+Ingredients → CTA → Processing → Preferences (defaults) → Ingredient Confirmation → Generate 1 recipe (full details)
+
+---
+
+## Snapshot / Assumptions
+
+- POC/MVP: prioritize speed, minimal UI, minimal persistence.
+- Defaults are sufficient:
+  - servings = 2
+  - time = "best"
+  - cuisine = "any"
+- Preferences exist but can be skipped with one tap.
+- Ingredient confirmation is the last checkpoint before token spend.
+- **Ingredients remain `string[]` end-to-end** (e.g., `"2 cups chicken"`).
+- Generate exactly **one** recipe per run.
+- Existing flow remains untouched when flag is OFF.
+
+---
+
+## Goals
+
+1. Ship the new flow behind a single feature flag.
+2. Keep data and prompts simple and consistent with existing schema.
+3. Reduce wasted generations via confirmation step.
+4. Ensure deterministic rendering via strict JSON output + retry.
+5. Preserve rollback path (flag OFF).
+
+---
+
+## Non-Goals (V1)
+
+- Multi-recipe generation or swipe/like loops.
+- Structured ingredient parsing (no `{item, quantity}`).
+- Dietary filters, cuisine taxonomies, or advanced timing logic.
+- Long-term persistence or user history.
+
+---
+
+## UX Flow (V1)
+
+1. Enter ingredients (existing)
+2. Click CTA
+3. Processing screen (animated, short)
+4. Preferences (defaults)
+5. Ingredient confirmation (edit + allow extras)
+6. Generate recipe → recipe result screen
+
+---
+
+## State & Data (Minimal)
+
+### Session State
+- session_id: string
+- raw_ingredients: string[]
+- normalized_ingredients: string[]
+- prefs:
+  - servings: number
+  - time: "best" | "15" | "30" | "60"
+  - cuisine: string
+- allow_extras: boolean
+- status: "processing" | "prefs" | "confirm" | "generating" | "done" | "error"
+- recipe_result: RecipeDTO | null
+- error_message: string | null
+
+### RecipeDTO (Strict)
+Required:
+- name: string
+- summary: string
+- servings: number
+- time_minutes: number | null
+- calories_per_serving: number | null
+- ingredients: string[]
+- steps: string[]
+
+Optional:
+- added_extras: string[]
+
+---
+
+## Phase 1 — Flow Wiring & State Machine
+
+**Intent:** Establish the new flow skeleton without generation.
+
+Deliverables:
+- FRIDGE_NEW_FLOW_V1 flag gates CTA behavior.
+- Cleanout session state created on CTA click.
+- Processing screen renders and transitions.
+
+Scope:
+- Feature flag read + routing logic.
+- Session object initialization.
+- Status transitions: `processing → prefs`.
+- Processing screen UI (spinner + copy).
+- Ingredient normalization:
+  - trim whitespace
+  - dedupe exact strings
+  - drop empties
+
+Acceptance:
+- With flag ON: ingredients → CTA → Processing → Preferences.
+- With flag OFF: existing flow unchanged.
+
+---
+
+## Phase 2 — Preferences Screen (Defaults First)
+
+**Intent:** Capture optional intent without slowing users down.
+
+Deliverables:
+- Preferences screen with defaults:
+  - servings = 2
+  - time = "best"
+  - cuisine = "any"
+
+Scope:
+- UI controls for three preferences.
+- “Continue” CTA (no validation needed).
+- Persist prefs into session state.
+- Transition: `prefs → confirm`.
+
+Acceptance:
+- User can tap Continue without touching any control.
+- Prefs saved and available in session state.
+
+---
+
+## Phase 3 — Ingredient Confirmation
+
+**Intent:** Let users correct inputs before generation.
+
+Deliverables:
+- Ingredient confirmation screen.
+- Edit + review of final ingredient list.
+
+Scope:
+- Render ingredient chips from `normalized_ingredients`.
+- Delete ingredient (x).
+- Add ingredient (free-form string).
+- Normalize added ingredient (trim; ignore empty).
+- Toggle: `allow_extras` (default OFF).
+- Generate CTA.
+- Transition: `confirm → generating`.
+
+Guardrails:
+- Disable Generate if ingredient list is empty.
+- Keep UI intentionally simple.
+
+Acceptance:
+- User edits ingredient list successfully.
+- allow_extras toggle persists.
+- Generate CTA advances to generating state.
+
+---
+
+## Phase 4 — Recipe Generation & Rendering
+
+**Intent:** Generate and display one reliable recipe.
+
+Deliverables:
+- OpenAI integration for recipe generation.
+- Recipe result screen.
+
+Scope:
+- Build prompt using:
+  - ingredients: string[]
+  - prefs
+  - allow_extras
+- Enforce strict JSON output matching RecipeDTO.
+- JSON parse + light schema validation.
+- Retry once on parse/schema failure.
+- Render:
+  - name
+  - summary
+  - time
+  - calories (if present)
+  - ingredients list
+  - steps
+
+Error handling:
+- After failed retry → status=`error`.
+- Error screen with “Try again” and “Back” options.
+
+Acceptance:
+- Happy path renders full recipe.
+- Invalid JSON triggers one retry only.
+- Errors surface cleanly.
+
+---
+
+## Phase 5 — Polish & Guardrails (Optional)
+
+**Intent:** Reduce foot-guns and rough edges.
+
+Deliverables:
+- Minor UX and reliability improvements.
+
+Scope:
+- Disable CTAs during async work.
+- Minimum Processing screen duration (≈500ms).
+- Friendly copy for allow_extras toggle.
+- Clear empty-state messaging.
+
+Acceptance:
+- No double submits.
+- No flicker.
+- Clear user feedback on errors.
+
+---
+
+## Feature Flag & Rollout
+
+- Flag: FRIDGE_NEW_FLOW_V1
+- OFF → legacy flow
+- ON → new phased flow
+
+Rollout:
+1. Local/dev
+2. Internal dogfood
+3. Full enable when stable
+
+---
+
+## Telemetry (POC-Friendly)
+
+Log events:
+- fridge_flow_v1 session_id=<id> status=<status>
+- fridge_flow_v1 normalized_count=<n>
+- fridge_flow_v1 allow_extras=<true|false>
+- fridge_flow_v1 generate_success=<true|false> parse_retry=<0|1>
+
+Success signals:
+- % sessions reaching generation
+- Time-to-recipe
+- Generation error rate
+
+---
+
+## Risks & Mitigations
+
+- **Model drift / bad JSON**
+  - Strict schema + single retry.
+- **User deletes all ingredients**
+  - Disable Generate; inline message.
+- **Extras confusion**
+  - Default OFF; explicit labeling.
+
+---
+
+## Readiness Check
+
+- Inputs ready?  
+  - Ingredient entry returns string[].
+- Flags named?  
+  - FRIDGE_NEW_FLOW_V1.
+- Evidence defined?  
+  - Status logs + generation success metrics.
+
+---
+
+## Replit Agent Prompt (Minimal)
+
+Goal: Implement Fridge Cleanout Flow V1 behind FRIDGE_NEW_FLOW_V1 using phased UI:
+Processing → Preferences → Ingredient Confirmation → Generate 1 Recipe
+
+Do:
+- Gate CTA with FRIDGE_NEW_FLOW_V1
+- Add cleanout session state machine
+- Implement Phase 1–4 screens and transitions
+- Keep ingredients as string[] throughout
+- Generate one recipe via OpenAI with strict RecipeDTO JSON
+- Retry once on invalid JSON
+
+Proof:
+- Logs show status transitions
+- Manual test with ["2 cups chicken", "1 cup rice", "carrots"] reaches recipe screen
+- Invalid JSON causes exactly one retry, then error
+
+---
+
+Ready to prompt the Replit agent? (Yes/No)

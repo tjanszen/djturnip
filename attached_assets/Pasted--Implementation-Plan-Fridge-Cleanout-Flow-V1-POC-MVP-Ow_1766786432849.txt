@@ -1,0 +1,320 @@
+# Implementation Plan — Fridge Cleanout Flow V1 (POC/MVP)
+
+Owner: TBD  
+Status: Draft  
+Feature flag: FRIDGE_NEW_FLOW_V1 (OFF by default)  
+Scope: Replace “CTA → generate several recipes” with a lightweight guided flow:
+Ingredients → CTA → Processing → Preferences (defaults) → Ingredient Confirmation → Generate 1 recipe (full details)
+
+## Snapshot / Assumptions
+
+- This is a POC/MVP: prioritize speed, minimal UI, minimal persistence, safe guardrails.
+- Defaults exist and are fine:
+  - servings = 2
+  - time = "best"
+  - cuisine = "any"
+- Preferences UI is present but user can just continue without changing anything.
+- Ingredient confirmation is the last checkpoint before OpenAI generation.
+- Generation returns exactly 1 recipe with:
+  - name, time, kcals (optional/nullable), short description, ingredient list, cooking steps
+
+If any of these assumptions conflict with current codebase, adjust the smallest piece possible rather than expanding scope.
+
+---
+
+## Goals
+
+1. Implement the new flow screens and state transitions behind a flag.
+2. Keep the backend simple: one “generate recipe” call after confirmation.
+3. Ensure reliability: strict JSON output contract + one retry + friendly error state.
+4. Preserve existing flow as fallback when flag is off.
+
+## Non-goals (V1)
+
+- Multiple recipe swiping/like/dislike loop (can come back later).
+- Rich ingredient parsing (quantities/units) beyond basic normalization.
+- Cuisine taxonomy, advanced time presets, dietary filters.
+- User accounts / deep persistence (unless already required in app).
+
+---
+
+## UX Flow Spec (V1)
+
+### 1) Enter Ingredients (existing)
+- User inputs ingredients (chips/tags list).
+
+### 2) Click Main CTA (existing CTA label can change)
+- CTA: “Next” or “Start”
+- When clicked:
+  - Create local session state (in-memory or lightweight store).
+  - Transition to Processing screen.
+
+### 3) Processing Screen (new)
+Purpose: avoid dead air + do actual prep work.
+
+Minimum behavior:
+- Animated loading indicator + copy like “Prepping your cleanout…”
+- Background task: normalize ingredient strings (trim, lowercase, dedupe, remove empties).
+- When normalization completes:
+  - Transition to Preferences step automatically.
+
+Minimum duration:
+- If normalization finishes instantly, keep Processing visible at least 400–700ms to avoid flicker.
+
+### 4) Preferences Step (new)
+Controls (with defaults preselected):
+- Servings (default 2)
+- Time (default “Best”)
+- Cuisine (default “Any”)
+
+Behavior:
+- User can immediately tap “Continue” without changes.
+- Persist prefs into session state.
+
+### 5) Ingredients Confirmation (new)
+UI:
+- Show ingredient chips (normalized list).
+- Each chip has delete (x).
+- “Add ingredient” input (simple text field + Add).
+- Toggle: “Allow extra ingredients” (default OFF for simplicity/safety)
+  - Optional microcopy: “Pantry staples like oil/spices may be included.” (only if ON)
+
+Behavior:
+- Any changes update the final ingredient list used for generation.
+- “Generate recipe” CTA moves to Generating state.
+
+### 6) Generate Recipe + Result Screen (new)
+- Call OpenAI once to generate 1 recipe with strict JSON response.
+- Render:
+  - Name
+  - time_minutes (or friendly “~X min”)
+  - kcals_per_serving (optional)
+  - short description
+  - ingredient list
+  - steps/instructions
+
+Error handling:
+- If parsing fails or required fields missing: retry once with a “fix JSON” prompt.
+- If still failing: show error state with “Try again” and “Back to ingredients”.
+
+---
+
+## State & Data Design (Minimal)
+
+### Session state object (front-end)
+Store in:
+- component state + router state OR
+- your existing state store (preferred if already in use)
+
+Fields:
+- session_id: string (uuid or timestamp-based)
+- raw_ingredients: string[]
+- normalized_ingredients: string[]   (V1: strings only)
+- prefs:
+  - servings: number (default 2)
+  - time: "best" | "15" | "30" | "60" (V1 only needs "best" but keep room)
+  - cuisine: string (default "any")
+- allow_extras: boolean (default false)
+- status: "processing" | "prefs" | "confirm" | "generating" | "done" | "error"
+- recipe_result: RecipeDTO | null
+- error_message: string | null
+
+### RecipeDTO (strict)
+Required:
+- name: string
+- summary: string
+- servings: number
+- time_minutes: number | null
+- calories_per_serving: number | null
+- ingredients: array of { item: string, quantity: string | null }
+- steps: string[]
+
+Optional:
+- added_extras: string[] (only if allow_extras true AND model used them)
+
+---
+
+## OpenAI Contract (V1)
+
+### Prompt inputs
+- normalized ingredients (final list from confirmation)
+- prefs (servings/time/cuisine)
+- allow_extras flag
+
+### Output requirement
+- JSON only
+- Must match RecipeDTO shape
+- No markdown, no commentary, no extra keys beyond approved set (optional to enforce)
+
+### Retry strategy
+Attempt #1: standard generation  
+Attempt #2: “You returned invalid JSON / missing fields; return ONLY valid JSON matching schema exactly.”
+
+If #2 fails: surface error state.
+
+---
+
+## Feature Flag & Rollout
+
+- Add FRIDGE_NEW_FLOW_V1 (OFF by default).
+- If flag is OFF:
+  - Keep current flow (batch recipes + like/dislike).
+- If flag is ON:
+  - Route CTA into the new flow.
+
+Rollout steps:
+1. Enable for local/dev only.
+2. Enable for a small internal cohort (if you have this concept).
+3. Enable for all users when stable.
+
+---
+
+## Telemetry / Logging (POC-friendly)
+
+Log tokens (or console logs if no analytics yet):
+- fridge_flow_v1 session_id=<id> status=<status>
+- fridge_flow_v1 normalized_count=<n>
+- fridge_flow_v1 allow_extras=<true|false>
+- fridge_flow_v1 generate_success=<true|false> parse_retry=<0|1>
+
+Success metrics (simple):
+- % sessions reaching “Generate recipe”
+- time-to-first-recipe-render
+- error rate (parse failures / API errors)
+
+---
+
+## Implementation Steps (Small Batches)
+
+### Batch 1 — Wiring + State Machine
+Deliverable:
+- FRIDGE_NEW_FLOW_V1 gates the new path.
+- Session state created on CTA.
+- Processing screen appears and transitions.
+
+Tasks:
+- Add feature flag read.
+- Add session object + status transitions.
+- Implement Processing view (basic animation + copy).
+- Implement ingredient normalization utility:
+  - trim whitespace
+  - lowercase (optional)
+  - dedupe
+  - remove empties
+
+Acceptance:
+- Enter ingredients → CTA → Processing → auto-advance to Preferences.
+
+### Batch 2 — Preferences Screen (Defaults)
+Deliverable:
+- Preferences UI with defaults and Continue.
+- Persist prefs into session.
+
+Tasks:
+- Implement 3 controls (servings/time/cuisine).
+- “Continue” sets status to confirm and navigates.
+
+Acceptance:
+- Preferences defaults visible; clicking Continue works with no changes.
+
+### Batch 3 — Ingredient Confirmation Screen
+Deliverable:
+- Chips list with delete.
+- Add ingredient input.
+- Allow extras toggle.
+- Generate CTA.
+
+Tasks:
+- Render chip list from normalized_ingredients.
+- Delete updates list.
+- Add ingredient appends + re-normalizes (or normalize only the new input).
+- Toggle allow_extras boolean.
+- “Generate recipe” transitions to generating screen.
+
+Acceptance:
+- User can delete/add ingredients; toggle persists; CTA starts generation.
+
+### Batch 4 — Generate + Render Recipe Result
+Deliverable:
+- OpenAI call returns RecipeDTO and renders result view.
+
+Tasks:
+- Implement OpenAI call wrapper for fridge_cleanout_generate_v1.
+- Enforce JSON parse + schema validation (lightweight).
+- Implement retry-on-invalid-json once.
+- Render recipe screen.
+- Error state with retry/back.
+
+Acceptance:
+- Happy path renders all fields.
+- Invalid JSON triggers retry once, then error UI.
+
+### Batch 5 — Polish + Guardrails (Optional but recommended)
+Deliverable:
+- Better loading states, disabled buttons, friendly microcopy.
+
+Tasks:
+- Button disables during generating.
+- Minimum processing duration to avoid flicker.
+- Better empty-state if ingredient list ends up empty after deletes.
+
+Acceptance:
+- No double-submits; no blank ingredient submission.
+
+---
+
+## Risks & Mitigations
+
+- Risk: Model returns inconsistent structure.
+  - Mitigation: strict JSON requirement + schema validation + one retry.
+- Risk: Users delete all ingredients then generate.
+  - Mitigation: disable Generate if <1 ingredient; show inline message.
+- Risk: “Allow extras” confusion.
+  - Mitigation: default OFF; label clearly; if ON, display added_extras section.
+
+---
+
+## QA Checklist (Pass/Fail)
+
+1. Flag OFF → old flow untouched.
+2. Flag ON → new flow:
+   - CTA → Processing → Preferences → Confirm → Generate → Recipe renders.
+3. Confirm edits affect generation payload:
+   - Delete ingredient → not in recipe ingredients unless allow_extras adds it (should not).
+4. Error handling:
+   - Force invalid JSON response → retry once → error UI shows if still bad.
+5. Accessibility basics:
+   - Buttons reachable, focus order reasonable, labels present.
+
+---
+
+## Readiness Check
+
+- Inputs ready?
+  - Ingredient entry exists and produces a list of strings.
+- Flags named?
+  - FRIDGE_NEW_FLOW_V1
+- Evidence defined?
+  - Logs for status transitions + generate_success + parse_retry
+
+---
+
+## Replit Agent Prompt (Minimal)
+
+Goal: Implement Fridge Cleanout Flow V1 behind FRIDGE_NEW_FLOW_V1 with Processing → Preferences(defaults) → Confirm Ingredients → Generate 1 Recipe (strict JSON)
+
+Do:
+- Add FRIDGE_NEW_FLOW_V1 flag (off by default) and gate the CTA path
+- Implement session state machine with statuses: processing, prefs, confirm, generating, done, error
+- Build the 3 screens + transitions, using defaults for prefs
+- Add ingredient confirmation edits (delete/add) + allow_extras toggle
+- Implement OpenAI generation returning strict RecipeDTO JSON; validate + retry once on parse/schema failure
+
+Proof:
+- Logs include: "fridge_flow_v1 session_id=" and "status="
+- Manual test: enter [chicken, rice, carrots] → generate → recipe screen shows name, summary, ingredients, steps
+- If model returns invalid JSON, one retry happens; if still invalid, error screen appears
+
+---
+
+Ready to prompt the Replit agent? (Yes/No)

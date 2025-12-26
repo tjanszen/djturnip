@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useProcessRecipe, useFridgeRecipes } from "@/hooks/use-recipes";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,6 +8,46 @@ import { Badge } from "@/components/ui/badge";
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RecipeAlternative, RecipeStyle, FridgeRecipe } from "@shared/routes";
+
+const FRIDGE_NEW_FLOW_V1 = import.meta.env.VITE_FRIDGE_NEW_FLOW_V1 === "on";
+
+type CleanoutStatus = "processing" | "prefs" | "confirm" | "generating" | "done" | "error";
+
+interface CleanoutSession {
+  session_id: string;
+  raw_ingredients: string[];
+  normalized_ingredients: string[];
+  prefs: {
+    servings: number;
+    time: "best" | "15" | "30" | "60";
+    cuisine: string;
+  };
+  allow_extras: boolean;
+  status: CleanoutStatus;
+  error_message: string | null;
+}
+
+function normalizeIngredients(raw: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  
+  for (const item of raw) {
+    const trimmed = item.trim();
+    if (trimmed.length === 0) continue;
+    
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    
+    seen.add(key);
+    result.push(trimmed);
+  }
+  
+  return result;
+}
+
+function generateSessionId(): string {
+  return `cleanout-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+}
 
 import turkishPastaImg from "@assets/turkish_pasta_1766420895437.png";
 import gigiHadidPastaImg from "@assets/gigi_hadid_pasta_1766420895438.png";
@@ -53,7 +93,7 @@ const featuredRecipes = [
   },
 ];
 
-type ViewState = "search" | "swiping" | "saved";
+type ViewState = "search" | "swiping" | "saved" | "fridge-processing" | "fridge-prefs";
 type RecipeMode = "remix" | "fridge";
 
 export default function Home() {
@@ -70,6 +110,8 @@ export default function Home() {
   const [swipeDirection, setSwipeDirection] = useState<"left" | "right" | null>(null);
   const [activeQuickRemix, setActiveQuickRemix] = useState<string | null>(null);
   const [spotlightIndex, setSpotlightIndex] = useState(0);
+  
+  const [cleanoutSession, setCleanoutSession] = useState<CleanoutSession | null>(null);
   
   const { mutate: processRecipe, isPending: isProcessingRecipe } = useProcessRecipe();
   const { mutate: generateFridgeRecipes, isPending: isGeneratingFridge } = useFridgeRecipes();
@@ -166,6 +208,32 @@ export default function Home() {
 
     setRecipeMode("fridge");
 
+    if (FRIDGE_NEW_FLOW_V1) {
+      const rawIngredients = ingredients.split(",").map(s => s.trim());
+      const normalized = normalizeIngredients(rawIngredients);
+      
+      const session: CleanoutSession = {
+        session_id: generateSessionId(),
+        raw_ingredients: rawIngredients,
+        normalized_ingredients: normalized,
+        prefs: {
+          servings: 2,
+          time: "best",
+          cuisine: "any",
+        },
+        allow_extras: false,
+        status: "processing",
+        error_message: null,
+      };
+      
+      console.log(`fridge_flow_v1 session_id=${session.session_id} status=processing normalized_count=${normalized.length}`);
+      
+      setCleanoutSession(session);
+      setViewState("fridge-processing");
+      setIngredients("");
+      return;
+    }
+
     generateFridgeRecipes({ ingredients }, {
       onSuccess: (data) => {
         toast({
@@ -193,6 +261,18 @@ export default function Home() {
       },
     });
   };
+  
+  useEffect(() => {
+    if (viewState === "fridge-processing" && cleanoutSession) {
+      const timer = setTimeout(() => {
+        setCleanoutSession(prev => prev ? { ...prev, status: "prefs" } : null);
+        console.log(`fridge_flow_v1 session_id=${cleanoutSession.session_id} status=prefs normalized_count=${cleanoutSession.normalized_ingredients.length}`);
+        setViewState("fridge-prefs");
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [viewState, cleanoutSession]);
 
   const handleSwipe = (direction: "left" | "right") => {
     setSwipeDirection(direction);
@@ -460,6 +540,104 @@ export default function Home() {
                     <span>Recipe It</span>
                   </Button>
                 </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {viewState === "fridge-processing" && (
+          <motion.div
+            key="fridge-processing"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-md mt-8 flex flex-col items-center justify-center min-h-[60vh]"
+          >
+            <div className="text-center space-y-6">
+              <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-serif font-medium text-foreground" data-testid="text-processing-title">
+                  Prepping your cleanout...
+                </h2>
+                <p className="text-muted-foreground">
+                  Getting your ingredients ready
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {viewState === "fridge-prefs" && cleanoutSession && (
+          <motion.div
+            key="fridge-prefs"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-md mt-8"
+          >
+            <div className="bg-card border border-border shadow-lg rounded-2xl overflow-hidden">
+              <div className="p-8 space-y-8">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setViewState("search");
+                      setCleanoutSession(null);
+                    }}
+                    data-testid="button-prefs-back"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </Button>
+                  <h2 className="text-2xl font-serif font-medium text-foreground" data-testid="text-prefs-title">
+                    Preferences
+                  </h2>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-foreground">Servings</p>
+                    <p className="text-lg text-muted-foreground" data-testid="text-prefs-servings">{cleanoutSession.prefs.servings}</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-foreground">Time</p>
+                    <p className="text-lg text-muted-foreground" data-testid="text-prefs-time">{cleanoutSession.prefs.time}</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-foreground">Cuisine</p>
+                    <p className="text-lg text-muted-foreground" data-testid="text-prefs-cuisine">{cleanoutSession.prefs.cuisine}</p>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-border">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Ingredients ({cleanoutSession.normalized_ingredients.length}):
+                  </p>
+                  <div className="flex flex-wrap gap-2" data-testid="container-prefs-ingredients">
+                    {cleanoutSession.normalized_ingredients.map((ing, i) => (
+                      <Badge key={i} variant="secondary" data-testid={`badge-ingredient-${i}`}>{ing}</Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full py-6"
+                  data-testid="button-prefs-continue"
+                  onClick={() => {
+                    toast({
+                      title: "Phase 1 Complete",
+                      description: "Preferences screen working! Continue to Phase 2 for ingredient confirmation.",
+                    });
+                  }}
+                >
+                  Continue
+                </Button>
               </div>
             </div>
           </motion.div>
