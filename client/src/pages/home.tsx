@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useProcessRecipe, useFridgeRecipes } from "@/hooks/use-recipes";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link2, Loader2, ChefHat, Utensils, Sparkles, ArrowLeft, Heart, RotateCcw, Clock, Refrigerator, TrendingUp, Star, Repeat, ChevronLeft, ChevronRight } from "lucide-react";
+import { Link2, Loader2, ChefHat, Utensils, Sparkles, ArrowLeft, Heart, RotateCcw, Clock, Refrigerator, TrendingUp, Star, Repeat, ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { z } from "zod";
@@ -93,7 +93,7 @@ const featuredRecipes = [
   },
 ];
 
-type ViewState = "search" | "swiping" | "saved" | "fridge-processing" | "fridge-prefs";
+type ViewState = "search" | "swiping" | "saved" | "fridge-processing" | "fridge-prefs" | "fridge-confirm";
 type RecipeMode = "remix" | "fridge";
 
 export default function Home() {
@@ -599,19 +599,85 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-6">
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <p className="text-sm font-medium text-foreground">Servings</p>
-                    <p className="text-lg text-muted-foreground" data-testid="text-prefs-servings">{cleanoutSession.prefs.servings}</p>
+                    <div className="flex items-center gap-4">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          setCleanoutSession(prev => prev && prev.prefs.servings > 1 ? {
+                            ...prev,
+                            prefs: { ...prev.prefs, servings: prev.prefs.servings - 1 }
+                          } : prev);
+                        }}
+                        disabled={cleanoutSession.prefs.servings <= 1}
+                        data-testid="button-servings-minus"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                      <span className="text-2xl font-medium min-w-[3ch] text-center" data-testid="text-prefs-servings">
+                        {cleanoutSession.prefs.servings}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          setCleanoutSession(prev => prev && prev.prefs.servings < 12 ? {
+                            ...prev,
+                            prefs: { ...prev.prefs, servings: prev.prefs.servings + 1 }
+                          } : prev);
+                        }}
+                        disabled={cleanoutSession.prefs.servings >= 12}
+                        data-testid="button-servings-plus"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                   
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <p className="text-sm font-medium text-foreground">Time</p>
-                    <p className="text-lg text-muted-foreground" data-testid="text-prefs-time">{cleanoutSession.prefs.time}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {(["best", "15", "30", "60"] as const).map((time) => (
+                        <Button
+                          key={time}
+                          variant={cleanoutSession.prefs.time === time ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            setCleanoutSession(prev => prev ? {
+                              ...prev,
+                              prefs: { ...prev.prefs, time }
+                            } : prev);
+                          }}
+                          data-testid={`button-time-${time}`}
+                        >
+                          {time === "best" ? "Best" : `${time} min`}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                   
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <p className="text-sm font-medium text-foreground">Cuisine</p>
-                    <p className="text-lg text-muted-foreground" data-testid="text-prefs-cuisine">{cleanoutSession.prefs.cuisine}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {["any", "American", "Italian", "Asian", "Mexican"].map((cuisine) => (
+                        <Button
+                          key={cuisine}
+                          variant={cleanoutSession.prefs.cuisine === cuisine ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            setCleanoutSession(prev => prev ? {
+                              ...prev,
+                              prefs: { ...prev.prefs, cuisine }
+                            } : prev);
+                          }}
+                          data-testid={`button-cuisine-${cuisine.toLowerCase()}`}
+                        >
+                          {cuisine === "any" ? "Any" : cuisine}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -630,13 +696,84 @@ export default function Home() {
                   className="w-full py-6"
                   data-testid="button-prefs-continue"
                   onClick={() => {
-                    toast({
-                      title: "Phase 1 Complete",
-                      description: "Preferences screen working! Continue to Phase 2 for ingredient confirmation.",
-                    });
+                    console.log(`fridge_flow_v1 session_id=${cleanoutSession.session_id} status=prefs prefs.servings=${cleanoutSession.prefs.servings} prefs.time=${cleanoutSession.prefs.time} prefs.cuisine=${cleanoutSession.prefs.cuisine}`);
+                    setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                    console.log(`fridge_flow_v1 session_id=${cleanoutSession.session_id} status=confirm`);
+                    setViewState("fridge-confirm");
                   }}
                 >
                   Continue
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {viewState === "fridge-confirm" && cleanoutSession && (
+          <motion.div
+            key="fridge-confirm"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-md mt-8"
+          >
+            <div className="bg-card border border-border shadow-lg rounded-2xl overflow-hidden">
+              <div className="p-8 space-y-8">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setCleanoutSession(prev => prev ? { ...prev, status: "prefs" } : null);
+                      setViewState("fridge-prefs");
+                    }}
+                    data-testid="button-confirm-back"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </Button>
+                  <h2 className="text-2xl font-serif font-medium text-foreground" data-testid="text-confirm-title">
+                    Confirm Ingredients
+                  </h2>
+                </div>
+
+                <p className="text-muted-foreground text-center">
+                  (Coming in Phase 3)
+                </p>
+
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm font-medium text-foreground mb-2">Your Preferences:</p>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p>Servings: <span className="text-foreground" data-testid="text-confirm-servings">{cleanoutSession.prefs.servings}</span></p>
+                      <p>Time: <span className="text-foreground" data-testid="text-confirm-time">{cleanoutSession.prefs.time}</span></p>
+                      <p>Cuisine: <span className="text-foreground" data-testid="text-confirm-cuisine">{cleanoutSession.prefs.cuisine}</span></p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium text-foreground mb-2">
+                      Ingredients ({cleanoutSession.normalized_ingredients.length}):
+                    </p>
+                    <div className="flex flex-wrap gap-2" data-testid="container-confirm-ingredients">
+                      {cleanoutSession.normalized_ingredients.map((ing, i) => (
+                        <Badge key={i} variant="secondary" data-testid={`badge-confirm-ingredient-${i}`}>{ing}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full py-6"
+                  data-testid="button-confirm-generate"
+                  onClick={() => {
+                    toast({
+                      title: "Phase 2 Complete",
+                      description: "Confirm screen working! Phase 3 will add ingredient editing.",
+                    });
+                  }}
+                >
+                  Generate Recipe
                 </Button>
               </div>
             </div>

@@ -1,0 +1,53 @@
+Goal: Implement **Phase 2 (Preferences Screen — defaults-first)** for Fridge Cleanout Flow V1, per `docs/agent_memory/imp_plans/fridge_cleanout`, so users can review/change servings/time/cuisine and continue to the next step.
+
+Do:
+
+* Read and follow the Phase 2 requirements in: `docs/agent_memory/imp_plans/fridge_cleanout` (Preferences Screen / defaults-first).
+* Keep the flow gated behind `FRIDGE_NEW_FLOW_V1` (OFF by default). If flag OFF, do not change existing behavior.
+* Upgrade the **Preferences screen** (Phase 1 placeholder) into a real UI:
+
+  * Controls:
+
+    * **Servings** (number stepper or +/-) default `2`, min `1`, max `12` (simple guardrail)
+    * **Time** selector default `"best"` (options can be: `best`, `15`, `30`, `60` — even if only `best` is used later, keep options now)
+    * **Cuisine** selector default `"any"` (simple dropdown or chips; keep minimal list or just Any for now if easiest, but the value must exist in state)
+  * Primary CTA: **Continue**
+  * Secondary CTA (optional): **Back** to ingredients entry (only if easy with current routing)
+* Persist changes into the existing cleanout session state object:
+
+  * `session.prefs = { servings, time, cuisine }`
+* On **Continue**:
+
+  * Set `status="confirm"`
+  * Navigate to the next step route/screen for confirmation.
+  * If Phase 3 confirmation screen doesn’t exist yet, create a **temporary Confirm placeholder screen** that just:
+
+    * Shows “Confirm Ingredients (coming in Phase 3)”
+    * Prints the current `normalized_ingredients` and `prefs`
+    * Has a Back button to return to Preferences
+* Add/update logging for Phase 2:
+
+  * `fridge_flow_v1 session_id=<id> status=prefs prefs.servings=<n> prefs.time=<val> prefs.cuisine=<val>`
+  * On Continue: `fridge_flow_v1 session_id=<id> status=confirm`
+
+Gate via feature flag: `FRIDGE_NEW_FLOW_V1=off` by default.
+
+Proof:
+
+* Logs must include:
+
+  * `status=prefs` with the current prefs values
+  * `status=confirm` after Continue
+* Manual test (flag ON):
+
+  * Enter ingredients, CTA → Processing → Preferences
+  * Change servings to 4, time to 30, cuisine to any (or another option if present)
+  * Continue → lands on Confirm placeholder and displays normalized ingredients + the updated prefs
+  * Back returns to Preferences with the same selected values (state persisted)
+* Manual test (flag OFF):
+
+  * Existing CTA flow remains unchanged
+
+Notes:
+
+* Keep this phase UI lightweight—no OpenAI calls, no ingredient editing yet (that’s Phase 3 per the imp plan).
