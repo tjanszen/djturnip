@@ -1,0 +1,55 @@
+Goal: Investigate the brief “transition/loading” screen shown after tapping “Recipe it” (Fridge Cleanout → New Recipe), determine what triggers it, why it exists, and whether we should remove or bypass it (especially for FRIDGE_SINGLE_RECIPE_SCREEN_V1).
+
+Do:
+- Reproduce the issue locally:
+  - Start at Fridge Cleanout
+  - Tap “Recipe it”
+  - Observe the brief loading/transition screen (≈ <1s) before landing on “New Recipe”
+- Identify the exact screen/component involved:
+  - Find which route/screen is rendered during that brief moment
+  - Confirm whether it’s a legacy “Processing/Generating/Loading” screen, a suspense fallback, or a state-machine “processing” status
+- Trace the navigation and state transitions that cause it:
+  - Locate the handler for “Recipe it” CTA
+  - Determine if it:
+    - navigates to an intermediate route before “New Recipe”, or
+    - sets a status like "processing" that conditionally renders a loading UI, or
+    - awaits async work (normalization/session init/remote call) before navigation
+- Explain why it exists:
+  - Document what it was originally for in the old flow (e.g., ingredient normalization, session creation, analytics, prefetch, OpenAI call)
+  - Confirm whether any async work still happens there today
+- Decide whether it’s needed:
+  - If it’s purely cosmetic and no required async work happens, remove it.
+  - If there is required async work, evaluate:
+    - Can we do it synchronously/instant without a screen?
+    - Can we do it in the background after navigating to “New Recipe”?
+    - Can we replace it with a non-blocking inline spinner instead of a full-screen transition?
+- Implement the minimal change:
+  - If FRIDGE_SINGLE_RECIPE_SCREEN_V1 is ON:
+    - Prefer navigating directly to the “New Recipe” consolidated screen with no intermediate screen.
+    - Keep any required state init, but do it before navigation only if it’s truly necessary.
+  - If the flag is OFF:
+    - Preserve legacy behavior unless it’s clearly an accidental leftover and safe to remove globally.
+- Add debug instrumentation (temporary is fine) to prove the root cause:
+  - Log on “Recipe it” press: "cleanout_recipe_it_click"
+  - Log the route/screen name shown during the brief transition
+  - Log when navigation to “New Recipe” occurs
+
+Do NOT:
+- Change generation logic or payloads.
+- Add new backend calls.
+- Remove any required initialization without proving it’s unnecessary.
+
+Gate via feature flag:
+- FRIDGE_SINGLE_RECIPE_SCREEN_V1 = OFF by default.
+- Any bypass/removal should be applied at least for the flag ON path.
+
+Proof:
+- Before/after behavior documented:
+  - Identify the transition screen component/route and why it appears.
+  - Confirm whether any async work depends on it.
+- With FRIDGE_SINGLE_RECIPE_SCREEN_V1 ON:
+  - Tapping “Recipe it” goes directly to “New Recipe” with no intermediate full-screen loading flash.
+- With FRIDGE_SINGLE_RECIPE_SCREEN_V1 OFF:
+  - Legacy flow remains unchanged (unless the transition was proven redundant and safely removed globally).
+- Logs clearly show:
+  - Click → (optional init) → direct navigati
