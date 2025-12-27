@@ -138,7 +138,12 @@ export default function Home() {
   useEffect(() => {
     if (viewState !== "fridge-generating" || !cleanoutSession) return;
     
+    const singleScreenEnabled = import.meta.env.VITE_FRIDGE_SINGLE_RECIPE_SCREEN_V1 === "on";
+    const MIN_LOADING_TIME = 5000;
+    
     const generateRecipe = async () => {
+      const startTime = Date.now();
+      
       try {
         const response = await fetch('/api/recipes/generate-single', {
           method: 'POST',
@@ -152,6 +157,13 @@ export default function Home() {
         
         const data = await response.json();
         
+        const elapsed = Date.now() - startTime;
+        const remainingDelay = singleScreenEnabled ? Math.max(0, MIN_LOADING_TIME - elapsed) : 0;
+        
+        if (remainingDelay > 0) {
+          await new Promise(resolve => setTimeout(resolve, remainingDelay));
+        }
+        
         if (data.success && data.recipe) {
           console.log("single_screen_v1 generate_success=true");
           setGeneratedRecipe(data.recipe);
@@ -164,6 +176,13 @@ export default function Home() {
           setViewState("fridge-error");
         }
       } catch (err) {
+        const elapsed = Date.now() - startTime;
+        const remainingDelay = singleScreenEnabled ? Math.max(0, MIN_LOADING_TIME - elapsed) : 0;
+        
+        if (remainingDelay > 0) {
+          await new Promise(resolve => setTimeout(resolve, remainingDelay));
+        }
+        
         console.log("single_screen_v1 generate_success=false");
         const errorMsg = err instanceof Error ? err.message : "Network error";
         setGenerationError(errorMsg);
