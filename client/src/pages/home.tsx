@@ -127,6 +127,7 @@ export default function Home() {
   const [cleanoutSession, setCleanoutSession] = useState<CleanoutSession | null>(null);
   const [newIngredient, setNewIngredient] = useState("");
   const [confirmValidationError, setConfirmValidationError] = useState<string | null>(null);
+  const [showAddIngredientInput, setShowAddIngredientInput] = useState(false);
   const [generatedRecipe, setGeneratedRecipe] = useState<GeneratedRecipe | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
   
@@ -1230,13 +1231,65 @@ export default function Home() {
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={() => console.log("single_screen_v1 add_more_click")}
-                      className="bg-primary/90 text-primary-foreground"
+                      onClick={() => {
+                        setShowAddIngredientInput(true);
+                        setNewIngredient("");
+                      }}
                       data-testid="button-add-more"
                     >
                       + Add more
                     </Button>
                   </div>
+                  
+                  {showAddIngredientInput && (
+                    <div className="flex gap-2 items-center bg-muted/30 rounded-xl px-3 py-2" data-testid="row-add-ingredient">
+                      <input
+                        type="text"
+                        value={newIngredient}
+                        onChange={(e) => setNewIngredient(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            const trimmed = newIngredient.trim().toLowerCase();
+                            if (!trimmed) return;
+                            setCleanoutSession(prev => {
+                              if (!prev) return null;
+                              if (prev.normalized_ingredients.includes(trimmed)) return prev;
+                              console.log("single_screen_v1 ingredient_add");
+                              return { ...prev, normalized_ingredients: [...prev.normalized_ingredients, trimmed] };
+                            });
+                            setNewIngredient("");
+                            setShowAddIngredientInput(false);
+                          } else if (e.key === "Escape") {
+                            setShowAddIngredientInput(false);
+                            setNewIngredient("");
+                          }
+                        }}
+                        placeholder="Add ingredient (e.g. 1 tbsp soy sauce)"
+                        className="flex-1 px-2 py-1.5 rounded-md border border-input bg-background text-sm"
+                        autoFocus
+                        data-testid="input-single-add-ingredient"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const trimmed = newIngredient.trim().toLowerCase();
+                          if (!trimmed) return;
+                          setCleanoutSession(prev => {
+                            if (!prev) return null;
+                            if (prev.normalized_ingredients.includes(trimmed)) return prev;
+                            console.log("single_screen_v1 ingredient_add");
+                            return { ...prev, normalized_ingredients: [...prev.normalized_ingredients, trimmed] };
+                          });
+                          setNewIngredient("");
+                          setShowAddIngredientInput(false);
+                        }}
+                        disabled={!newIngredient.trim()}
+                        data-testid="button-single-add-ingredient"
+                      >
+                        Add
+                      </Button>
+                    </div>
+                  )}
                   
                   <div className="space-y-2">
                     {cleanoutSession.normalized_ingredients.length > 0 ? (
@@ -1249,7 +1302,14 @@ export default function Home() {
                           <span className="text-foreground">{ingredient}</span>
                           <button
                             type="button"
-                            onClick={() => console.log(`single_screen_v1 trash_click index=${index}`)}
+                            onClick={() => {
+                              console.log("single_screen_v1 ingredient_remove");
+                              setCleanoutSession(prev => {
+                                if (!prev) return null;
+                                const updated = prev.normalized_ingredients.filter((_, i) => i !== index);
+                                return { ...prev, normalized_ingredients: updated };
+                              });
+                            }}
                             className="text-muted-foreground hover:text-destructive transition-colors p-1"
                             data-testid={`button-trash-${index}`}
                           >
@@ -1258,20 +1318,9 @@ export default function Home() {
                         </div>
                       ))
                     ) : (
-                      <>
-                        <div className="flex items-center justify-between bg-muted/30 rounded-xl px-4 py-3">
-                          <span className="text-foreground">Onion</span>
-                          <button type="button" className="text-muted-foreground p-1"><Trash2 className="w-5 h-5" /></button>
-                        </div>
-                        <div className="flex items-center justify-between bg-muted/30 rounded-xl px-4 py-3">
-                          <span className="text-foreground">Tomato</span>
-                          <button type="button" className="text-muted-foreground p-1"><Trash2 className="w-5 h-5" /></button>
-                        </div>
-                        <div className="flex items-center justify-between bg-muted/30 rounded-xl px-4 py-3">
-                          <span className="text-foreground">Chicken</span>
-                          <button type="button" className="text-muted-foreground p-1"><Trash2 className="w-5 h-5" /></button>
-                        </div>
-                      </>
+                      <div className="text-sm text-muted-foreground py-4 text-center" data-testid="text-empty-ingredients">
+                        Add at least one ingredient to continue.
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1291,7 +1340,7 @@ export default function Home() {
 
                 <Button
                   className="w-full py-6"
-                  disabled
+                  disabled={cleanoutSession.normalized_ingredients.length === 0}
                   onClick={() => console.log("single_screen_v1 generate_click")}
                   data-testid="button-create-recipe"
                 >

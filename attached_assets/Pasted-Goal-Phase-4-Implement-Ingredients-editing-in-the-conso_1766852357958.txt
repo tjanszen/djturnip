@@ -1,0 +1,44 @@
+Goal: Phase 4 — Implement Ingredients editing in the consolidated screen using Crumb-style list rows (subtle background + right trash), plus “+ Add more” button that expands an inline input row. Reuse existing add/remove/normalize logic; do not change payload/generation.
+
+Do:
+- Wire the Ingredients section to the existing ingredient list used by the legacy Confirm Ingredients screen (same source of truth).
+- Replace chip rendering with Crumb-style list rows:
+  - Each ingredient renders in a full-width rounded row with subtle background.
+  - Right-aligned trash icon button removes that ingredient.
+  - Trash calls the existing remove handler/dispatch (do not reimplement removal logic).
+- Implement “+ Add more” button behavior:
+  - On press, expand an inline “add ingredient” input row directly under the Ingredients header (or as the first row above the list).
+  - Input placeholder: “Add ingredient (e.g. 1 tbsp soy sauce)”
+  - Include an “Add” button on the right; Enter/Return also submits.
+  - After successful add: clear input, collapse input row (optional), and scroll to show the updated list if needed.
+- Add uses the existing add + normalization rules from the legacy Confirm flow:
+  - trim whitespace
+  - ignore empty
+  - preserve existing dedupe behavior (exact string match or whatever legacy does)
+  - no schema changes (ingredients remain string[])
+- Empty state + guardrails:
+  - If ingredients list becomes empty, show a small inline empty-state message (e.g., “Add at least one ingredient to continue.”)
+  - Do NOT wire the “Create my recipe” CTA yet unless already wired elsewhere; if it exists, keep it disabled when list is empty.
+
+Constraints:
+- Do NOT change preference logic (already wired in Phase 3).
+- Do NOT wire allow_extras toggle behavior yet (can remain no-op if Phase 5 will handle it).
+- Do NOT change generate/payload logic in this phase.
+- Do NOT modify legacy Confirm screen behavior; consolidated screen must reuse existing handlers/state.
+
+Gate via feature flag:
+- FRIDGE_SINGLE_RECIPE_SCREEN_V1 = OFF by default.
+
+Proof:
+- Flag ON:
+  - Ingredients render as list rows (not chips) with subtle background and right-aligned trash icon.
+  - Tapping trash removes the ingredient and updates the list immediately.
+  - Tapping “+ Add more” expands an inline input row.
+  - Adding a non-empty ingredient inserts it using existing normalization/dedupe behavior.
+  - Adding empty/whitespace does nothing (and does not insert blank rows).
+  - If user removes all ingredients, empty-state message appears and primary CTA (if present) is disabled.
+- Flag OFF:
+  - Legacy 2-step flow works unchanged.
+- Temporary logs (ok to remove later):
+  - "single_screen_v1 ingredient_add"
+  - "single_screen_v1 ingredient_remove"
