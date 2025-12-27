@@ -47,3 +47,5 @@ integrations = ["javascript_openai_ai_integrations:2.0.0"]
 ALT_RECIPES = "on"
 FRIDGE_NEW_FLOW_V1 = "on"
 VITE_FRIDGE_NEW_FLOW_V1 = "on"
+FRIDGE_SINGLE_RECIPE_SCREEN_V1 = "off"
+VITE_FRIDGE_SINGLE_RECIPE_SCREEN_V1 = "off"

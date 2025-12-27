@@ -11,7 +11,7 @@ import type { RecipeAlternative, RecipeStyle, FridgeRecipe } from "@shared/route
 
 const FRIDGE_NEW_FLOW_V1 = import.meta.env.VITE_FRIDGE_NEW_FLOW_V1 === "on";
 
-type CleanoutStatus = "processing" | "prefs" | "confirm" | "generating" | "done" | "error";
+type CleanoutStatus = "processing" | "prefs" | "confirm" | "generating" | "done" | "error" | "single";
 
 interface CleanoutSession {
   session_id: string;
@@ -93,7 +93,7 @@ const featuredRecipes = [
   },
 ];
 
-type ViewState = "search" | "swiping" | "saved" | "fridge-processing" | "fridge-prefs" | "fridge-confirm" | "fridge-generating" | "fridge-result" | "fridge-error";
+type ViewState = "search" | "swiping" | "saved" | "fridge-processing" | "fridge-prefs" | "fridge-confirm" | "fridge-generating" | "fridge-result" | "fridge-error" | "fridge-single";
 type RecipeMode = "remix" | "fridge";
 
 interface GeneratedRecipe {
@@ -317,9 +317,17 @@ export default function Home() {
   useEffect(() => {
     if (viewState === "fridge-processing" && cleanoutSession) {
       const timer = setTimeout(() => {
-        setCleanoutSession(prev => prev ? { ...prev, status: "prefs" } : null);
-        console.log(`fridge_flow_v1 session_id=${cleanoutSession.session_id} status=prefs normalized_count=${cleanoutSession.normalized_ingredients.length}`);
-        setViewState("fridge-prefs");
+        const singleScreenEnabled = import.meta.env.VITE_FRIDGE_SINGLE_RECIPE_SCREEN_V1 === "on";
+        
+        if (singleScreenEnabled) {
+          console.log("single_screen_v1 enter");
+          setCleanoutSession(prev => prev ? { ...prev, status: "single" } : null);
+          setViewState("fridge-single");
+        } else {
+          setCleanoutSession(prev => prev ? { ...prev, status: "prefs" } : null);
+          console.log(`fridge_flow_v1 session_id=${cleanoutSession.session_id} status=prefs normalized_count=${cleanoutSession.normalized_ingredients.length}`);
+          setViewState("fridge-prefs");
+        }
       }, 500);
       
       return () => clearTimeout(timer);
@@ -1102,6 +1110,42 @@ export default function Home() {
                   >
                     Try Again
                   </Button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {viewState === "fridge-single" && cleanoutSession && (
+          <motion.div
+            key="fridge-single"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-md mt-8"
+          >
+            <div className="bg-card border border-border shadow-lg rounded-2xl overflow-hidden">
+              <div className="p-6 space-y-6">
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setViewState("search");
+                      setCleanoutSession(null);
+                    }}
+                    data-testid="button-single-back"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </Button>
+                  <h2 className="text-xl font-serif font-medium text-foreground" data-testid="text-single-title">
+                    New Recipe
+                  </h2>
+                </div>
+                
+                <div className="text-center py-12 text-muted-foreground" data-testid="text-single-placeholder">
+                  Single-screen flow placeholder
                 </div>
               </div>
             </div>
