@@ -1345,7 +1345,7 @@ export default function Home() {
 
                 <Button
                   className="w-full py-6"
-                  disabled={cleanoutSession.normalized_ingredients.length === 0 || viewState === "fridge-generating"}
+                  disabled={cleanoutSession.normalized_ingredients.length === 0 || cleanoutSession.status === "generating"}
                   onClick={() => {
                     console.log("single_screen_v1 generate_click");
                     console.log(`fridge_flow_v1 session_id=${cleanoutSession.session_id} status=generating ingredients_count=${cleanoutSession.normalized_ingredients.length} allow_extras=${cleanoutSession.allow_extras}`);
@@ -1354,7 +1354,7 @@ export default function Home() {
                   }}
                   data-testid="button-create-recipe"
                 >
-                  {viewState === "fridge-generating" ? (
+                  {cleanoutSession.status === "generating" ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Creating...
