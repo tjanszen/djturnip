@@ -1255,7 +1255,7 @@ export default function Home() {
                 </div>
 
                 <Button
-                  className="w-full bg-amber-400 hover:bg-amber-500 text-amber-950 font-medium py-6"
+                  className="w-full py-6"
                   disabled
                   onClick={() => console.log("single_screen_v1 generate_click")}
                   data-testid="button-create-recipe"
