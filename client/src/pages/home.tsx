@@ -294,6 +294,7 @@ export default function Home() {
     setRecipeMode("fridge");
 
     if (FRIDGE_NEW_FLOW_V1) {
+      const singleScreenEnabled = import.meta.env.VITE_FRIDGE_SINGLE_RECIPE_SCREEN_V1 === "on";
       const rawIngredients = ingredients.split(",").map(s => s.trim());
       const normalized = normalizeIngredients(rawIngredients);
       
@@ -307,14 +308,21 @@ export default function Home() {
           cuisine: "any",
         },
         allow_extras: false,
-        status: "processing",
+        status: singleScreenEnabled ? "single" : "processing",
         error_message: null,
       };
       
-      console.log(`fridge_flow_v1 session_id=${session.session_id} status=processing normalized_count=${normalized.length}`);
+      console.log("cleanout_recipe_it_click");
       
-      setCleanoutSession(session);
-      setViewState("fridge-processing");
+      if (singleScreenEnabled) {
+        console.log("single_screen_v1 direct_nav_to_single");
+        setCleanoutSession(session);
+        setViewState("fridge-single");
+      } else {
+        console.log(`fridge_flow_v1 session_id=${session.session_id} status=processing normalized_count=${normalized.length}`);
+        setCleanoutSession(session);
+        setViewState("fridge-processing");
+      }
       setIngredients("");
       return;
     }
