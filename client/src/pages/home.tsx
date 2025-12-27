@@ -6,6 +6,7 @@ import { Link2, Loader2, ChefHat, Utensils, Sparkles, ArrowLeft, Heart, RotateCc
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RecipeAlternative, RecipeStyle, FridgeRecipe } from "@shared/routes";
@@ -1146,47 +1147,81 @@ export default function Home() {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={() => console.log("single_screen_v1 tile_tap guests")}
-                    className="flex-1 min-w-[100px] bg-muted/50 rounded-xl p-4 flex flex-col items-center gap-2 hover-elevate"
-                    data-testid="tile-guests"
-                  >
+                  <div className="flex-1 min-w-[100px] bg-muted/50 rounded-xl p-3 flex flex-col items-center gap-1" data-testid="tile-guests">
                     <User className="w-5 h-5 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">Guests</span>
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm font-medium text-foreground">2</span>
-                      <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                    </div>
-                  </button>
+                    <Select
+                      value={String(cleanoutSession.prefs.servings)}
+                      onValueChange={(value) => {
+                        const servings = parseInt(value, 10);
+                        console.log(`single_screen_v1 prefs_change servings=${servings} time=${cleanoutSession.prefs.time} cuisine=${cleanoutSession.prefs.cuisine}`);
+                        setCleanoutSession(prev => prev ? {
+                          ...prev,
+                          prefs: { ...prev.prefs, servings }
+                        } : prev);
+                      }}
+                    >
+                      <SelectTrigger className="h-7 w-16 border-0 bg-transparent text-sm font-medium justify-center gap-1 px-2" data-testid="select-guests">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
+                          <SelectItem key={n} value={String(n)} data-testid={`option-guests-${n}`}>{n}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   
-                  <button
-                    type="button"
-                    onClick={() => console.log("single_screen_v1 tile_tap time")}
-                    className="flex-1 min-w-[100px] bg-muted/50 rounded-xl p-4 flex flex-col items-center gap-2 hover-elevate"
-                    data-testid="tile-time"
-                  >
+                  <div className="flex-1 min-w-[100px] bg-muted/50 rounded-xl p-3 flex flex-col items-center gap-1" data-testid="tile-time">
                     <Clock className="w-5 h-5 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">Time</span>
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm font-medium text-foreground">Fast</span>
-                      <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                    </div>
-                  </button>
+                    <Select
+                      value={cleanoutSession.prefs.time}
+                      onValueChange={(value: "best" | "15" | "30" | "60") => {
+                        console.log(`single_screen_v1 prefs_change servings=${cleanoutSession.prefs.servings} time=${value} cuisine=${cleanoutSession.prefs.cuisine}`);
+                        setCleanoutSession(prev => prev ? {
+                          ...prev,
+                          prefs: { ...prev.prefs, time: value }
+                        } : prev);
+                      }}
+                    >
+                      <SelectTrigger className="h-7 w-20 border-0 bg-transparent text-sm font-medium justify-center gap-1 px-2" data-testid="select-time">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="best" data-testid="option-time-best">Best</SelectItem>
+                        <SelectItem value="15" data-testid="option-time-15">15 min</SelectItem>
+                        <SelectItem value="30" data-testid="option-time-30">30 min</SelectItem>
+                        <SelectItem value="60" data-testid="option-time-60">60 min</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   
-                  <button
-                    type="button"
-                    onClick={() => console.log("single_screen_v1 tile_tap cuisine")}
-                    className="flex-1 min-w-[100px] bg-muted/50 rounded-xl p-4 flex flex-col items-center gap-2 hover-elevate"
-                    data-testid="tile-cuisine"
-                  >
+                  <div className="flex-1 min-w-[100px] bg-muted/50 rounded-xl p-3 flex flex-col items-center gap-1" data-testid="tile-cuisine">
                     <Globe className="w-5 h-5 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">Cuisine</span>
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm font-medium text-foreground">Any</span>
-                      <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                    </div>
-                  </button>
+                    <Select
+                      value={cleanoutSession.prefs.cuisine}
+                      onValueChange={(value) => {
+                        console.log(`single_screen_v1 prefs_change servings=${cleanoutSession.prefs.servings} time=${cleanoutSession.prefs.time} cuisine=${value}`);
+                        setCleanoutSession(prev => prev ? {
+                          ...prev,
+                          prefs: { ...prev.prefs, cuisine: value }
+                        } : prev);
+                      }}
+                    >
+                      <SelectTrigger className="h-7 w-24 border-0 bg-transparent text-sm font-medium justify-center gap-1 px-2" data-testid="select-cuisine">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any" data-testid="option-cuisine-any">Any</SelectItem>
+                        <SelectItem value="American" data-testid="option-cuisine-american">American</SelectItem>
+                        <SelectItem value="Italian" data-testid="option-cuisine-italian">Italian</SelectItem>
+                        <SelectItem value="Asian" data-testid="option-cuisine-asian">Asian</SelectItem>
+                        <SelectItem value="Mexican" data-testid="option-cuisine-mexican">Mexican</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div className="space-y-3">

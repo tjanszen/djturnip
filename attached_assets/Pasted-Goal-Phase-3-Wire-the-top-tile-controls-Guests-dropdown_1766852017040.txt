@@ -1,0 +1,40 @@
+Goal: Phase 3 — Wire the top “tile” controls (Guests dropdown, Time selector, Cuisine selector) to existing state + setters, preserving defaults and payload parity.
+
+Do:
+- Implement (or finalize) a reusable TileButton component used by Guests/Time/Cuisine tiles:
+  - Shows: icon + label + current value + chevron
+  - Press opens a selector UI (ActionSheet/Modal/Popover/Select list depending on platform)
+- Wire Guests tile to existing servings state:
+  - Replace the stepper UI in this flow with a dropdown selector to match Crumb.
+  - Options: use the same allowed servings range as current app (e.g., 1–8 or whatever exists today).
+  - Default remains 2 (or whatever legacy default is).
+  - On selection, call the existing servings setter/dispatch (do not create a new source of truth).
+- Wire Time tile to existing time preference state:
+  - Options map exactly to existing values: "best" | "15" | "30" | "60"
+  - Display user-friendly labels (Best / 15 min / 30 min / 60 min) while storing the same underlying enum/string values.
+  - On selection, call the existing time setter/dispatch.
+- Wire Cuisine tile to existing cuisine state:
+  - Options come from the same cuisine options list used in the legacy Preferences screen.
+  - Default remains "any" (or legacy default).
+  - On selection, call the existing cuisine setter/dispatch.
+- Ensure the consolidated screen reads the current values and renders them in the tile value line (so it reflects state immediately).
+
+Constraints:
+- Do NOT change ingredient list behavior yet (no add/remove wiring in this phase).
+- Do NOT change allow_extras toggle behavior yet (can remain no-op).
+- Do NOT call generate or change any payload logic.
+- Do NOT alter the legacy Preferences screen or its logic; consolidated screen should reuse the same state layer.
+
+Gate via feature flag:
+- FRIDGE_SINGLE_RECIPE_SCREEN_V1 = OFF by default.
+
+Proof:
+- Flag ON:
+  - Guests tile opens a selector; selecting a value updates the tile display immediately.
+  - Time tile opens a selector; selecting Best/15/30/60 updates display and underlying time state.
+  - Cuisine tile opens a selector; selecting a cuisine updates display and underlying cuisine state.
+- Flag OFF:
+  - Legacy 2-step flow works unchanged.
+- Dev logging (temporary is fine):
+  - Log on selection: "single_screen_v1 prefs_change servings=<n> time=<t> cuisine=<c>"
+- Confirm (by inspection or dev logs) that the same underlying state is being updated as in the legacy Preferences screen (no duplicate state introduced).
