@@ -1,0 +1,40 @@
+Goal: Phase 5 — Wire “Allow other ingredients?” toggle + bottom “Create my recipe” CTA on the consolidated screen, ensuring payload parity with the legacy Confirm Ingredients flow.
+
+Do:
+- Update toggle copy on consolidated screen to exactly: “Allow other ingredients?”
+  - Optional helper text: “Recipe may include common pantry items”
+- Bind the toggle to the existing allow_extras (or equivalent) boolean used in the legacy Confirm screen:
+  - Default value must remain identical to legacy (typically OFF).
+  - Toggling must update the same source of truth (no duplicate state).
+- Wire the bottom primary CTA:
+  - Text: “Create my recipe”
+  - Calls the exact same generate action/function used by the legacy Confirm screen.
+  - Uses the same payload builder (or results in an identical request payload).
+- Add guardrails:
+  - Disable CTA if ingredient list is empty.
+  - Disable CTA while generating (prevent double submits).
+  - Show existing loading state behavior (spinner/disabled) consistent with legacy confirm->generate.
+- Add minimal telemetry/logging:
+  - On toggle change: "single_screen_v1 allow_other_ingredients=<true|false>"
+  - On CTA press: "single_screen_v1 generate_click"
+  - On generate resolution: "single_screen_v1 generate_success=<true|false>"
+
+Constraints:
+- Do NOT modify backend endpoints, prompt text, schema, or generation logic.
+- Do NOT change the payload shape or field names.
+- Do NOT alter legacy Confirm screen behavior; consolidated screen must reuse the same generate pathway.
+- Keep FRIDGE_SINGLE_RECIPE_SCREEN_V1 gating intact (OFF by default).
+
+Gate via feature flag:
+- FRIDGE_SINGLE_RECIPE_SCREEN_V1 = OFF by default.
+
+Proof:
+- Flag ON:
+  - Toggle is labeled “Allow other ingredients?” and updates the same allow_extras boolean used by legacy Confirm.
+  - CTA “Create my recipe” triggers the same generate call path as legacy Confirm.
+  - CTA is disabled when ingredient list empty and during in-flight generate.
+  - No double-submit possible.
+- Payload parity:
+  - In dev logs, print payload from legacy Confirm path and consolidated path and confirm they match (same fields/values).
+- Flag OFF:
+  - Legacy 2-step flow remains unchanged and still generates successfully.

@@ -153,15 +153,18 @@ export default function Home() {
         const data = await response.json();
         
         if (data.success && data.recipe) {
+          console.log("single_screen_v1 generate_success=true");
           setGeneratedRecipe(data.recipe);
           setCleanoutSession(prev => prev ? { ...prev, status: "done" } : null);
           setViewState("fridge-result");
         } else {
+          console.log("single_screen_v1 generate_success=false");
           setGenerationError(data.error || "Failed to generate recipe");
           setCleanoutSession(prev => prev ? { ...prev, status: "error", error_message: data.error } : null);
           setViewState("fridge-error");
         }
       } catch (err) {
+        console.log("single_screen_v1 generate_success=false");
         const errorMsg = err instanceof Error ? err.message : "Network error";
         setGenerationError(errorMsg);
         setCleanoutSession(prev => prev ? { ...prev, status: "error", error_message: errorMsg } : null);
@@ -1331,20 +1334,34 @@ export default function Home() {
                     <p className="text-xs text-muted-foreground">Recipe may include common pantry items</p>
                   </div>
                   <Switch
-                    checked={false}
-                    onCheckedChange={() => console.log("single_screen_v1 toggle_change")}
-                    disabled
+                    checked={cleanoutSession.allow_extras}
+                    onCheckedChange={(checked) => {
+                      console.log(`single_screen_v1 allow_other_ingredients=${checked}`);
+                      setCleanoutSession(prev => prev ? { ...prev, allow_extras: checked } : null);
+                    }}
                     data-testid="toggle-allow-extras"
                   />
                 </div>
 
                 <Button
                   className="w-full py-6"
-                  disabled={cleanoutSession.normalized_ingredients.length === 0}
-                  onClick={() => console.log("single_screen_v1 generate_click")}
+                  disabled={cleanoutSession.normalized_ingredients.length === 0 || viewState === "fridge-generating"}
+                  onClick={() => {
+                    console.log("single_screen_v1 generate_click");
+                    console.log(`fridge_flow_v1 session_id=${cleanoutSession.session_id} status=generating ingredients_count=${cleanoutSession.normalized_ingredients.length} allow_extras=${cleanoutSession.allow_extras}`);
+                    setCleanoutSession(prev => prev ? { ...prev, status: "generating" } : null);
+                    setViewState("fridge-generating");
+                  }}
                   data-testid="button-create-recipe"
                 >
-                  Create my recipe
+                  {viewState === "fridge-generating" ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create my recipe"
+                  )}
                 </Button>
               </div>
             </div>
