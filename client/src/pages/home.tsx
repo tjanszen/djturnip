@@ -971,8 +971,15 @@ export default function Home() {
                     variant="ghost"
                     size="icon"
                     onClick={() => {
-                      setViewState("fridge-confirm");
-                      setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                      const singleScreenEnabled = import.meta.env.VITE_FRIDGE_SINGLE_RECIPE_SCREEN_V1 === "on";
+                      if (singleScreenEnabled) {
+                        console.log("single_screen_v1 back_to_new_recipe");
+                        setViewState("fridge-single");
+                        setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                      } else {
+                        setViewState("fridge-confirm");
+                        setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                      }
                     }}
                     data-testid="button-result-back"
                   >
@@ -1047,8 +1054,15 @@ export default function Home() {
                     variant="outline"
                     className="flex-1"
                     onClick={() => {
-                      setViewState("fridge-confirm");
-                      setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                      const singleScreenEnabled = import.meta.env.VITE_FRIDGE_SINGLE_RECIPE_SCREEN_V1 === "on";
+                      if (singleScreenEnabled) {
+                        console.log("single_screen_v1 edit_to_new_recipe");
+                        setViewState("fridge-single");
+                        setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                      } else {
+                        setViewState("fridge-confirm");
+                        setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                      }
                     }}
                     data-testid="button-edit-ingredients"
                   >
@@ -1098,8 +1112,15 @@ export default function Home() {
                     variant="outline"
                     className="flex-1"
                     onClick={() => {
-                      setViewState("fridge-confirm");
-                      setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                      const singleScreenEnabled = import.meta.env.VITE_FRIDGE_SINGLE_RECIPE_SCREEN_V1 === "on";
+                      if (singleScreenEnabled) {
+                        console.log("single_screen_v1 error_back_to_new_recipe");
+                        setViewState("fridge-single");
+                        setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                      } else {
+                        setViewState("fridge-confirm");
+                        setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                      }
                     }}
                     data-testid="button-error-back"
                   >
