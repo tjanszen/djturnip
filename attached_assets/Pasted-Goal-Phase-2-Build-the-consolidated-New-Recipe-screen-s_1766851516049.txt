@@ -1,0 +1,47 @@
+Goal: Phase 2 — Build the consolidated “New Recipe” screen skeleton to match Crumb’s structure (header + tiles region + ingredients section), without wiring any real interactions yet.
+
+Do:
+- In the consolidated screen created in Phase 1, implement the full layout skeleton:
+  - Header:
+    - Back arrow (uses existing navigation goBack)
+    - Title: “New Recipe”
+  - Top controls region:
+    - Render 3 card-like tile placeholders in a row (wrap on small screens):
+      - Guests (person icon)
+      - Time (clock icon)
+      - Cuisine (globe icon)
+    - Each tile shows:
+      - icon
+      - label (Guests/Time/Cuisine)
+      - value placeholder text (e.g., “2”, “Best”, “Any”) + chevron icon
+    - Tiles are pressable visually, but onPress can be a no-op or temporary console log.
+  - Ingredients section:
+    - Section header row with title “Ingredients” (left)
+    - “+ Add more” button (right) — pressable, but no behavior yet (no-op/log ok)
+    - Below, render ingredient rows from the existing ingredient list if easily accessible; otherwise render 3–5 static placeholder rows.
+    - Each ingredient row is a full-width rounded container with subtle background and a right-aligned trash icon button (trash onPress no-op/log ok).
+  - Toggle row:
+    - Render label “Allow other ingredients?” with a toggle control (can be disabled/no-op for now).
+    - Optional helper text: “Recipe may include common pantry items”
+  - Bottom CTA:
+    - Render primary button “Create my recipe” in gold/yellow styling.
+    - Button disabled and/or onPress no-op for now.
+
+Constraints:
+- Do NOT wire up real state changes yet (no preference setting, no ingredient add/remove, no toggle binding).
+- Do NOT call generate or alter payload logic.
+- Keep all existing legacy screens/flow unchanged and reachable when flag is OFF.
+
+Gate via feature flag:
+- FRIDGE_SINGLE_RECIPE_SCREEN_V1 = OFF by default.
+
+Proof:
+- With flag ON, screen renders with:
+  - Back arrow + “New Recipe” header
+  - 3 card tiles w icons + chevron
+  - Ingredients header + “+ Add more” button
+  - Ingredient rows styled as list rows w trash icon
+  - “Allow other ingredients?” toggle row
+  - “Create my recipe” CTA styled and present (no-op)
+- With flag OFF, existing 2-step flow still works unchanged.
+- Logs (or console) show taps on tiles/add more/trash (temporary) but no state/payload changes occur.

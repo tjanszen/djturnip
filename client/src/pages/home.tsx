@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { useProcessRecipe, useFridgeRecipes } from "@/hooks/use-recipes";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link2, Loader2, ChefHat, Utensils, Sparkles, ArrowLeft, Heart, RotateCcw, Clock, Refrigerator, TrendingUp, Star, Repeat, ChevronLeft, ChevronRight, Minus, Plus, X } from "lucide-react";
+import { Link2, Loader2, ChefHat, Utensils, Sparkles, ArrowLeft, Heart, RotateCcw, Clock, Refrigerator, TrendingUp, Star, Repeat, ChevronLeft, ChevronRight, Minus, Plus, X, User, Globe, ChevronDown, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RecipeAlternative, RecipeStyle, FridgeRecipe } from "@shared/routes";
@@ -1143,10 +1144,124 @@ export default function Home() {
                     New Recipe
                   </h2>
                 </div>
-                
-                <div className="text-center py-12 text-muted-foreground" data-testid="text-single-placeholder">
-                  Single-screen flow placeholder
+
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => console.log("single_screen_v1 tile_tap guests")}
+                    className="flex-1 min-w-[100px] bg-muted/50 rounded-xl p-4 flex flex-col items-center gap-2 hover-elevate"
+                    data-testid="tile-guests"
+                  >
+                    <User className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Guests</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-medium text-foreground">2</span>
+                      <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                    </div>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => console.log("single_screen_v1 tile_tap time")}
+                    className="flex-1 min-w-[100px] bg-muted/50 rounded-xl p-4 flex flex-col items-center gap-2 hover-elevate"
+                    data-testid="tile-time"
+                  >
+                    <Clock className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Time</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-medium text-foreground">Fast</span>
+                      <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                    </div>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => console.log("single_screen_v1 tile_tap cuisine")}
+                    className="flex-1 min-w-[100px] bg-muted/50 rounded-xl p-4 flex flex-col items-center gap-2 hover-elevate"
+                    data-testid="tile-cuisine"
+                  >
+                    <Globe className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Cuisine</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-medium text-foreground">Any</span>
+                      <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                    </div>
+                  </button>
                 </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-lg font-serif font-medium text-foreground">Ingredients</h3>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => console.log("single_screen_v1 add_more_click")}
+                      className="bg-primary/90 text-primary-foreground"
+                      data-testid="button-add-more"
+                    >
+                      + Add more
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {cleanoutSession.normalized_ingredients.length > 0 ? (
+                      cleanoutSession.normalized_ingredients.map((ingredient, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between bg-muted/30 rounded-xl px-4 py-3"
+                          data-testid={`row-ingredient-${index}`}
+                        >
+                          <span className="text-foreground">{ingredient}</span>
+                          <button
+                            type="button"
+                            onClick={() => console.log(`single_screen_v1 trash_click index=${index}`)}
+                            className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                            data-testid={`button-trash-${index}`}
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between bg-muted/30 rounded-xl px-4 py-3">
+                          <span className="text-foreground">Onion</span>
+                          <button type="button" className="text-muted-foreground p-1"><Trash2 className="w-5 h-5" /></button>
+                        </div>
+                        <div className="flex items-center justify-between bg-muted/30 rounded-xl px-4 py-3">
+                          <span className="text-foreground">Tomato</span>
+                          <button type="button" className="text-muted-foreground p-1"><Trash2 className="w-5 h-5" /></button>
+                        </div>
+                        <div className="flex items-center justify-between bg-muted/30 rounded-xl px-4 py-3">
+                          <span className="text-foreground">Chicken</span>
+                          <button type="button" className="text-muted-foreground p-1"><Trash2 className="w-5 h-5" /></button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between bg-muted/30 rounded-xl px-4 py-3">
+                  <div className="space-y-0.5">
+                    <span className="text-foreground text-sm">Allow other ingredients?</span>
+                    <p className="text-xs text-muted-foreground">Recipe may include common pantry items</p>
+                  </div>
+                  <Switch
+                    checked={false}
+                    onCheckedChange={() => console.log("single_screen_v1 toggle_change")}
+                    disabled
+                    data-testid="toggle-allow-extras"
+                  />
+                </div>
+
+                <Button
+                  className="w-full bg-amber-400 hover:bg-amber-500 text-amber-950 font-medium py-6"
+                  disabled
+                  onClick={() => console.log("single_screen_v1 generate_click")}
+                  data-testid="button-create-recipe"
+                >
+                  Create my recipe
+                </Button>
               </div>
             </div>
           </motion.div>
