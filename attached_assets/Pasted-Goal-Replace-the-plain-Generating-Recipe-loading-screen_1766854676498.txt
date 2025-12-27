@@ -1,0 +1,48 @@
+Goal: Replace the plain “Generating Recipe” loading screen with a playful, animated, Crumb-style generation screen that feels delightful while preserving generation logic and timing.
+
+Do:
+- Identify the current “Generating Recipe” / loading screen shown after “Create my recipe” is tapped.
+- Replace its UI (when FRIDGE_SINGLE_RECIPE_SCREEN_V1 is ON) with a new playful generation screen that includes:
+  - A friendly illustrated character (e.g., a vegetable mascot like broccoli or a generic food character).
+  - Simple looping animation:
+    - Character gently bouncing / breathing / swaying.
+    - Ingredients (icons or shapes) orbiting, floating, or juggling around the character.
+  - Friendly copy text:
+    - Primary: “Crafting your recipe…” (or similar)
+    - Secondary (optional): “Creating something delicious with your ingredients…”
+- Keep animation lightweight:
+  - Use simple transforms (translate/rotate/opacity) or Lottie if already supported.
+  - Loop indefinitely until generation resolves.
+- Maintain full-screen focus:
+  - Centered character + text.
+  - Soft background color consistent with app theme (cream / warm neutral).
+- Include a bottom “Cancel” button (if one exists today):
+  - Cancels generation using existing cancel/back behavior.
+  - Styling should be calm and secondary (not destructive).
+
+Do NOT:
+- Change generation timing, retries, or API logic.
+- Delay generation artificially.
+- Add new backend calls.
+- Block cancellation if it already exists.
+
+Behavior requirements:
+- Screen appears immediately after “Create my recipe” tap.
+- Screen stays visible until:
+  - Generation succeeds → transition to Recipe Result screen.
+  - Generation errors → transition to existing error handling.
+  - User taps Cancel → return to consolidated “New Recipe” screen.
+
+Gate via feature flag:
+- FRIDGE_SINGLE_RECIPE_SCREEN_V1 = OFF by default.
+- Only replace loading screen when flag is ON.
+
+Proof:
+- With FRIDGE_SINGLE_RECIPE_SCREEN_V1 ON:
+  - Tapping “Create my recipe” shows animated, playful generation screen.
+  - Animation loops smoothly with no flicker.
+  - Cancel button works and returns user to consolidated “New Recipe” screen.
+  - Successful generation transitions cleanly to recipe result.
+- With flag OFF:
+  - Existing “Generating Recipe” screen remains unchanged.
+- No changes observed in request payloads or generation success rate.

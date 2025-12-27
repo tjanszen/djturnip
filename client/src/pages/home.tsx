@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useProcessRecipe, useFridgeRecipes } from "@/hooks/use-recipes";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link2, Loader2, ChefHat, Utensils, Sparkles, ArrowLeft, Heart, RotateCcw, Clock, Refrigerator, TrendingUp, Star, Repeat, ChevronLeft, ChevronRight, Minus, Plus, X, User, Globe, ChevronDown, Trash2 } from "lucide-react";
+import { Link2, Loader2, ChefHat, Utensils, Sparkles, ArrowLeft, Heart, RotateCcw, Clock, Refrigerator, TrendingUp, Star, Repeat, ChevronLeft, ChevronRight, Minus, Plus, X, User, Globe, ChevronDown, Trash2, Carrot, Apple, Egg, Salad } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -947,28 +947,122 @@ export default function Home() {
         )}
 
         {viewState === "fridge-generating" && cleanoutSession && (
-          <motion.div
-            key="fridge-generating"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.4 }}
-            className="w-full max-w-md mt-8"
-          >
-            <div className="bg-card border border-border shadow-lg rounded-2xl overflow-hidden">
-              <div className="p-8 flex flex-col items-center justify-center space-y-6 min-h-[200px]">
-                <Loader2 className="w-12 h-12 text-primary animate-spin" />
-                <div className="text-center">
-                  <h2 className="text-2xl font-serif font-medium text-foreground" data-testid="text-generating-title">
-                    Generating Recipe
-                  </h2>
-                  <p className="text-muted-foreground mt-2" data-testid="text-generating-subtitle">
-                    Creating something delicious with your {cleanoutSession.normalized_ingredients.length} ingredients...
-                  </p>
+          import.meta.env.VITE_FRIDGE_SINGLE_RECIPE_SCREEN_V1 === "on" ? (
+            <motion.div
+              key="fridge-generating-playful"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              className="w-full max-w-md mt-8"
+            >
+              <div className="bg-card border border-border shadow-lg rounded-2xl overflow-hidden">
+                <div className="p-8 flex flex-col items-center justify-center min-h-[340px] relative">
+                  <div className="relative w-40 h-40 flex items-center justify-center">
+                    <motion.div
+                      animate={{ y: [0, -8, 0] }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                      className="text-6xl"
+                    >
+                      <svg viewBox="0 0 100 100" className="w-24 h-24">
+                        <circle cx="50" cy="60" r="28" fill="hsl(var(--primary))" opacity="0.9" />
+                        <circle cx="50" cy="30" r="8" fill="hsl(142 76% 36%)" />
+                        <circle cx="38" cy="22" r="6" fill="hsl(142 76% 36%)" />
+                        <circle cx="62" cy="22" r="6" fill="hsl(142 76% 36%)" />
+                        <circle cx="32" cy="32" r="5" fill="hsl(142 76% 36%)" />
+                        <circle cx="68" cy="32" r="5" fill="hsl(142 76% 36%)" />
+                        <circle cx="44" cy="16" r="4" fill="hsl(142 76% 36%)" />
+                        <circle cx="56" cy="16" r="4" fill="hsl(142 76% 36%)" />
+                        <circle cx="42" cy="55" r="3" fill="hsl(var(--background))" />
+                        <circle cx="58" cy="55" r="3" fill="hsl(var(--background))" />
+                        <path d="M 44 66 Q 50 72 56 66" stroke="hsl(var(--background))" strokeWidth="2" fill="none" strokeLinecap="round" />
+                      </svg>
+                    </motion.div>
+                    
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                      className="absolute inset-0"
+                    >
+                      <motion.div 
+                        className="absolute top-0 left-1/2 -translate-x-1/2 text-2xl"
+                        animate={{ scale: [1, 1.1, 1] }}
+                        transition={{ duration: 2, repeat: Infinity, delay: 0 }}
+                      >
+                        <Carrot className="w-6 h-6 text-orange-500" />
+                      </motion.div>
+                      <motion.div 
+                        className="absolute top-1/2 right-0 -translate-y-1/2 text-2xl"
+                        animate={{ scale: [1, 1.1, 1] }}
+                        transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
+                      >
+                        <Apple className="w-6 h-6 text-red-500" />
+                      </motion.div>
+                      <motion.div 
+                        className="absolute bottom-0 left-1/2 -translate-x-1/2 text-2xl"
+                        animate={{ scale: [1, 1.1, 1] }}
+                        transition={{ duration: 2, repeat: Infinity, delay: 1 }}
+                      >
+                        <Egg className="w-6 h-6 text-amber-100 fill-amber-100" />
+                      </motion.div>
+                      <motion.div 
+                        className="absolute top-1/2 left-0 -translate-y-1/2 text-2xl"
+                        animate={{ scale: [1, 1.1, 1] }}
+                        transition={{ duration: 2, repeat: Infinity, delay: 1.5 }}
+                      >
+                        <Salad className="w-6 h-6 text-green-500" />
+                      </motion.div>
+                    </motion.div>
+                  </div>
+                  
+                  <div className="text-center mt-6">
+                    <h2 className="text-2xl font-serif font-medium text-foreground" data-testid="text-generating-title">
+                      Crafting your recipe...
+                    </h2>
+                    <p className="text-muted-foreground mt-2" data-testid="text-generating-subtitle">
+                      Creating something delicious with your ingredients
+                    </p>
+                  </div>
+                  
+                  <Button
+                    variant="ghost"
+                    className="mt-6"
+                    onClick={() => {
+                      console.log("single_screen_v1 generate_cancelled");
+                      setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                      setViewState("fridge-single");
+                    }}
+                    data-testid="button-generate-cancel"
+                  >
+                    Cancel
+                  </Button>
                 </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="fridge-generating"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+              className="w-full max-w-md mt-8"
+            >
+              <div className="bg-card border border-border shadow-lg rounded-2xl overflow-hidden">
+                <div className="p-8 flex flex-col items-center justify-center space-y-6 min-h-[200px]">
+                  <Loader2 className="w-12 h-12 text-primary animate-spin" />
+                  <div className="text-center">
+                    <h2 className="text-2xl font-serif font-medium text-foreground" data-testid="text-generating-title">
+                      Generating Recipe
+                    </h2>
+                    <p className="text-muted-foreground mt-2" data-testid="text-generating-subtitle">
+                      Creating something delicious with your {cleanoutSession.normalized_ingredients.length} ingredients...
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )
         )}
 
         {viewState === "fridge-result" && generatedRecipe && (
