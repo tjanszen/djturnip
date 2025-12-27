@@ -1,0 +1,35 @@
+Goal: Phase 6 — Ensure the legacy Confirm Ingredients screen is bypassed when FRIDGE_SINGLE_RECIPE_SCREEN_V1 is ON, while preserving the legacy 2-step flow when the flag is OFF. (Optional: begin cleanup of unreachable code paths safely.)
+
+Do:
+- Update navigation so that when FRIDGE_SINGLE_RECIPE_SCREEN_V1 is ON:
+  - The flow never routes to the legacy Confirm Ingredients screen.
+  - Any “Continue” action that previously navigated Preferences → Confirm now navigates to the consolidated “New Recipe” screen (or directly uses it as the only step).
+- Keep legacy flow intact when FRIDGE_SINGLE_RECIPE_SCREEN_V1 is OFF:
+  - Preferences → Confirm Ingredients continues to work exactly as before.
+- Add a defensive guard:
+  - If some deep link / stale navigation attempts to open Confirm while flag is ON, redirect to the consolidated screen (or show a clear “This step was consolidated” and route back).
+- Add lightweight logging:
+  - "single_screen_v1 confirm_bypassed" when the system would have gone to Confirm but did not.
+  - "single_screen_v1 confirm_redirected" if Confirm is accessed directly while flag is ON and gets redirected.
+
+Optional (safe cleanup, do not overdo):
+- Mark the Confirm screen route/component as “legacy” with a comment indicating it is only used when FRIDGE_SINGLE_RECIPE_SCREEN_V1 is OFF.
+- Do NOT delete Confirm screen yet unless explicitly instructed; leave it for rollback until stability window passes.
+
+Constraints:
+- Do NOT change generation logic or payloads.
+- Do NOT break back navigation patterns.
+- Do NOT remove legacy screens or routes outright (unless specifically requested).
+
+Gate via feature flag:
+- FRIDGE_SINGLE_RECIPE_SCREEN_V1 = OFF by default.
+
+Proof:
+- Flag ON:
+  - User cannot reach Confirm Ingredients through normal flow.
+  - If Confirm is opened via a direct route attempt, it redirects to consolidated screen.
+  - Logs show "confirm_bypassed" (and "confirm_redirected" when applicable).
+- Flag OFF:
+  - Preferences → Confirm Ingredients remains reachable and behaves unchanged.
+- Manual regression:
+  - Generate works in both modes.

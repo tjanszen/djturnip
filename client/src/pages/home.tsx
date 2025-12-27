@@ -175,6 +175,14 @@ export default function Home() {
     generateRecipe();
   }, [viewState, cleanoutSession?.session_id]);
   
+  useEffect(() => {
+    const singleScreenEnabled = import.meta.env.VITE_FRIDGE_SINGLE_RECIPE_SCREEN_V1 === "on";
+    if (singleScreenEnabled && viewState === "fridge-confirm" && cleanoutSession) {
+      console.log("single_screen_v1 confirm_redirected");
+      setViewState("fridge-single");
+    }
+  }, [viewState, cleanoutSession]);
+  
   const handleQuickRemix = (recipeUrl: string, recipeId: string) => {
     setActiveQuickRemix(recipeId);
     setRecipeMode("remix");
@@ -762,10 +770,17 @@ export default function Home() {
                   className="w-full py-6"
                   data-testid="button-prefs-continue"
                   onClick={() => {
+                    const singleScreenEnabled = import.meta.env.VITE_FRIDGE_SINGLE_RECIPE_SCREEN_V1 === "on";
                     console.log(`fridge_flow_v1 session_id=${cleanoutSession.session_id} status=prefs prefs.servings=${cleanoutSession.prefs.servings} prefs.time=${cleanoutSession.prefs.time} prefs.cuisine=${cleanoutSession.prefs.cuisine}`);
-                    setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
-                    console.log(`fridge_flow_v1 session_id=${cleanoutSession.session_id} status=confirm`);
-                    setViewState("fridge-confirm");
+                    if (singleScreenEnabled) {
+                      console.log("single_screen_v1 confirm_bypassed");
+                      setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                      setViewState("fridge-single");
+                    } else {
+                      setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                      console.log(`fridge_flow_v1 session_id=${cleanoutSession.session_id} status=confirm`);
+                      setViewState("fridge-confirm");
+                    }
                   }}
                 >
                   Continue
@@ -775,6 +790,7 @@ export default function Home() {
           </motion.div>
         )}
 
+        {/* LEGACY: Confirm Ingredients screen - only used when VITE_FRIDGE_SINGLE_RECIPE_SCREEN_V1 is OFF */}
         {viewState === "fridge-confirm" && cleanoutSession && (
           <motion.div
             key="fridge-confirm"
