@@ -1,0 +1,69 @@
+Goal: Phase 1 — Update recipe generation to return RecipeDTO V2 (structured ingredients + substitutes + step objects with time + ingredient ID references) behind RECIPE_DETAIL_V2, with strict validation and minimal blast radius.
+
+Do:
+- Add/confirm feature flag: RECIPE_DETAIL_V2 (OFF by default).
+- Locate the existing recipe generation pipeline:
+  - The OpenAI prompt construction
+  - The JSON parsing/validation layer
+  - The RecipeDTO type/schema definition
+- Introduce RecipeDTO V2 schema (do not reuse string[] ingredients/steps for the V2 path):
+  - RecipeDTO fields:
+    - name: string
+    - description: string
+    - servings: number
+    - time_minutes: number | null
+    - calories_per_serving: number | null
+    - ingredients: IngredientItem[]
+    - steps: StepItem[]
+  - IngredientItem:
+    - id: string
+    - name: string
+    - amount: string | null
+    - substitutes: SubstituteItem[]
+  - SubstituteItem:
+    - id: string
+    - name: string
+    - amount: string
+  - StepItem:
+    - text: string
+    - ingredient_ids: string[]
+    - time_minutes: number | null
+- Update the OpenAI generation prompt for the RECIPE_DETAIL_V2 path to produce ONLY valid JSON matching RecipeDTO V2:
+  - Ingredients must include stable ids (e.g., "ing_1", "ing_2", etc.).
+  - Steps must reference ingredients by id in ingredient_ids (Option B, no string replacement strategy).
+  - Step text must include ingredient amounts in parentheses after ingredient mentions.
+  - Step time must be in minutes (time_minutes), nullable.
+  - Substitute lists must be “reasonable swaps” that do not materially change cooking method; if none, substitutes must be [].
+  - Keep amount unit system consistent with the recipe (no grams if using cups, etc.).
+- Parsing/validation:
+  - Add strict schema validation for RecipeDTO V2.
+  - If parse or validation fails, retry generation exactly once with a “fix JSON to match schema” instruction.
+  - If it fails again, return the existing error behavior (no infinite retries).
+- Backwards compatibility:
+  - When RECIPE_DETAIL_V2 is OFF, keep the current RecipeDTO behavior unchanged (ingredients: string[], steps: string[]).
+  - Ensure the old screens can still consume the old DTO shape when the flag is OFF.
+- Add logging/instrumentation (minimal):
+  - "recipe_detail_v2 generate_start"
+  - "recipe_detail_v2 generate_success"
+  - "recipe_detail_v2 parse_retry=0|1"
+  - "recipe_detail_v2 generate_error"
+
+Do NOT:
+- Build or refactor any UI screens in this phase.
+- Add best-effort parsing of ingredient strings (explicitly prohibited).
+- Change the existing generation payload/logic for the non-flag path.
+- Implement substitutions as a separate on-demand model call (must be included in initial generation output).
+
+Gate via feature flag:
+- RECIPE_DETAIL_V2 = OFF by default.
+
+Proof:
+- With RECIPE_DETAIL_V2 OFF:
+  - Existing generation still returns the legacy DTO shape and legacy screens render normally.
+- With RECIPE_DETAIL_V2 ON (dev route / temporary test harness is ok):
+  - A sample generation returns valid RecipeDTO V2 JSON that passes schema validation.
+  - steps is an array of StepItem objects (not strings) and contains time_minutes in minutes (or null).
+  - Each StepItem.ingredient_ids references existing IngredientItem.id values.
+  - IngredientItem.substitutes is present for each ingredient (can be empty []).
+  - Exactly one retry occurs on invalid JSON; second failure returns error cleanly.
+- Logs show generate_start, parse_retry, and generate_success/error.

@@ -52,3 +52,63 @@ export interface RecipeAlternative {
   description: string;
   cuisine: string;
 }
+
+// RecipeDTO V2 types (RECIPE_DETAIL_V2)
+export interface SubstituteItemV2 {
+  id: string;
+  name: string;
+  amount: string;
+}
+
+export interface IngredientItemV2 {
+  id: string;
+  name: string;
+  amount: string | null;
+  substitutes: SubstituteItemV2[];
+}
+
+export interface StepItemV2 {
+  text: string;
+  ingredient_ids: string[];
+  time_minutes: number | null;
+}
+
+export interface RecipeDTOV2 {
+  name: string;
+  description: string;
+  servings: number;
+  time_minutes: number | null;
+  calories_per_serving: number | null;
+  ingredients: IngredientItemV2[];
+  steps: StepItemV2[];
+}
+
+// Zod schemas for V2 validation
+export const substituteItemV2Schema = z.object({
+  id: z.string(),
+  name: z.string(),
+  amount: z.string(),
+});
+
+export const ingredientItemV2Schema = z.object({
+  id: z.string(),
+  name: z.string(),
+  amount: z.string().nullable(),
+  substitutes: z.array(substituteItemV2Schema),
+});
+
+export const stepItemV2Schema = z.object({
+  text: z.string(),
+  ingredient_ids: z.array(z.string()),
+  time_minutes: z.number().nullable(),
+});
+
+export const recipeDTOV2Schema = z.object({
+  name: z.string().min(1),
+  description: z.string().min(1),
+  servings: z.number().min(1),
+  time_minutes: z.number().nullable(),
+  calories_per_serving: z.number().nullable(),
+  ingredients: z.array(ingredientItemV2Schema).min(1),
+  steps: z.array(stepItemV2Schema).min(1),
+});
