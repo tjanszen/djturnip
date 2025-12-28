@@ -86,6 +86,14 @@ When `RECIPE_DETAIL_V2=on`, the `/api/recipes/generate-single` endpoint returns 
 - ID-based ingredient references enable substitution without step text replacement
 - Validation ensures all `ingredient_ids` in steps reference actual ingredient IDs
 
+**Frontend V2 Features**:
+- **Recipe Summary Screen**: 2-column ingredient layout (name | amount), hidden steps, "Let's Cook!" and "Generate again" CTAs
+- **Ingredient Substitution**: Tappable ingredient rows with chevron if substitutes exist
+  - Bottom sheet (Drawer) opens with radio list of substitute options + original
+  - Swap updates a local "working copy" without modifying original recipe
+  - Generate Again always uses original ingredients (ignores working copy)
+  - IDs are preserved during substitution (only name/amount change)
+
 ### Key NPM Packages
 - `@tanstack/react-query`: Data fetching and caching
 - `drizzle-orm` / `drizzle-zod`: Database ORM and schema validation
