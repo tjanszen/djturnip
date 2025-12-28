@@ -99,6 +99,15 @@ When `RECIPE_DETAIL_V2=on`, the `/api/recipes/generate-single` endpoint returns 
   - Ingredient badges show working copy names (reflects substitutions)
   - Back arrow returns to Recipe Summary
   - Placeholder CTAs: Favorite and Done (no-op)
+- **V2 Navigation Rules**:
+  - Recipe Summary back arrow returns to consolidated "New Recipe" (fridge-single) and clears substitutions
+  - "Edit Ingredients" on Recipe Summary navigates to New Recipe and clears substitutions
+  - "Generate again" regenerates using original ingredients/prefs (ignores substitutions)
+  - Cook Mode back arrow returns to Recipe Summary (preserves substitutions)
+  - Substitutions are ephemeral (UI-local working copy only, never mutate original RecipeDTO)
+- **V2 Telemetry logs**:
+  - `recipe_detail_v2 nav_back_to_new_recipe`, `nav_edit_to_new_recipe`, `nav_to_cook_mode`, `nav_back_to_summary`
+  - `recipe_detail_v2 generate_again_click`, `substitutions_cleared`
 
 ### Key NPM Packages
 - `@tanstack/react-query`: Data fetching and caching
