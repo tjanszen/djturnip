@@ -1,0 +1,60 @@
+Goal: Phase 3 — Add ingredient substitution UX to the Recipe Summary screen using a bottom sheet, powered by RecipeDTO V2 substitutes, without affecting generation or navigation.
+
+Do:
+- Confirm feature flag RECIPE_DETAIL_V2 is enabled for this path and OFF by default.
+- In the Recipe Summary screen (from Phase 2), update the Ingredients list to support conditional interaction:
+  - For each IngredientItem:
+    - If substitutes.length > 0:
+      - Render the row as tappable.
+      - Show a chevron or affordance indicating it can be swapped.
+    - If substitutes.length === 0:
+      - Render the row as non-tappable.
+      - Do NOT show a chevron or tap affordance.
+- On tapping a tappable ingredient row:
+  - Open a bottom sheet (preferred mobile pattern).
+  - Bottom sheet content:
+    - Header:
+      - Ingredient name
+      - Ingredient amount (if present)
+    - Body:
+      - Radio list of substitution options derived from IngredientItem.substitutes.
+      - Include the original ingredient as a selectable option (to allow reverting).
+    - Footer:
+      - Primary CTA: “Swap”
+      - Secondary: “Cancel” (or tap outside to dismiss)
+- Swapping behavior:
+  - Maintain a local “working copy” of ingredients for the Recipe Summary screen.
+  - On Swap:
+    - Update the working copy with the selected substitute’s name + amount.
+    - Preserve the original IngredientItem.id (do NOT change IDs).
+    - Close the bottom sheet.
+  - Ensure original RecipeDTO remains unchanged in memory.
+- Revert behavior:
+  - Selecting the original ingredient option restores original name + amount.
+- Generate Again behavior:
+  - Must ignore any substitutions.
+  - Must use the original ingredient list (not the working copy).
+- Visual polish:
+  - After a swap, the ingredient row immediately reflects the new name + amount.
+  - No toast required; visual update is sufficient.
+
+Constraints:
+- Do NOT trigger regeneration or backend calls when swapping ingredients.
+- Do NOT modify RecipeDTO V2 schema.
+- Do NOT allow editing ingredient text or amounts directly.
+- Do NOT expose substitutions in Cook Mode yet (that is Phase 4).
+- Keep legacy behavior unchanged when RECIPE_DETAIL_V2 is OFF.
+
+Gate via feature flag:
+- RECIPE_DETAIL_V2 = OFF by default.
+
+Proof:
+- With RECIPE_DETAIL_V2 ON:
+  - Ingredient rows with substitutes show a chevron and open a bottom sheet on tap.
+  - Ingredient rows without substitutes are visibly non-interactive.
+  - Selecting a substitute updates the ingredient name + amount in the list.
+  - Re-opening the sheet allows reverting to the original ingredient.
+  - “Generate again” regenerates using the original ingredients (not substituted).
+- With RECIPE_DETAIL_V2 OFF:
+  - Legacy recipe result screen works unchanged.
+- No generation calls, payload changes, or navigation changes occur during swaps.
