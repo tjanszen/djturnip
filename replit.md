@@ -75,6 +75,16 @@ shared/           # Shared code between frontend and backend
 - `AI_INTEGRATIONS_OPENAI_API_KEY`: OpenAI API key
 - `AI_INTEGRATIONS_OPENAI_BASE_URL`: OpenAI API base URL
 - `ALT_RECIPES`: Set to "on" to enable AI recipe alternatives generation
+- `FRIDGE_NEW_FLOW_V1`: Set to "on" to enable single recipe generation endpoint
+- `FRIDGE_SINGLE_RECIPE_SCREEN_V1`: Set to "on" to enable consolidated Crumb-style single-screen UI
+- `RECIPE_DETAIL_V2`: Set to "on" to enable structured RecipeDTO V2 with ingredient substitutions
+
+### RecipeDTO V2 (RECIPE_DETAIL_V2)
+When `RECIPE_DETAIL_V2=on`, the `/api/recipes/generate-single` endpoint returns structured recipe data:
+- **Ingredients**: Objects with `id`, `name`, `amount`, and `substitutes[]` (each substitute has `id`, `name`, `amount`)
+- **Steps**: Objects with `text` (includes ingredient amounts in parentheses), `ingredient_ids[]`, and `time_minutes`
+- ID-based ingredient references enable substitution without step text replacement
+- Validation ensures all `ingredient_ids` in steps reference actual ingredient IDs
 
 ### Key NPM Packages
 - `@tanstack/react-query`: Data fetching and caching
