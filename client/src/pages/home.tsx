@@ -1151,7 +1151,7 @@ export default function Home() {
                       {generatedRecipe.name}
                     </h2>
                     <p className="text-muted-foreground mt-1" data-testid="text-recipe-summary">
-                      {generatedRecipe.summary}
+                      {isRecipeV2(generatedRecipe) ? generatedRecipe.description : generatedRecipe.summary}
                     </p>
                   </div>
                 </div>
@@ -1173,73 +1173,124 @@ export default function Home() {
                   )}
                 </div>
 
-                <div className="space-y-3">
-                  <h3 className="text-lg font-medium text-foreground">Ingredients</h3>
-                  <ul className="space-y-2" data-testid="list-ingredients">
-                    {generatedRecipe.ingredients.map((ing, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                        <span className="text-primary mt-1">•</span>
-                        <span data-testid={`text-ingredient-${i}`}>{ing}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {generatedRecipe.added_extras && generatedRecipe.added_extras.length > 0 && (
-                  <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
-                    <p className="text-sm font-medium text-foreground">Added Extras</p>
-                    <div className="flex flex-wrap gap-2" data-testid="container-added-extras">
-                      {generatedRecipe.added_extras.map((extra, i) => (
-                        <Badge key={i} variant="outline" data-testid={`badge-extra-${i}`}>{extra}</Badge>
-                      ))}
+                {/* V2 Recipe Summary: 2-column ingredient layout, no steps */}
+                {RECIPE_DETAIL_V2 && isRecipeV2(generatedRecipe) ? (
+                  <>
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-medium text-foreground">Ingredients</h3>
+                      <div className="space-y-2" data-testid="list-ingredients-v2">
+                        {generatedRecipe.ingredients.map((ing, i) => (
+                          <div 
+                            key={ing.id} 
+                            className="flex items-center justify-between py-2 border-b border-border last:border-b-0"
+                            data-testid={`ingredient-row-${i}`}
+                          >
+                            <span className="text-sm text-foreground flex-1" data-testid={`text-ingredient-name-${i}`}>
+                              {ing.name}
+                            </span>
+                            <span className="text-sm text-muted-foreground text-right" data-testid={`text-ingredient-amount-${i}`}>
+                              {ing.amount || ""}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+
+                    {/* V2 CTAs: Let's Cook! (primary) + Generate again (secondary) */}
+                    <div className="flex flex-col gap-3 pt-4">
+                      <Button
+                        className="w-full"
+                        disabled
+                        data-testid="button-lets-cook"
+                      >
+                        <ChefHat className="w-4 h-4 mr-2" />
+                        Let's Cook!
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => {
+                          setViewState("fridge-generating");
+                          setCleanoutSession(prev => prev ? { ...prev, status: "generating" } : null);
+                        }}
+                        data-testid="button-generate-again"
+                      >
+                        Generate again
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* V1 Legacy: bullet ingredients + steps */}
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-medium text-foreground">Ingredients</h3>
+                      <ul className="space-y-2" data-testid="list-ingredients">
+                        {!isRecipeV2(generatedRecipe) && generatedRecipe.ingredients.map((ing, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                            <span className="text-primary mt-1">•</span>
+                            <span data-testid={`text-ingredient-${i}`}>{ing}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {!isRecipeV2(generatedRecipe) && generatedRecipe.added_extras && generatedRecipe.added_extras.length > 0 && (
+                      <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
+                        <p className="text-sm font-medium text-foreground">Added Extras</p>
+                        <div className="flex flex-wrap gap-2" data-testid="container-added-extras">
+                          {generatedRecipe.added_extras.map((extra: string, i: number) => (
+                            <Badge key={i} variant="outline" data-testid={`badge-extra-${i}`}>{extra}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-medium text-foreground">Steps</h3>
+                      <ol className="space-y-3" data-testid="list-steps">
+                        {!isRecipeV2(generatedRecipe) && generatedRecipe.steps.map((step, i) => (
+                          <li key={i} className="flex items-start gap-3 text-sm">
+                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium">
+                              {i + 1}
+                            </span>
+                            <span className="text-muted-foreground pt-0.5" data-testid={`text-step-${i}`}>{step}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => {
+                          const singleScreenEnabled = import.meta.env.VITE_FRIDGE_SINGLE_RECIPE_SCREEN_V1 === "on";
+                          if (singleScreenEnabled) {
+                            console.log("single_screen_v1 edit_to_new_recipe");
+                            setViewState("fridge-single");
+                            setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                          } else {
+                            setViewState("fridge-confirm");
+                            setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                          }
+                        }}
+                        data-testid="button-edit-ingredients"
+                      >
+                        Edit Ingredients
+                      </Button>
+                      <Button
+                        className="flex-1"
+                        onClick={() => {
+                          setViewState("fridge-generating");
+                          setCleanoutSession(prev => prev ? { ...prev, status: "generating" } : null);
+                        }}
+                        data-testid="button-generate-again"
+                      >
+                        Generate Again
+                      </Button>
+                    </div>
+                  </>
                 )}
-
-                <div className="space-y-3">
-                  <h3 className="text-lg font-medium text-foreground">Steps</h3>
-                  <ol className="space-y-3" data-testid="list-steps">
-                    {generatedRecipe.steps.map((step, i) => (
-                      <li key={i} className="flex items-start gap-3 text-sm">
-                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium">
-                          {i + 1}
-                        </span>
-                        <span className="text-muted-foreground pt-0.5" data-testid={`text-step-${i}`}>{step}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => {
-                      const singleScreenEnabled = import.meta.env.VITE_FRIDGE_SINGLE_RECIPE_SCREEN_V1 === "on";
-                      if (singleScreenEnabled) {
-                        console.log("single_screen_v1 edit_to_new_recipe");
-                        setViewState("fridge-single");
-                        setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
-                      } else {
-                        setViewState("fridge-confirm");
-                        setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
-                      }
-                    }}
-                    data-testid="button-edit-ingredients"
-                  >
-                    Edit Ingredients
-                  </Button>
-                  <Button
-                    className="flex-1"
-                    onClick={() => {
-                      setViewState("fridge-generating");
-                      setCleanoutSession(prev => prev ? { ...prev, status: "generating" } : null);
-                    }}
-                    data-testid="button-generate-again"
-                  >
-                    Generate Again
-                  </Button>
-                </div>
               </div>
             </div>
           </motion.div>
