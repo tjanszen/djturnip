@@ -93,6 +93,12 @@ When `RECIPE_DETAIL_V2=on`, the `/api/recipes/generate-single` endpoint returns 
   - Swap updates a local "working copy" without modifying original recipe
   - Generate Again always uses original ingredients (ignores working copy)
   - IDs are preserved during substitution (only name/amount change)
+- **Cook Mode**: Step-by-step cooking instructions screen
+  - Accessed via "Let's Cook!" from Recipe Summary
+  - Numbered steps with time estimates (~N minutes)
+  - Ingredient badges show working copy names (reflects substitutions)
+  - Back arrow returns to Recipe Summary
+  - Placeholder CTAs: Favorite and Done (no-op)
 
 ### Key NPM Packages
 - `@tanstack/react-query`: Data fetching and caching
