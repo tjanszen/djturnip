@@ -3,6 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import { recipeDTOV2Schema, type RecipeDTOV2 } from "@shared/schema";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
@@ -270,13 +271,11 @@ Think of 6 different approaches: stovetop, baked, cold/salad, comfort food, inte
     }
   });
 
-  // Single Recipe Generation endpoint (V1 Flow)
+  // Single Recipe Generation endpoint (V1 Flow + V2 when RECIPE_DETAIL_V2 is ON)
   app.post(api.recipes.generateSingle.path, async (req, res) => {
     try {
       const input = api.recipes.generateSingle.input.parse(req.body);
       const { ingredients, prefs, allow_extras } = input;
-      
-      console.log(`fridge_flow_v1 generating ingredients_count=${ingredients.length} allow_extras=${allow_extras}`);
       
       if (process.env.FRIDGE_NEW_FLOW_V1 !== "on") {
         return res.status(200).json({
@@ -285,6 +284,170 @@ Think of 6 different approaches: stovetop, baked, cold/salad, comfort food, inte
           parse_retry: 0,
         });
       }
+
+      const isV2 = process.env.RECIPE_DETAIL_V2 === "on";
+      
+      // V2 Path: Structured ingredients with substitutes and step objects
+      if (isV2) {
+        console.log("recipe_detail_v2 generate_start");
+        
+        const timeInstruction = prefs.time === "best" 
+          ? "Choose the most appropriate cooking time for the recipe" 
+          : `Target cooking time: ${prefs.time} minutes`;
+        
+        const cuisineInstruction = prefs.cuisine === "any"
+          ? "Choose any cuisine style that works well with the ingredients"
+          : `Cuisine style: ${prefs.cuisine}`;
+
+        const v2SystemPrompt = `You are a creative home chef. Generate exactly ONE recipe based on the given ingredients and preferences.
+
+STRICT REQUIREMENTS - Return a JSON object with these EXACT fields:
+
+1. "name": Recipe name (string, 3-8 words)
+2. "description": Brief description (string, 1-2 sentences)
+3. "servings": Number of servings (must be ${prefs.servings})
+4. "time_minutes": Total estimated cooking time in minutes (number or null)
+5. "calories_per_serving": Estimated calories per serving (number or null)
+
+6. "ingredients": Array of ingredient objects. Each object MUST have:
+   - "id": Unique stable ID like "ing_1", "ing_2", etc.
+   - "name": The ingredient name (e.g., "red onion", "chicken breast")
+   - "amount": Quantity with unit (e.g., "1/2 cup, diced") or null for "to taste"
+   - "substitutes": Array of substitute options (can be empty []). Each substitute has:
+     - "id": Unique ID like "sub_1_1" (first sub for ing_1)
+     - "name": Substitute ingredient name (e.g., "shallot")
+     - "amount": Equivalent amount (e.g., "1/4 cup, minced")
+   
+   SUBSTITUTION RULES:
+   - Only include substitutes that do NOT materially change the cooking method
+   - If no reasonable substitute exists, use empty array []
+   - 1-2 substitutes per ingredient is ideal
+
+7. "steps": Array of step objects. Each object MUST have:
+   - "text": The full instruction text. MUST include ingredient amounts in parentheses after ingredient mentions (e.g., "Add the chicken (2 cups, diced) to the pan")
+   - "ingredient_ids": Array of ingredient IDs used in this step (e.g., ["ing_1", "ing_3"])
+   - "time_minutes": Time for this step in minutes (number or null)
+
+EXAMPLE ingredient:
+{
+  "id": "ing_1",
+  "name": "red onion",
+  "amount": "1/2 cup, diced",
+  "substitutes": [
+    { "id": "sub_1_1", "name": "shallot", "amount": "1/4 cup, minced" },
+    { "id": "sub_1_2", "name": "yellow onion", "amount": "1/2 cup, diced" }
+  ]
+}
+
+EXAMPLE step:
+{
+  "text": "Heat oil in a pan over medium heat. Add the red onion (1/2 cup, diced) and sauté until translucent, about 3 minutes.",
+  "ingredient_ids": ["ing_1"],
+  "time_minutes": 3
+}
+
+${timeInstruction}
+${cuisineInstruction}
+
+Keep unit system consistent throughout (don't mix cups and grams).
+Return ONLY valid JSON. No markdown, no explanation.`;
+
+        const userPrompt = `Create a recipe for ${prefs.servings} servings using these ingredients: ${ingredients.join(", ")}`;
+
+        let parseRetry = 0;
+        let lastError = "";
+        
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const messages = attempt === 0 
+              ? [
+                  { role: "system" as const, content: v2SystemPrompt },
+                  { role: "user" as const, content: userPrompt }
+                ]
+              : [
+                  { role: "system" as const, content: v2SystemPrompt },
+                  { role: "user" as const, content: userPrompt },
+                  { role: "assistant" as const, content: lastError },
+                  { role: "user" as const, content: `The previous response was invalid: ${lastError}. Fix the JSON to match the schema exactly. Return ONLY valid JSON.` }
+                ];
+
+            const response = await openai.chat.completions.create({
+              model: "gpt-4o-mini",
+              messages,
+              response_format: { type: "json_object" },
+              max_tokens: 3000,
+            });
+
+            const content = response.choices[0]?.message?.content || "";
+            
+            let parsed;
+            try {
+              parsed = JSON.parse(content);
+            } catch {
+              lastError = `Invalid JSON: ${content.substring(0, 200)}`;
+              parseRetry = 1;
+              console.log(`recipe_detail_v2 parse_retry=${parseRetry}`);
+              continue;
+            }
+
+            // Validate with Zod schema
+            const validation = recipeDTOV2Schema.safeParse(parsed);
+            if (!validation.success) {
+              const errors = validation.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
+              lastError = `Schema validation failed: ${errors}`;
+              parseRetry = 1;
+              console.log(`recipe_detail_v2 parse_retry=${parseRetry}`);
+              continue;
+            }
+
+            const recipe: RecipeDTOV2 = validation.data;
+
+            // Validate ingredient_ids in steps reference actual ingredients
+            const ingredientIds = new Set(recipe.ingredients.map(i => i.id));
+            let hasInvalidRef = false;
+            for (const step of recipe.steps) {
+              for (const refId of step.ingredient_ids) {
+                if (!ingredientIds.has(refId)) {
+                  lastError = `Step references unknown ingredient ID: ${refId}`;
+                  parseRetry = 1;
+                  console.log(`recipe_detail_v2 parse_retry=${parseRetry}`);
+                  hasInvalidRef = true;
+                  break;
+                }
+              }
+              if (hasInvalidRef) break;
+            }
+            if (hasInvalidRef) continue;
+
+            console.log("recipe_detail_v2 generate_success");
+            
+            return res.status(200).json({
+              success: true,
+              recipe,
+              parse_retry: parseRetry,
+              version: "v2",
+            });
+            
+          } catch (apiError) {
+            lastError = apiError instanceof Error ? apiError.message : "API call failed";
+            parseRetry = 1;
+            console.log(`recipe_detail_v2 parse_retry=${parseRetry}`);
+          }
+        }
+
+        // Both attempts failed
+        console.log(`recipe_detail_v2 generate_error error=${lastError}`);
+        
+        return res.status(200).json({
+          success: false,
+          error: lastError || "Failed to generate V2 recipe after 2 attempts",
+          parse_retry: parseRetry,
+          version: "v2",
+        });
+      }
+      
+      // V1 Path: Legacy string-based ingredients and steps
+      console.log(`fridge_flow_v1 generating ingredients_count=${ingredients.length} allow_extras=${allow_extras}`);
 
       const timeInstruction = prefs.time === "best" 
         ? "Choose the most appropriate cooking time for the recipe" 
