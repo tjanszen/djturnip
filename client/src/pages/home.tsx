@@ -100,7 +100,7 @@ const featuredRecipes = [
   },
 ];
 
-type ViewState = "search" | "swiping" | "saved" | "fridge-processing" | "fridge-prefs" | "fridge-confirm" | "fridge-generating" | "fridge-result" | "fridge-error" | "fridge-single";
+type ViewState = "search" | "swiping" | "saved" | "fridge-processing" | "fridge-prefs" | "fridge-confirm" | "fridge-generating" | "fridge-result" | "fridge-error" | "fridge-single" | "cook-mode";
 type RecipeMode = "remix" | "fridge";
 
 // V1 legacy recipe shape (string arrays)
@@ -1291,7 +1291,7 @@ export default function Home() {
                     <div className="flex flex-col gap-3 pt-4">
                       <Button
                         className="w-full"
-                        disabled
+                        onClick={() => setViewState("cook-mode")}
                         data-testid="button-lets-cook"
                       >
                         <ChefHat className="w-4 h-4 mr-2" />
@@ -1383,6 +1383,126 @@ export default function Home() {
                       </Button>
                     </div>
                   </>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* V2 Cook Mode - step-by-step instructions */}
+        {viewState === "cook-mode" && RECIPE_DETAIL_V2 && generatedRecipe && isRecipeV2(generatedRecipe) && (
+          <motion.div
+            key="cook-mode"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-lg mt-8"
+          >
+            <div className="bg-card border border-border shadow-lg rounded-2xl overflow-hidden">
+              <div className="p-8 space-y-6">
+                {/* Header with back button */}
+                <div className="flex items-start gap-3">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setViewState("fridge-result")}
+                    data-testid="button-cook-mode-back"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </Button>
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-serif font-medium text-foreground" data-testid="text-cook-mode-title">
+                      {generatedRecipe.name}
+                    </h2>
+                    <p className="text-muted-foreground mt-1 text-sm">
+                      Step-by-step cooking instructions
+                    </p>
+                  </div>
+                </div>
+
+                {/* Steps list */}
+                {generatedRecipe.steps.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground" data-testid="text-no-steps">
+                      Unable to load steps
+                    </p>
+                    <Button
+                      variant="outline"
+                      className="mt-4"
+                      onClick={() => setViewState("fridge-result")}
+                      data-testid="button-no-steps-back"
+                    >
+                      Back to Recipe
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-6" data-testid="list-cook-steps">
+                    {generatedRecipe.steps.map((step, i) => {
+                      // Map ingredient_ids to working copy names for display context
+                      const referencedIngredients = step.ingredient_ids
+                        .map(id => workingIngredients.find(ing => ing.id === id))
+                        .filter((ing): ing is IngredientItemV2 => ing !== undefined);
+                      
+                      return (
+                        <div 
+                          key={i} 
+                          className="flex gap-4"
+                          data-testid={`cook-step-${i}`}
+                        >
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
+                            {i + 1}
+                          </div>
+                          <div className="flex-1 space-y-2">
+                            <p className="text-sm text-foreground leading-relaxed" data-testid={`text-cook-step-${i}`}>
+                              {step.text}
+                            </p>
+                            {step.time_minutes && (
+                              <p className="text-xs text-muted-foreground" data-testid={`text-cook-step-time-${i}`}>
+                                ~{step.time_minutes} minutes
+                              </p>
+                            )}
+                            {referencedIngredients.length > 0 && (
+                              <div className="flex flex-wrap gap-1 pt-1">
+                                {referencedIngredients.map((ing, j) => (
+                                  <Badge 
+                                    key={ing.id} 
+                                    variant="secondary" 
+                                    className="text-xs"
+                                    data-testid={`badge-step-ingredient-${i}-${j}`}
+                                  >
+                                    {ing.name}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Bottom CTAs: Favorite and Done */}
+                {generatedRecipe.steps.length > 0 && (
+                  <div className="flex gap-3 pt-4 border-t border-border">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      disabled
+                      data-testid="button-favorite"
+                    >
+                      <Heart className="w-4 h-4 mr-2" />
+                      Favorite
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      disabled
+                      data-testid="button-done"
+                    >
+                      Done
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>

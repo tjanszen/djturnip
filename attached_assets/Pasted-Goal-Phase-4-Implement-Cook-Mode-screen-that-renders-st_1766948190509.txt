@@ -1,0 +1,60 @@
+Goal: Phase 4 — Implement Cook Mode screen that renders step-by-step instructions using RecipeDTO V2, correctly reflecting ingredient substitutions via ID-based mapping, without changing generation or substitution logic.
+
+Do:
+- Confirm feature flag RECIPE_DETAIL_V2 exists and is OFF by default.
+- Create a new Cook Mode screen/page that is only reachable when RECIPE_DETAIL_V2 is ON.
+- Navigation:
+  - From the Recipe Summary screen, wire the primary CTA “Let’s Cook!” to navigate to Cook Mode.
+  - Back arrow in Cook Mode must return to Recipe Summary (not New Recipe).
+- Data handling:
+  - Cook Mode consumes:
+    - The original RecipeDTO V2
+    - The current “working copy” of ingredients from Recipe Summary (including any substitutions)
+  - Do NOT mutate the original RecipeDTO.
+- Step rendering:
+  - Render steps from RecipeDTO.steps (array of StepItem).
+  - For each step:
+    - Display numbered order (1, 2, 3, …).
+    - Render StepItem.text as the base instruction.
+    - Append time estimate if present:
+      - Format: “~<n> minutes”
+      - Use StepItem.time_minutes (minutes only).
+  - Ingredient substitution handling (critical):
+    - Use StepItem.ingredient_ids to determine which ingredients are referenced in the step.
+    - When rendering, map ingredient_ids to the current working-copy ingredients:
+      - If an ingredient was substituted, use the substituted name + amount.
+      - If not substituted, use the original name + amount.
+    - Do NOT use string replacement on step text.
+    - Assume step text already includes ingredient amounts in parentheses; the mapping ensures correctness.
+- Layout:
+  - Focused, readable, scrollable steps view.
+  - Steps are the primary content (no ingredients list here).
+- Bottom CTAs:
+  - Render two CTAs fixed near bottom (or at end of content):
+    - “Favorite” (placeholder, no-op)
+    - “Done” (placeholder, no-op)
+- State rules:
+  - Ingredient substitutions made in Recipe Summary must be reflected here.
+  - Generate Again and Edit Ingredients are NOT available in Cook Mode.
+- Error handling:
+  - If steps array is empty or malformed, show a simple error state (“Unable to load steps”) with Back action.
+
+Constraints:
+- Do NOT trigger generation or regeneration in Cook Mode.
+- Do NOT allow ingredient editing or substitution from Cook Mode.
+- Do NOT change RecipeDTO V2 schema.
+- Do NOT affect legacy behavior when RECIPE_DETAIL_V2 is OFF.
+
+Gate via feature flag:
+- RECIPE_DETAIL_V2 = OFF by default.
+
+Proof:
+- With RECIPE_DETAIL_V2 ON:
+  - Tapping “Let’s Cook!” navigates to Cook Mode.
+  - Steps render numbered with time estimates in minutes.
+  - Ingredient substitutions made in Recipe Summary are correctly reflected in steps.
+  - Back arrow returns to Recipe Summary.
+  - “Favorite” and “Done” buttons render and do nothing.
+- With RECIPE_DETAIL_V2 OFF:
+  - Cook Mode is unreachable and legacy recipe result screen remains unchanged.
+- No backend calls or generation logic runs when entering Cook Mode.
