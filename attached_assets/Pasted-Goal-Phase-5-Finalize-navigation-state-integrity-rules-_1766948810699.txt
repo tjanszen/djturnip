@@ -1,0 +1,52 @@
+Goal: Phase 5 — Finalize navigation + state integrity rules for RECIPE_DETAIL_V2 so all user actions route correctly, substitutions remain ephemeral, and legacy behavior remains unchanged when the flag is OFF.
+
+Do:
+- Confirm feature flags:
+  - FRIDGE_SINGLE_RECIPE_SCREEN_V1 remains the gate for the New Recipe consolidated flow.
+  - RECIPE_DETAIL_V2 remains the gate for the new Recipe Summary + Cook Mode experience.
+- Enforce navigation rules when RECIPE_DETAIL_V2 is ON:
+  - Recipe Summary screen:
+    - Back arrow returns to the consolidated “New Recipe” screen (not any legacy screens).
+    - “Edit Ingredients” (if present on this screen) navigates to consolidated “New Recipe” and resets substitutions (no preservation).
+    - “Generate again” regenerates using the original ingredients/prefs used for the current recipe (ignores substitutions).
+  - Cook Mode screen:
+    - Back arrow returns to Recipe Summary (not New Recipe).
+    - No “Edit Ingredients” or “Generate again” actions on Cook Mode.
+- Substitution state rules (critical):
+  - Substitutions must be stored only in a UI-local “working copy” (e.g., screen state or a scoped session object).
+  - Substitutions must NOT:
+    - mutate RecipeDTO V2 returned from generation
+    - leak back into New Recipe inputs
+    - affect “Generate again” inputs
+  - When the user leaves Recipe Summary to New Recipe via back/edit, clear the working copy.
+- Stack hygiene:
+  - Prevent falling back into legacy flow routes when either flag is ON.
+  - If the stack contains legacy screens due to historical navigation, use a safe redirect/reset strategy:
+    - When navigating back to New Recipe, explicitly navigate to the consolidated route (do not rely on implicit stack pop if it lands wrong).
+    - Avoid pushing duplicate New Recipe screens; prefer popTo/popToTop where available.
+- Add minimal telemetry:
+  - "recipe_detail_v2 nav_back_to_new_recipe"
+  - "recipe_detail_v2 nav_edit_to_new_recipe"
+  - "recipe_detail_v2 nav_to_cook_mode"
+  - "recipe_detail_v2 nav_back_to_summary"
+  - "recipe_detail_v2 generate_again_click"
+  - "recipe_detail_v2 substitutions_cleared"
+
+Constraints:
+- Do NOT change generation logic, prompts, or payload shapes.
+- Do NOT change legacy navigation when RECIPE_DETAIL_V2 is OFF.
+- Do NOT introduce persistence for substitutions.
+
+Gate via feature flag:
+- RECIPE_DETAIL_V2 = OFF by default.
+
+Proof:
+- With RECIPE_DETAIL_V2 ON:
+  - Recipe Summary back arrow always returns to consolidated “New Recipe” (never legacy).
+  - “Edit Ingredients” returns to consolidated “New Recipe” and substitutions are cleared.
+  - “Generate again” regenerates using original ingredients/prefs (ignores substitutions).
+  - Cook Mode back arrow returns to Recipe Summary.
+  - Substitutions never leak into New Recipe or regenerate inputs.
+- With RECIPE_DETAIL_V2 OFF:
+  - Legacy recipe result screen + legacy navigation remains unchanged.
+- Logs show the nav tokens above during manual testing.

@@ -1211,6 +1211,15 @@ export default function Home() {
                     variant="ghost"
                     size="icon"
                     onClick={() => {
+                      // V2: clear substitutions and navigate to consolidated New Recipe
+                      if (RECIPE_DETAIL_V2) {
+                        console.log("recipe_detail_v2 nav_back_to_new_recipe");
+                        console.log("recipe_detail_v2 substitutions_cleared");
+                        setWorkingIngredients([]);
+                        setViewState("fridge-single");
+                        setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                        return;
+                      }
                       const singleScreenEnabled = import.meta.env.VITE_FRIDGE_SINGLE_RECIPE_SCREEN_V1 === "on";
                       if (singleScreenEnabled) {
                         console.log("single_screen_v1 back_to_new_recipe");
@@ -1287,11 +1296,14 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* V2 CTAs: Let's Cook! (primary) + Generate again (secondary) */}
+                    {/* V2 CTAs: Let's Cook! (primary) + Generate again + Edit Ingredients (secondary) */}
                     <div className="flex flex-col gap-3 pt-4">
                       <Button
                         className="w-full"
-                        onClick={() => setViewState("cook-mode")}
+                        onClick={() => {
+                          console.log("recipe_detail_v2 nav_to_cook_mode");
+                          setViewState("cook-mode");
+                        }}
                         data-testid="button-lets-cook"
                       >
                         <ChefHat className="w-4 h-4 mr-2" />
@@ -1301,7 +1313,8 @@ export default function Home() {
                         variant="outline"
                         className="w-full"
                         onClick={() => {
-                          // Reset working ingredients and regenerate using original
+                          console.log("recipe_detail_v2 generate_again_click");
+                          // Regenerate using original ingredients/prefs (ignores substitutions)
                           setWorkingIngredients([]);
                           setViewState("fridge-generating");
                           setCleanoutSession(prev => prev ? { ...prev, status: "generating" } : null);
@@ -1309,6 +1322,20 @@ export default function Home() {
                         data-testid="button-generate-again"
                       >
                         Generate again
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="w-full"
+                        onClick={() => {
+                          console.log("recipe_detail_v2 nav_edit_to_new_recipe");
+                          console.log("recipe_detail_v2 substitutions_cleared");
+                          setWorkingIngredients([]);
+                          setViewState("fridge-single");
+                          setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                        }}
+                        data-testid="button-edit-ingredients-v2"
+                      >
+                        Edit Ingredients
                       </Button>
                     </div>
                   </>
@@ -1406,7 +1433,10 @@ export default function Home() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setViewState("fridge-result")}
+                    onClick={() => {
+                      console.log("recipe_detail_v2 nav_back_to_summary");
+                      setViewState("fridge-result");
+                    }}
                     data-testid="button-cook-mode-back"
                   >
                     <ArrowLeft className="w-5 h-5" />
