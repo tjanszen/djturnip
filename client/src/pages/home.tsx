@@ -10,8 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { RecipeAlternative, RecipeStyle, FridgeRecipe } from "@shared/routes";
+import type { IngredientItemV2, StepItemV2 } from "@shared/schema";
 
 const FRIDGE_NEW_FLOW_V1 = import.meta.env.VITE_FRIDGE_NEW_FLOW_V1 === "on";
+const RECIPE_DETAIL_V2 = import.meta.env.VITE_RECIPE_DETAIL_V2 === "on";
 
 type CleanoutStatus = "processing" | "prefs" | "confirm" | "generating" | "done" | "error" | "single";
 
@@ -98,7 +100,8 @@ const featuredRecipes = [
 type ViewState = "search" | "swiping" | "saved" | "fridge-processing" | "fridge-prefs" | "fridge-confirm" | "fridge-generating" | "fridge-result" | "fridge-error" | "fridge-single";
 type RecipeMode = "remix" | "fridge";
 
-interface GeneratedRecipe {
+// V1 legacy recipe shape (string arrays)
+interface GeneratedRecipeV1 {
   name: string;
   summary: string;
   servings: number;
@@ -107,6 +110,27 @@ interface GeneratedRecipe {
   ingredients: string[];
   steps: string[];
   added_extras?: string[];
+}
+
+// V2 structured recipe shape (object arrays)
+interface GeneratedRecipeV2 {
+  name: string;
+  description: string;
+  servings: number;
+  time_minutes: number | null;
+  calories_per_serving: number | null;
+  ingredients: IngredientItemV2[];
+  steps: StepItemV2[];
+}
+
+// Union type for both shapes
+type GeneratedRecipe = GeneratedRecipeV1 | GeneratedRecipeV2;
+
+// Type guard to check if recipe is V2 shape
+function isRecipeV2(recipe: GeneratedRecipe): recipe is GeneratedRecipeV2 {
+  return recipe.ingredients.length > 0 && 
+    typeof recipe.ingredients[0] === 'object' && 
+    'id' in recipe.ingredients[0];
 }
 
 export default function Home() {

@@ -1,0 +1,51 @@
+Goal: Phase 2 — Implement the new Recipe Summary Screen (read-only) behind RECIPE_DETAIL_V2 using RecipeDTO V2, matching the new layout and CTAs, without substitutions UX or Cook Mode yet.
+
+Do:
+- Confirm feature flag RECIPE_DETAIL_V2 exists and is OFF by default.
+- Locate the current “generated recipe” result screen (the one that currently shows name, description, metadata, bullets for ingredients, and steps).
+- Add a new Recipe Summary screen layout for the RECIPE_DETAIL_V2 path (either a new screen component or a conditional render branch in the existing screen), using RecipeDTO V2 fields:
+  - Render order:
+    1) Recipe Name (dto.name)
+    2) Short Description (dto.description)
+    3) Metadata row: Servings | Time | Cals
+       - Servings: dto.servings
+       - Time: dto.time_minutes (if null, show “—” or omit)
+       - Cals: dto.calories_per_serving (if null, show “—” or omit)
+    4) Ingredient List (2-column)
+       - Left column: IngredientItem.name
+       - Right column: IngredientItem.amount (render empty string if null)
+    5) Primary CTA: “Let’s Cook!” (present but can be no-op or disabled in this phase)
+    6) Secondary CTA: “Generate again” (wire to existing regenerate behavior for the same ingredients/prefs)
+- Ensure steps are NOT displayed on this screen (no Cook Mode yet).
+- Styling requirements (high-level):
+  - Ingredients should not be bullets; use a two-column row layout.
+  - Ingredient name column should take more width than amount column.
+  - Rows should be clean and readable; spacing consistent.
+- Navigation:
+  - Back arrow behavior remains consistent with the current flow rules.
+  - “Edit Ingredients” should remain as-is for now if it exists on this screen; do not redesign actions beyond adding the two CTAs above.
+  - “Generate again” should reuse existing regenerate action and should NOT incorporate substitutions (none exist yet).
+- Backwards compatibility:
+  - When RECIPE_DETAIL_V2 is OFF, keep the legacy recipe result screen unchanged (including steps and bullet ingredients).
+  - When RECIPE_DETAIL_V2 is ON, the new summary layout should render and consume RecipeDTO V2 (ingredients as objects, steps as StepItem[] but ignored for now).
+
+Do NOT:
+- Implement ingredient substitution bottom sheet yet.
+- Implement Cook Mode screen yet.
+- Add parsing/retrofit code for legacy ingredients into 2-column (V2 must use structured ingredients from DTO).
+- Change generation logic/payloads beyond what Phase 1 already introduced.
+
+Gate via feature flag:
+- RECIPE_DETAIL_V2 = OFF by default.
+
+Proof:
+- With RECIPE_DETAIL_V2 OFF:
+  - Legacy recipe result screen renders unchanged (bullets + steps visible).
+- With RECIPE_DETAIL_V2 ON:
+  - Recipe Summary screen shows:
+    - name, description, metadata row
+    - ingredients in 2-column layout (name | amount)
+    - Primary CTA “Let’s Cook!” present (no-op/disabled ok)
+    - Secondary CTA “Generate again” triggers regeneration
+  - Steps are not visible on the summary screen.
+- No runtime errors caused by mixing legacy and V2 DTO shapes.
