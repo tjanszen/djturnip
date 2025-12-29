@@ -80,10 +80,15 @@ shared/           # Shared code between frontend and backend
 - `RECIPE_DETAIL_V2`: Set to "on" to enable structured RecipeDTO V2 with ingredient substitutions
 - `PROMPT_V3_HOMECOOK`: Set to "on" to enable thoughtful home-cook style prompts for more novel-but-familiar recipes
 
+### Recipe Explanation Feature
+All generated recipes (V1 and V2) now include an `explanation` field with 1-3 concise sentences explaining why the recipe idea works (flavor, texture, or technique rationale). This is displayed in a styled "Why this works" section below the recipe description.
+- Telemetry: `recipe_schema_explanation_supported` logged when generating recipes
+
 ### RecipeDTO V2 (RECIPE_DETAIL_V2)
 When `RECIPE_DETAIL_V2=on`, the `/api/recipes/generate-single` endpoint returns structured recipe data:
 - **Ingredients**: Objects with `id`, `name`, `amount`, and `substitutes[]` (each substitute has `id`, `name`, `amount`)
 - **Steps**: Objects with `text` (includes ingredient amounts in parentheses), `ingredient_ids[]`, and `time_minutes`
+- **Explanation**: 1-3 sentences explaining why the recipe works
 - ID-based ingredient references enable substitution without step text replacement
 - Validation ensures all `ingredient_ids` in steps reference actual ingredient IDs
 
