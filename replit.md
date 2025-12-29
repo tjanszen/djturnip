@@ -77,22 +77,23 @@ shared/           # Shared code between frontend and backend
 - `ALT_RECIPES`: Set to "on" to enable AI recipe alternatives generation
 - `FRIDGE_NEW_FLOW_V1`: Set to "on" to enable single recipe generation endpoint
 - `FRIDGE_SINGLE_RECIPE_SCREEN_V1`: Set to "on" to enable consolidated Crumb-style single-screen UI
-- `RECIPE_DETAIL_V2`: Set to "on" to enable structured RecipeDTO V2 with ingredient substitutions
 - `PROMPT_V3_HOMECOOK`: Set to "on" to enable thoughtful home-cook style prompts for more novel-but-familiar recipes
 
-### Recipe Explanation Feature
-All generated recipes (V1 and V2) now include an `explanation` field with 1-3 concise sentences explaining why the recipe idea works (flavor, texture, or technique rationale). This is displayed in a styled "Why this works" section below the recipe description.
-- Telemetry: `recipe_schema_explanation_supported` logged when generating recipes
+## Recipe Data Structure (V2)
 
-### RecipeDTO V2 (RECIPE_DETAIL_V2)
-When `RECIPE_DETAIL_V2=on`, the `/api/recipes/generate-single` endpoint returns structured recipe data:
-- **Ingredients**: Objects with `id`, `name`, `amount`, and `substitutes[]` (each substitute has `id`, `name`, `amount`)
-- **Steps**: Objects with `text` (includes ingredient amounts in parentheses), `ingredient_ids[]`, and `time_minutes`
-- **Explanation**: 1-3 sentences explaining why the recipe works
-- ID-based ingredient references enable substitution without step text replacement
-- Validation ensures all `ingredient_ids` in steps reference actual ingredient IDs
+The `/api/recipes/generate-single` endpoint returns structured recipe data with the following format:
+- **name**: Recipe title
+- **description**: Brief recipe description
+- **servings**: Number of servings
+- **time_minutes**: Total cooking time
+- **calories_per_serving**: Estimated calories (optional)
+- **explanation**: 1-3 sentences explaining why the recipe works (flavor, texture, or technique rationale)
+- **Ingredients**: Array of objects with `id`, `name`, `amount`, and `substitutes[]` (each substitute has `id`, `name`, `amount`)
+- **Steps**: Array of objects with `text` (includes ingredient amounts in parentheses), `ingredient_ids[]`, and `time_minutes`
 
-**Frontend V2 Features**:
+ID-based ingredient references enable substitution without step text replacement. Validation ensures all `ingredient_ids` in steps reference actual ingredient IDs.
+
+### Frontend Features
 - **Recipe Summary Screen**: 2-column ingredient layout (name | amount), hidden steps, "Let's Cook!" and "Generate again" CTAs
 - **Ingredient Substitution**: Tappable ingredient rows with chevron if substitutes exist
   - Bottom sheet (Drawer) opens with radio list of substitute options + original
@@ -105,15 +106,16 @@ When `RECIPE_DETAIL_V2=on`, the `/api/recipes/generate-single` endpoint returns 
   - Ingredient badges show working copy names (reflects substitutions)
   - Back arrow returns to Recipe Summary
   - Placeholder CTAs: Favorite and Done (no-op)
-- **V2 Navigation Rules**:
+- **Navigation Rules**:
   - Recipe Summary back arrow returns to consolidated "New Recipe" (fridge-single) and clears substitutions
   - "Edit Ingredients" on Recipe Summary navigates to New Recipe and clears substitutions
   - "Generate again" regenerates using original ingredients/prefs (ignores substitutions)
   - Cook Mode back arrow returns to Recipe Summary (preserves substitutions)
   - Substitutions are ephemeral (UI-local working copy only, never mutate original RecipeDTO)
-- **V2 Telemetry logs**:
-  - `recipe_detail_v2 nav_back_to_new_recipe`, `nav_edit_to_new_recipe`, `nav_to_cook_mode`, `nav_back_to_summary`
-  - `recipe_detail_v2 generate_again_click`, `substitutions_cleared`
+- **Telemetry logs**:
+  - `recipe_v2 nav_back_to_new_recipe`, `nav_edit_to_new_recipe`, `nav_to_cook_mode`, `nav_back_to_summary`
+  - `recipe_v2 generate_again_click`, `substitutions_cleared`
+  - `recipe_v2_generate_start`, `recipe_v2_parse_success`, `recipe_v2_parse_retry`, `recipe_v2_generate_error`
 
 ### Key NPM Packages
 - `@tanstack/react-query`: Data fetching and caching
