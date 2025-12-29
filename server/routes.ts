@@ -575,5 +575,42 @@ STRICT REQUIREMENTS:
     }
   });
 
+  // Recipe Image Generation endpoint
+  app.post("/api/recipes/generate-image", async (req, res) => {
+    try {
+      const { prompt } = req.body;
+      
+      if (!prompt || typeof prompt !== "string") {
+        return res.status(400).json({ error: "prompt is required" });
+      }
+
+      console.log("recipe_image_gen_request");
+      
+      const response = await openai.images.generate({
+        model: "gpt-image-1",
+        prompt,
+        n: 1,
+        size: "1024x1024", // Square format for recipe hero images
+      });
+
+      const imageData = response.data?.[0];
+      
+      if (!imageData) {
+        console.log("recipe_image_gen_fail reason=no_data");
+        return res.status(500).json({ error: "No image data returned" });
+      }
+
+      console.log("recipe_image_gen_success");
+      
+      // Return URL if available, otherwise base64
+      res.json({
+        image_url: imageData.url || `data:image/png;base64,${imageData.b64_json}`,
+      });
+    } catch (error) {
+      console.error("recipe_image_gen_fail", error);
+      res.status(500).json({ error: "Failed to generate image" });
+    }
+  });
+
   return httpServer;
 }
