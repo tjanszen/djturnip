@@ -1,0 +1,66 @@
+Goal: Investigate whether the “Allow other ingredients?” toggle is wired correctly and actually affects recipe generation, or if it is currently a no-op.
+
+Do:
+- Identify the source of truth for the “Allow other ingredients?” toggle:
+  - Locate the UI component for the toggle.
+  - Trace where its value is stored (local state, context, store, session object, etc.).
+- Trace the full data flow from toggle → generation:
+  - Confirm whether the toggle value is:
+    - Included in the generation payload/request sent to the backend/OpenAI, OR
+    - Used to conditionally modify the generation prompt, OR
+    - Ignored entirely after being set.
+- Inspect the generation prompt logic:
+  - Check whether there is explicit language like:
+    - “You may include common pantry items”
+    - “You may include additional ingredients not listed”
+  - Confirm whether this language is:
+    - Always present
+    - Conditionally present based on allow_other_ingredients
+    - Missing entirely
+- Compare behavior with toggle OFF vs ON:
+  - Run two test generations with the same ingredients:
+    - allow_other_ingredients = false
+    - allow_other_ingredients = true
+  - Log or inspect:
+    - The exact prompt text sent in both cases
+    - The generated ingredient lists returned
+- Determine expected vs actual behavior:
+  - If the toggle is intended to:
+    - Allow pantry staples (oil, salt, spices), confirm whether those appear only when ON.
+    - Expand ingredients meaningfully, confirm whether any difference exists.
+- Classify the result:
+  - Case A: Toggle is fully wired and working as intended (document how).
+  - Case B: Toggle value is passed but not used in the prompt (logic gap).
+  - Case C: Toggle is never passed to generation (UI-only no-op).
+  - Case D: Toggle works, but effect is too subtle to notice (UX issue, not bug).
+
+Instrumentation (temporary is fine):
+- Log when toggle changes:
+  - "allow_other_ingredients_toggle value=<true|false>"
+- Log generation start with toggle value:
+  - "generate_recipe allow_other_ingredients=<true|false>"
+- Log whether prompt text differs between ON and OFF cases.
+
+Do NOT:
+- Change generation logic yet.
+- Modify prompt wording yet.
+- Assume the toggle is broken without tracing the prompt and payload.
+- Add new behavior beyond investigation and documentation.
+
+Output expected:
+- A short written summary explaining:
+  - Whether the toggle currently affects generation
+  - Where in the code the effect occurs (or fails to occur)
+  - Whether the current behavior matches product intent
+- A recommendation:
+  - Leave as-is
+  - Fix wiring bug
+  - Improve prompt wording
+  - Remove toggle if it is effectively a no-op
+
+Proof:
+- Clear evidence (logs or code references) showing:
+  - Toggle value at UI
+  - Toggle value at generation
+  - Prompt difference (or lack thereof)
+- Repro steps documented for ON vs OFF comparison.
