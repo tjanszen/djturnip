@@ -82,6 +82,7 @@ export interface RecipeDTOV2 {
   calories_per_serving: number | null;
   ingredients: IngredientItemV2[];
   steps: StepItemV2[];
+  image_prompt: string;
 }
 
 // Zod schemas for V2 validation
@@ -113,4 +114,8 @@ export const recipeDTOV2Schema = z.object({
   calories_per_serving: z.number().nullable(),
   ingredients: z.array(ingredientItemV2Schema).min(1),
   steps: z.array(stepItemV2Schema).min(1),
+  image_prompt: z.string().min(1),
 });
+
+// Log schema update for observability
+console.log("schema_v2_image_prompt_added");

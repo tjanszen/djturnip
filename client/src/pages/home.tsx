@@ -112,6 +112,7 @@ interface GeneratedRecipe {
   calories_per_serving: number | null;
   ingredients: IngredientItemV2[];
   steps: StepItemV2[];
+  image_prompt: string;
 }
 
 export default function Home() {
