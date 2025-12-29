@@ -76,6 +76,7 @@ export interface StepItemV2 {
 export interface RecipeDTOV2 {
   name: string;
   description: string;
+  explanation: string;
   servings: number;
   time_minutes: number | null;
   calories_per_serving: number | null;
@@ -106,6 +107,7 @@ export const stepItemV2Schema = z.object({
 export const recipeDTOV2Schema = z.object({
   name: z.string().min(1),
   description: z.string().min(1),
+  explanation: z.string().min(1),
   servings: z.number().min(1),
   time_minutes: z.number().nullable(),
   calories_per_serving: z.number().nullable(),

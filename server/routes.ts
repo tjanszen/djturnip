@@ -299,17 +299,20 @@ Think of 6 different approaches: stovetop, baked, cold/salad, comfort food, inte
           ? "Choose any cuisine style that works well with the ingredients"
           : `Cuisine style: ${prefs.cuisine}`;
 
+        console.log("recipe_schema_explanation_supported");
+        
         const v2SystemPrompt = `You are a creative home chef. Generate exactly ONE recipe based on the given ingredients and preferences.
 
 STRICT REQUIREMENTS - Return a JSON object with these EXACT fields:
 
 1. "name": Recipe name (string, 3-8 words)
 2. "description": Brief description (string, 1-2 sentences)
-3. "servings": Number of servings (must be ${prefs.servings})
-4. "time_minutes": Total estimated cooking time in minutes (number or null)
-5. "calories_per_serving": Estimated calories per serving (number or null)
+3. "explanation": 1-3 concise sentences explaining why the core idea or twist works (in terms of flavor, texture, or technique)
+4. "servings": Number of servings (must be ${prefs.servings})
+5. "time_minutes": Total estimated cooking time in minutes (number or null)
+6. "calories_per_serving": Estimated calories per serving (number or null)
 
-6. "ingredients": Array of ingredient objects. Each object MUST have:
+7. "ingredients": Array of ingredient objects. Each object MUST have:
    - "id": Unique stable ID like "ing_1", "ing_2", etc.
    - "name": The ingredient name (e.g., "red onion", "chicken breast")
    - "amount": Quantity with unit (e.g., "1/2 cup, diced") or null for "to taste"
@@ -323,7 +326,7 @@ STRICT REQUIREMENTS - Return a JSON object with these EXACT fields:
    - If no reasonable substitute exists, use empty array []
    - 1-2 substitutes per ingredient is ideal
 
-7. "steps": Array of step objects. Each object MUST have:
+8. "steps": Array of step objects. Each object MUST have:
    - "text": The full instruction text. MUST include ingredient amounts in parentheses after ingredient mentions (e.g., "Add the chicken (2 cups, diced) to the pan")
    - "ingredient_ids": Array of ingredient IDs used in this step (e.g., ["ing_1", "ing_3"])
    - "time_minutes": Time for this step in minutes (number or null)
@@ -479,12 +482,15 @@ Avoid novelty for its own sake. The result should feel obvious in hindsight.`
         ? `You MAY add common pantry staples (oil, butter, salt, pepper, basic spices, garlic, onion, flour, sugar, common condiments) to improve the recipe. If you add any extras beyond the provided ingredients, you MUST list them in the "added_extras" array.`
         : `Use ONLY the provided ingredients. You may use water, salt, and pepper, but do NOT add any other ingredients. Do NOT include "added_extras" in your response.`;
 
+      console.log("recipe_schema_explanation_supported");
+      
       const systemPrompt = `You are a creative home chef. Generate exactly ONE recipe based on the given ingredients and preferences.
 
 STRICT REQUIREMENTS:
 1. Return a JSON object with these exact fields:
    - "name": Recipe name (string, 3-8 words)
    - "summary": Brief description (string, 1-2 sentences)
+   - "explanation": 1-3 concise sentences explaining why the core idea or twist works (in terms of flavor, texture, or technique)
    - "servings": Number of servings (number, must match the requested servings: ${prefs.servings})
    - "time_minutes": Estimated cooking time in minutes (number or null)
    - "calories_per_serving": Estimated calories per serving (number or null)
@@ -565,6 +571,11 @@ Avoid novelty for its own sake. The result should feel obvious in hindsight.`
             parseRetry = 1;
             continue;
           }
+          if (!parsed.explanation || typeof parsed.explanation !== 'string' || parsed.explanation.length === 0) {
+            lastError = "Missing or invalid 'explanation' field";
+            parseRetry = 1;
+            continue;
+          }
           if (typeof parsed.servings !== 'number' || parsed.servings < 1) {
             lastError = "Missing or invalid 'servings' field";
             parseRetry = 1;
@@ -595,6 +606,7 @@ Avoid novelty for its own sake. The result should feel obvious in hindsight.`
           const recipe = {
             name: parsed.name,
             summary: parsed.summary,
+            explanation: parsed.explanation,
             servings: parsed.servings,
             time_minutes: typeof parsed.time_minutes === 'number' ? parsed.time_minutes : null,
             calories_per_serving: typeof parsed.calories_per_serving === 'number' ? parsed.calories_per_serving : null,

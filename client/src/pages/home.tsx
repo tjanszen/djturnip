@@ -107,6 +107,7 @@ type RecipeMode = "remix" | "fridge";
 interface GeneratedRecipeV1 {
   name: string;
   summary: string;
+  explanation: string;
   servings: number;
   time_minutes: number | null;
   calories_per_serving: number | null;
@@ -119,6 +120,7 @@ interface GeneratedRecipeV1 {
 interface GeneratedRecipeV2 {
   name: string;
   description: string;
+  explanation: string;
   servings: number;
   time_minutes: number | null;
   calories_per_serving: number | null;
@@ -1260,6 +1262,16 @@ export default function Home() {
                     </Badge>
                   )}
                 </div>
+
+                {/* Why this works explanation */}
+                {generatedRecipe.explanation && (
+                  <div className="bg-muted/30 rounded-lg p-4" data-testid="section-explanation">
+                    <h4 className="text-sm font-medium text-foreground mb-1">Why this works</h4>
+                    <p className="text-sm text-muted-foreground" data-testid="text-explanation">
+                      {generatedRecipe.explanation}
+                    </p>
+                  </div>
+                )}
 
                 {/* V2 Recipe Summary: 2-column ingredient layout with substitution support, no steps */}
                 {RECIPE_DETAIL_V2 && isRecipeV2(generatedRecipe) ? (
