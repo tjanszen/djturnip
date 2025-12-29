@@ -410,7 +410,7 @@ export default function Home() {
           time: "best",
           cuisine: "any",
         },
-        allow_extras: false,
+        allow_extras: true,
         status: singleScreenEnabled ? "single" : "processing",
         error_message: null,
       };
