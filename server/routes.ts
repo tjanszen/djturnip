@@ -271,7 +271,7 @@ Think of 6 different approaches: stovetop, baked, cold/salad, comfort food, inte
     }
   });
 
-  // Single Recipe Generation endpoint (V1 Flow + V2 when RECIPE_DETAIL_V2 is ON)
+  // Single Recipe Generation endpoint (V2 only - structured ingredients with substitutes)
   app.post(api.recipes.generateSingle.path, async (req, res) => {
     try {
       const input = api.recipes.generateSingle.input.parse(req.body);
@@ -280,28 +280,24 @@ Think of 6 different approaches: stovetop, baked, cold/salad, comfort food, inte
       if (process.env.FRIDGE_NEW_FLOW_V1 !== "on") {
         return res.status(200).json({
           success: false,
-          error: "V1 flow is disabled",
+          error: "Recipe generation is disabled",
           parse_retry: 0,
         });
       }
 
-      const isV2 = process.env.RECIPE_DETAIL_V2 === "on";
+      console.log("recipe_v2_generate_start");
       
-      // V2 Path: Structured ingredients with substitutes and step objects
-      if (isV2) {
-        console.log("recipe_detail_v2 generate_start");
-        
-        const timeInstruction = prefs.time === "best" 
-          ? "Choose the most appropriate cooking time for the recipe" 
-          : `Target cooking time: ${prefs.time} minutes`;
-        
-        const cuisineInstruction = prefs.cuisine === "any"
-          ? "Choose any cuisine style that works well with the ingredients"
-          : `Cuisine style: ${prefs.cuisine}`;
+      const timeInstruction = prefs.time === "best" 
+        ? "Choose the most appropriate cooking time for the recipe" 
+        : `Target cooking time: ${prefs.time} minutes`;
+      
+      const cuisineInstruction = prefs.cuisine === "any"
+        ? "Choose any cuisine style that works well with the ingredients"
+        : `Cuisine style: ${prefs.cuisine}`;
 
-        console.log("recipe_schema_explanation_supported");
-        
-        const v2SystemPrompt = `You are a creative home chef. Generate exactly ONE recipe based on the given ingredients and preferences.
+      console.log("recipe_schema_explanation_supported");
+      
+      const systemPrompt = `You are a creative home chef. Generate exactly ONE recipe based on the given ingredients and preferences.
 
 STRICT REQUIREMENTS - Return a JSON object with these EXACT fields:
 
@@ -382,11 +378,11 @@ Avoid novelty for its own sake. The result should feel obvious in hindsight.`
           try {
             const messages = attempt === 0 
               ? [
-                  { role: "system" as const, content: v2SystemPrompt },
+                  { role: "system" as const, content: systemPrompt },
                   { role: "user" as const, content: userPrompt }
                 ]
               : [
-                  { role: "system" as const, content: v2SystemPrompt },
+                  { role: "system" as const, content: systemPrompt },
                   { role: "user" as const, content: userPrompt },
                   { role: "assistant" as const, content: lastError },
                   { role: "user" as const, content: `The previous response was invalid: ${lastError}. Fix the JSON to match the schema exactly. Return ONLY valid JSON.` }
@@ -407,7 +403,7 @@ Avoid novelty for its own sake. The result should feel obvious in hindsight.`
             } catch {
               lastError = `Invalid JSON: ${content.substring(0, 200)}`;
               parseRetry = 1;
-              console.log(`recipe_detail_v2 parse_retry=${parseRetry}`);
+              console.log(`recipe_v2_parse_retry=${parseRetry}`);
               continue;
             }
 
@@ -417,7 +413,7 @@ Avoid novelty for its own sake. The result should feel obvious in hindsight.`
               const errors = validation.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
               lastError = `Schema validation failed: ${errors}`;
               parseRetry = 1;
-              console.log(`recipe_detail_v2 parse_retry=${parseRetry}`);
+              console.log(`recipe_v2_parse_retry=${parseRetry}`);
               continue;
             }
 
@@ -431,7 +427,7 @@ Avoid novelty for its own sake. The result should feel obvious in hindsight.`
                 if (!ingredientIds.has(refId)) {
                   lastError = `Step references unknown ingredient ID: ${refId}`;
                   parseRetry = 1;
-                  console.log(`recipe_detail_v2 parse_retry=${parseRetry}`);
+                  console.log(`recipe_v2_parse_retry=${parseRetry}`);
                   hasInvalidRef = true;
                   break;
                 }
@@ -440,197 +436,23 @@ Avoid novelty for its own sake. The result should feel obvious in hindsight.`
             }
             if (hasInvalidRef) continue;
 
-            console.log("recipe_detail_v2 generate_success");
-            
-            return res.status(200).json({
-              success: true,
-              recipe,
-              parse_retry: parseRetry,
-              version: "v2",
-            });
-            
-          } catch (apiError) {
-            lastError = apiError instanceof Error ? apiError.message : "API call failed";
-            parseRetry = 1;
-            console.log(`recipe_detail_v2 parse_retry=${parseRetry}`);
-          }
-        }
-
-        // Both attempts failed
-        console.log(`recipe_detail_v2 generate_error error=${lastError}`);
-        
-        return res.status(200).json({
-          success: false,
-          error: lastError || "Failed to generate V2 recipe after 2 attempts",
-          parse_retry: parseRetry,
-          version: "v2",
-        });
-      }
-      
-      // V1 Path: Legacy string-based ingredients and steps
-      console.log(`fridge_flow_v1 generating ingredients_count=${ingredients.length} allow_extras=${allow_extras}`);
-
-      const timeInstruction = prefs.time === "best" 
-        ? "Choose the most appropriate cooking time for the recipe" 
-        : `Target cooking time: ${prefs.time} minutes`;
-      
-      const cuisineInstruction = prefs.cuisine === "any"
-        ? "Choose any cuisine style that works well with the ingredients"
-        : `Cuisine style: ${prefs.cuisine}`;
-      
-      const extrasInstruction = allow_extras
-        ? `You MAY add common pantry staples (oil, butter, salt, pepper, basic spices, garlic, onion, flour, sugar, common condiments) to improve the recipe. If you add any extras beyond the provided ingredients, you MUST list them in the "added_extras" array.`
-        : `Use ONLY the provided ingredients. You may use water, salt, and pepper, but do NOT add any other ingredients. Do NOT include "added_extras" in your response.`;
-
-      console.log("recipe_schema_explanation_supported");
-      
-      const systemPrompt = `You are a creative home chef. Generate exactly ONE recipe based on the given ingredients and preferences.
-
-STRICT REQUIREMENTS:
-1. Return a JSON object with these exact fields:
-   - "name": Recipe name (string, 3-8 words)
-   - "summary": Brief description (string, 1-2 sentences)
-   - "explanation": 1-3 concise sentences explaining why the core idea or twist works (in terms of flavor, texture, or technique)
-   - "servings": Number of servings (number, must match the requested servings: ${prefs.servings})
-   - "time_minutes": Estimated cooking time in minutes (number or null)
-   - "calories_per_serving": Estimated calories per serving (number or null)
-   - "ingredients": Array of ingredient strings with quantities (e.g., ["2 cups chicken, diced", "1 large carrot, sliced"])
-   - "steps": Array of cooking step strings (at least 1 step)
-   ${allow_extras ? '- "added_extras": Array of any additional ingredients you added beyond the provided list (only if you added extras)' : ''}
-
-2. ${timeInstruction}
-3. ${cuisineInstruction}
-4. ${extrasInstruction}
-
-Return ONLY valid JSON. No markdown, no explanation, just the JSON object.`;
-
-      const isPromptV3 = process.env.PROMPT_V3_HOMECOOK === "on";
-      
-      const userPrompt = isPromptV3
-        ? `You are an experienced, thoughtful home-cook assistant.
-
-Create a recipe for ${prefs.servings} servings using these ingredients: ${ingredients.join(", ")}
-
-The recipe should:
-- Feel familiar and achievable for a confident home cook
-- Include one clever but intuitive twist they likely wouldn't have thought of
-- Use pantry staples freely for balance and depth
-- Anchor itself in a recognizable dish or technique
-
-Avoid novelty for its own sake. The result should feel obvious in hindsight.`
-        : `Create a recipe for ${prefs.servings} servings using these ingredients: ${ingredients.join(", ")}`;
-      
-      if (isPromptV3) {
-        console.log("recipe_user_prompt_v3_loaded");
-      }
-
-      let parseRetry = 0;
-      let lastError = "";
-      
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          const messages = attempt === 0 
-            ? [
-                { role: "system" as const, content: systemPrompt },
-                { role: "user" as const, content: userPrompt }
-              ]
-            : [
-                { role: "system" as const, content: systemPrompt },
-                { role: "user" as const, content: userPrompt },
-                { role: "assistant" as const, content: lastError },
-                { role: "user" as const, content: `The previous response was invalid: ${lastError}. Return ONLY valid JSON matching the schema exactly. No markdown, no explanation.` }
-              ];
-
-          const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages,
-            response_format: { type: "json_object" },
-            max_tokens: 2000,
-          });
-
-          const content = response.choices[0]?.message?.content || "";
-          
-          // Try to parse JSON
-          let parsed;
-          try {
-            parsed = JSON.parse(content);
-          } catch {
-            lastError = `Invalid JSON: ${content.substring(0, 200)}`;
-            parseRetry = 1;
-            continue;
-          }
-
-          // Validate required fields
-          if (!parsed.name || typeof parsed.name !== 'string' || parsed.name.length === 0) {
-            lastError = "Missing or invalid 'name' field";
-            parseRetry = 1;
-            continue;
-          }
-          if (!parsed.summary || typeof parsed.summary !== 'string' || parsed.summary.length === 0) {
-            lastError = "Missing or invalid 'summary' field";
-            parseRetry = 1;
-            continue;
-          }
-          if (!parsed.explanation || typeof parsed.explanation !== 'string' || parsed.explanation.length === 0) {
-            lastError = "Missing or invalid 'explanation' field";
-            parseRetry = 1;
-            continue;
-          }
-          if (typeof parsed.servings !== 'number' || parsed.servings < 1) {
-            lastError = "Missing or invalid 'servings' field";
-            parseRetry = 1;
-            continue;
-          }
-          if (!Array.isArray(parsed.ingredients) || parsed.ingredients.length === 0) {
-            lastError = "Missing or invalid 'ingredients' array";
-            parseRetry = 1;
-            continue;
-          }
-          if (!parsed.ingredients.every((i: unknown) => typeof i === 'string')) {
-            lastError = "Ingredients must be strings";
-            parseRetry = 1;
-            continue;
-          }
-          if (!Array.isArray(parsed.steps) || parsed.steps.length === 0) {
-            lastError = "Missing or invalid 'steps' array";
-            parseRetry = 1;
-            continue;
-          }
-          if (!parsed.steps.every((s: unknown) => typeof s === 'string')) {
-            lastError = "Steps must be strings";
-            parseRetry = 1;
-            continue;
-          }
-
-          // Normalize optional fields
-          const recipe = {
-            name: parsed.name,
-            summary: parsed.summary,
-            explanation: parsed.explanation,
-            servings: parsed.servings,
-            time_minutes: typeof parsed.time_minutes === 'number' ? parsed.time_minutes : null,
-            calories_per_serving: typeof parsed.calories_per_serving === 'number' ? parsed.calories_per_serving : null,
-            ingredients: parsed.ingredients,
-            steps: parsed.steps,
-            added_extras: allow_extras && Array.isArray(parsed.added_extras) ? parsed.added_extras : undefined,
-          };
-
-          console.log(`fridge_flow_v1 status=done parse_retry=${parseRetry}`);
+          console.log("recipe_v2_parse_success");
           
           return res.status(200).json({
             success: true,
             recipe,
             parse_retry: parseRetry,
           });
-          
-        } catch (apiError) {
-          lastError = apiError instanceof Error ? apiError.message : "API call failed";
-          parseRetry = 1;
+            
+          } catch (apiError) {
+            lastError = apiError instanceof Error ? apiError.message : "API call failed";
+            parseRetry = 1;
+            console.log(`recipe_v2_parse_retry=${parseRetry}`);
+          }
         }
-      }
 
       // Both attempts failed
-      console.log(`fridge_flow_v1 status=error parse_retry=${parseRetry} error=${lastError}`);
+      console.log(`recipe_v2_generate_error error=${lastError}`);
       
       return res.status(200).json({
         success: false,
