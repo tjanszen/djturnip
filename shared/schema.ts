@@ -53,7 +53,7 @@ export interface RecipeAlternative {
   cuisine: string;
 }
 
-// RecipeDTO V2 types (RECIPE_DETAIL_V2)
+// Recipe DTO types (V2 is the only supported format)
 export interface SubstituteItemV2 {
   id: string;
   name: string;

@@ -1335,7 +1335,7 @@ export default function Home() {
                     variant="ghost"
                     size="icon"
                     onClick={() => {
-                      console.log("recipe_detail_v2 nav_back_to_summary");
+                      console.log("recipe_v2 nav_back_to_summary");
                       setViewState("fridge-result");
                     }}
                     data-testid="button-cook-mode-back"

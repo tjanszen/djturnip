@@ -79,7 +79,9 @@ shared/           # Shared code between frontend and backend
 - `FRIDGE_SINGLE_RECIPE_SCREEN_V1`: Set to "on" to enable consolidated Crumb-style single-screen UI
 - `PROMPT_V3_HOMECOOK`: Set to "on" to enable thoughtful home-cook style prompts for more novel-but-familiar recipes
 
-## Recipe Data Structure (V2)
+## Recipe Data Structure (V2-Only)
+
+Recipe generation and rendering use exclusively the V2 structured format. V1 has been deprecated and removed from the codebase. All generation code paths use `recipeDTOV2Schema` for Zod validation, and the frontend uses a single `GeneratedRecipe` interface.
 
 The `/api/recipes/generate-single` endpoint returns structured recipe data with the following format:
 - **name**: Recipe title
