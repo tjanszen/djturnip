@@ -115,6 +115,8 @@ interface GeneratedRecipe {
   image_prompt: string;
 }
 
+console.log("client_recipe_type_image_prompt_added");
+
 export default function Home() {
   const [url, setUrl] = useState("");
   const [ingredients, setIngredients] = useState("");
