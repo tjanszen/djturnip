@@ -97,6 +97,13 @@ ID-based ingredient references enable substitution without step text replacement
 
 ### Frontend Features
 - **Recipe Summary Screen**: 2-column ingredient layout (name | amount), hidden steps, "Let's Cook!" and "Generate again" CTAs
+- **AI-Generated Hero Image**: Each recipe displays a hero image generated from `image_prompt`
+  - Images are generated asynchronously (don't block recipe text rendering)
+  - In-memory cache by stable `recipeKey` (hash of name + ingredients + steps)
+  - One image generation per recipe instance; "Generate Again" creates new instance with new image
+  - Skeleton placeholder shown while image loads
+  - Endpoint: `POST /api/recipes/generate-image` with `{ prompt }` returns `{ image_url }`
+  - Telemetry: `recipe_image_gen_success recipeKey=<key>` logged on client success
 - **Ingredient Substitution**: Tappable ingredient rows with chevron if substitutes exist
   - Bottom sheet (Drawer) opens with radio list of substitute options + original
   - Swap updates a local "working copy" without modifying original recipe

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useProcessRecipe, useFridgeRecipes } from "@/hooks/use-recipes";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,8 +12,93 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { RecipeAlternative, RecipeStyle, FridgeRecipe } from "@shared/routes";
 import type { IngredientItemV2, StepItemV2, SubstituteItemV2 } from "@shared/schema";
+
+// In-memory image cache (persists across re-renders but not page refreshes)
+const imageByRecipeKey: Record<string, string> = {};
+
+// Simple hash function for stable recipe key
+function computeRecipeKey(recipe: { name: string; ingredients: { name: string }[]; steps: { text: string }[] }): string {
+  const ingredientStr = recipe.ingredients.map(i => i.name).join("|");
+  const stepStr = recipe.steps.map(s => s.text).join("|");
+  const combined = `${recipe.name}::${ingredientStr}::${stepStr}`;
+  let hash = 0;
+  for (let i = 0; i < combined.length; i++) {
+    const char = combined.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return `recipe-${Math.abs(hash).toString(36)}`;
+}
+
+// Recipe Hero Image component with loading state and caching
+function RecipeHeroImage({ recipe }: { recipe: { name: string; ingredients: { name: string }[]; steps: { text: string }[]; image_prompt: string } }) {
+  const recipeKey = computeRecipeKey(recipe);
+  const [imageUrl, setImageUrl] = useState<string | null>(imageByRecipeKey[recipeKey] || null);
+  const [isLoading, setIsLoading] = useState(!imageByRecipeKey[recipeKey]);
+  const fetchedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (imageByRecipeKey[recipeKey]) {
+      setImageUrl(imageByRecipeKey[recipeKey]);
+      setIsLoading(false);
+      return;
+    }
+
+    if (fetchedRef.current === recipeKey) {
+      return;
+    }
+    fetchedRef.current = recipeKey;
+
+    const generateImage = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/recipes/generate-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: recipe.image_prompt }),
+        });
+        const data = await response.json();
+        if (data.image_url) {
+          console.log(`recipe_image_gen_success recipeKey=${recipeKey}`);
+          imageByRecipeKey[recipeKey] = data.image_url;
+          setImageUrl(data.image_url);
+        }
+      } catch (err) {
+        console.error("recipe_image_gen_client_error", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    generateImage();
+  }, [recipeKey, recipe.image_prompt]);
+
+  if (isLoading) {
+    return (
+      <div className="w-full aspect-square rounded-xl overflow-hidden mb-4" data-testid="image-skeleton">
+        <Skeleton className="w-full h-full" />
+      </div>
+    );
+  }
+
+  if (!imageUrl) {
+    return null;
+  }
+
+  return (
+    <div className="w-full aspect-square rounded-xl overflow-hidden mb-4" data-testid="recipe-hero-image-container">
+      <img 
+        src={imageUrl} 
+        alt={recipe.name}
+        className="w-full h-full object-cover"
+        data-testid="recipe-hero-image"
+      />
+    </div>
+  );
+}
 
 const FRIDGE_NEW_FLOW_V1 = import.meta.env.VITE_FRIDGE_NEW_FLOW_V1 === "on";
 
@@ -1212,6 +1297,8 @@ export default function Home() {
                     </p>
                   </div>
                 </div>
+
+                <RecipeHeroImage recipe={generatedRecipe} />
 
                 <div className="flex flex-wrap gap-3 text-sm">
                   <Badge variant="secondary" data-testid="badge-servings">
