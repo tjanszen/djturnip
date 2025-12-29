@@ -16,7 +16,6 @@ import type { RecipeAlternative, RecipeStyle, FridgeRecipe } from "@shared/route
 import type { IngredientItemV2, StepItemV2, SubstituteItemV2 } from "@shared/schema";
 
 const FRIDGE_NEW_FLOW_V1 = import.meta.env.VITE_FRIDGE_NEW_FLOW_V1 === "on";
-const RECIPE_DETAIL_V2 = import.meta.env.VITE_RECIPE_DETAIL_V2 === "on";
 
 type CleanoutStatus = "processing" | "prefs" | "confirm" | "generating" | "done" | "error" | "single";
 
@@ -103,21 +102,8 @@ const featuredRecipes = [
 type ViewState = "search" | "swiping" | "saved" | "fridge-processing" | "fridge-prefs" | "fridge-confirm" | "fridge-generating" | "fridge-result" | "fridge-error" | "fridge-single" | "cook-mode";
 type RecipeMode = "remix" | "fridge";
 
-// V1 legacy recipe shape (string arrays)
-interface GeneratedRecipeV1 {
-  name: string;
-  summary: string;
-  explanation: string;
-  servings: number;
-  time_minutes: number | null;
-  calories_per_serving: number | null;
-  ingredients: string[];
-  steps: string[];
-  added_extras?: string[];
-}
-
-// V2 structured recipe shape (object arrays)
-interface GeneratedRecipeV2 {
+// Generated recipe shape (structured V2 format)
+interface GeneratedRecipe {
   name: string;
   description: string;
   explanation: string;
@@ -126,16 +112,6 @@ interface GeneratedRecipeV2 {
   calories_per_serving: number | null;
   ingredients: IngredientItemV2[];
   steps: StepItemV2[];
-}
-
-// Union type for both shapes
-type GeneratedRecipe = GeneratedRecipeV1 | GeneratedRecipeV2;
-
-// Type guard to check if recipe is V2 shape
-function isRecipeV2(recipe: GeneratedRecipe): recipe is GeneratedRecipeV2 {
-  return recipe.ingredients.length > 0 && 
-    typeof recipe.ingredients[0] === 'object' && 
-    'id' in recipe.ingredients[0];
 }
 
 export default function Home() {
@@ -237,9 +213,9 @@ export default function Home() {
     }
   }, [viewState, cleanoutSession]);
   
-  // Initialize working copy when V2 recipe is generated
+  // Initialize working copy when recipe is generated
   useEffect(() => {
-    if (generatedRecipe && isRecipeV2(generatedRecipe)) {
+    if (generatedRecipe) {
       // Deep copy the ingredients to create a working copy
       setWorkingIngredients(
         generatedRecipe.ingredients.map(ing => ({
@@ -252,7 +228,7 @@ export default function Home() {
 
   // Helper to get original ingredient from generatedRecipe by ID
   const getOriginalIngredient = useCallback((id: string): IngredientItemV2 | undefined => {
-    if (!generatedRecipe || !isRecipeV2(generatedRecipe)) return undefined;
+    if (!generatedRecipe) return undefined;
     return generatedRecipe.ingredients.find(ing => ing.id === id);
   }, [generatedRecipe]);
 
@@ -1213,24 +1189,12 @@ export default function Home() {
                     variant="ghost"
                     size="icon"
                     onClick={() => {
-                      // V2: clear substitutions and navigate to consolidated New Recipe
-                      if (RECIPE_DETAIL_V2) {
-                        console.log("recipe_detail_v2 nav_back_to_new_recipe");
-                        console.log("recipe_detail_v2 substitutions_cleared");
-                        setWorkingIngredients([]);
-                        setViewState("fridge-single");
-                        setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
-                        return;
-                      }
-                      const singleScreenEnabled = import.meta.env.VITE_FRIDGE_SINGLE_RECIPE_SCREEN_V1 === "on";
-                      if (singleScreenEnabled) {
-                        console.log("single_screen_v1 back_to_new_recipe");
-                        setViewState("fridge-single");
-                        setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
-                      } else {
-                        setViewState("fridge-confirm");
-                        setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
-                      }
+                      // Clear substitutions and navigate back to New Recipe
+                      console.log("recipe_v2 nav_back_to_new_recipe");
+                      console.log("recipe_v2 substitutions_cleared");
+                      setWorkingIngredients([]);
+                      setViewState("fridge-single");
+                      setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
                     }}
                     data-testid="button-result-back"
                   >
@@ -1241,7 +1205,7 @@ export default function Home() {
                       {generatedRecipe.name}
                     </h2>
                     <p className="text-muted-foreground mt-1" data-testid="text-recipe-summary">
-                      {isRecipeV2(generatedRecipe) ? generatedRecipe.description : generatedRecipe.summary}
+                      {generatedRecipe.description}
                     </p>
                   </div>
                 </div>
@@ -1273,163 +1237,88 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* V2 Recipe Summary: 2-column ingredient layout with substitution support, no steps */}
-                {RECIPE_DETAIL_V2 && isRecipeV2(generatedRecipe) ? (
-                  <>
-                    <div className="space-y-3">
-                      <h3 className="text-lg font-medium text-foreground">Ingredients</h3>
-                      <div className="space-y-0" data-testid="list-ingredients-v2">
-                        {workingIngredients.map((ing, i) => {
-                          const original = getOriginalIngredient(ing.id);
-                          const hasSubstitutes = original && original.substitutes.length > 0;
-                          const isTappable = hasSubstitutes;
-                          
-                          return (
-                            <div 
-                              key={ing.id} 
-                              className={`flex items-center justify-between py-3 border-b border-border last:border-b-0 ${isTappable ? 'cursor-pointer hover-elevate active-elevate-2' : ''}`}
-                              onClick={isTappable ? () => handleIngredientTap(ing) : undefined}
-                              data-testid={`ingredient-row-${i}`}
-                            >
-                              <span className="text-sm text-foreground flex-1" data-testid={`text-ingredient-name-${i}`}>
-                                {ing.name}
-                              </span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-muted-foreground text-right" data-testid={`text-ingredient-amount-${i}`}>
-                                  {ing.amount || ""}
-                                </span>
-                                {isTappable && (
-                                  <ChevronRight className="w-4 h-4 text-muted-foreground" data-testid={`chevron-ingredient-${i}`} />
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* V2 CTAs: Let's Cook! (primary) + Generate again + Edit Ingredients (secondary) */}
-                    <div className="flex flex-col gap-3 pt-4">
-                      <Button
-                        className="w-full"
-                        onClick={() => {
-                          console.log("recipe_detail_v2 nav_to_cook_mode");
-                          setViewState("cook-mode");
-                        }}
-                        data-testid="button-lets-cook"
-                      >
-                        <ChefHat className="w-4 h-4 mr-2" />
-                        Let's Cook!
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => {
-                          console.log("recipe_detail_v2 generate_again_click");
-                          // Regenerate using original ingredients/prefs (ignores substitutions)
-                          setWorkingIngredients([]);
-                          setViewState("fridge-generating");
-                          setCleanoutSession(prev => prev ? { ...prev, status: "generating" } : null);
-                        }}
-                        data-testid="button-generate-again"
-                      >
-                        Generate again
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="w-full"
-                        onClick={() => {
-                          console.log("recipe_detail_v2 nav_edit_to_new_recipe");
-                          console.log("recipe_detail_v2 substitutions_cleared");
-                          setWorkingIngredients([]);
-                          setViewState("fridge-single");
-                          setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
-                        }}
-                        data-testid="button-edit-ingredients-v2"
-                      >
-                        Edit Ingredients
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {/* V1 Legacy: bullet ingredients + steps */}
-                    <div className="space-y-3">
-                      <h3 className="text-lg font-medium text-foreground">Ingredients</h3>
-                      <ul className="space-y-2" data-testid="list-ingredients">
-                        {!isRecipeV2(generatedRecipe) && generatedRecipe.ingredients.map((ing, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                            <span className="text-primary mt-1">•</span>
-                            <span data-testid={`text-ingredient-${i}`}>{ing}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {!isRecipeV2(generatedRecipe) && generatedRecipe.added_extras && generatedRecipe.added_extras.length > 0 && (
-                      <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
-                        <p className="text-sm font-medium text-foreground">Added Extras</p>
-                        <div className="flex flex-wrap gap-2" data-testid="container-added-extras">
-                          {generatedRecipe.added_extras.map((extra: string, i: number) => (
-                            <Badge key={i} variant="outline" data-testid={`badge-extra-${i}`}>{extra}</Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="space-y-3">
-                      <h3 className="text-lg font-medium text-foreground">Steps</h3>
-                      <ol className="space-y-3" data-testid="list-steps">
-                        {!isRecipeV2(generatedRecipe) && generatedRecipe.steps.map((step, i) => (
-                          <li key={i} className="flex items-start gap-3 text-sm">
-                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-medium">
-                              {i + 1}
+                {/* Recipe Summary: 2-column ingredient layout with substitution support */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-medium text-foreground">Ingredients</h3>
+                  <div className="space-y-0" data-testid="list-ingredients">
+                    {workingIngredients.map((ing, i) => {
+                      const original = getOriginalIngredient(ing.id);
+                      const hasSubstitutes = original && original.substitutes.length > 0;
+                      const isTappable = hasSubstitutes;
+                      
+                      return (
+                        <div 
+                          key={ing.id} 
+                          className={`flex items-center justify-between py-3 border-b border-border last:border-b-0 ${isTappable ? 'cursor-pointer hover-elevate active-elevate-2' : ''}`}
+                          onClick={isTappable ? () => handleIngredientTap(ing) : undefined}
+                          data-testid={`ingredient-row-${i}`}
+                        >
+                          <span className="text-sm text-foreground flex-1" data-testid={`text-ingredient-name-${i}`}>
+                            {ing.name}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground text-right" data-testid={`text-ingredient-amount-${i}`}>
+                              {ing.amount || ""}
                             </span>
-                            <span className="text-muted-foreground pt-0.5" data-testid={`text-step-${i}`}>{step}</span>
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
+                            {isTappable && (
+                              <ChevronRight className="w-4 h-4 text-muted-foreground" data-testid={`chevron-ingredient-${i}`} />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                    <div className="flex gap-3 pt-4">
-                      <Button
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => {
-                          const singleScreenEnabled = import.meta.env.VITE_FRIDGE_SINGLE_RECIPE_SCREEN_V1 === "on";
-                          if (singleScreenEnabled) {
-                            console.log("single_screen_v1 edit_to_new_recipe");
-                            setViewState("fridge-single");
-                            setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
-                          } else {
-                            setViewState("fridge-confirm");
-                            setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
-                          }
-                        }}
-                        data-testid="button-edit-ingredients"
-                      >
-                        Edit Ingredients
-                      </Button>
-                      <Button
-                        className="flex-1"
-                        onClick={() => {
-                          setViewState("fridge-generating");
-                          setCleanoutSession(prev => prev ? { ...prev, status: "generating" } : null);
-                        }}
-                        data-testid="button-generate-again"
-                      >
-                        Generate Again
-                      </Button>
-                    </div>
-                  </>
-                )}
+                {/* CTAs: Let's Cook! (primary) + Generate again + Edit Ingredients (secondary) */}
+                <div className="flex flex-col gap-3 pt-4">
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      console.log("recipe_v2 nav_to_cook_mode");
+                      setViewState("cook-mode");
+                    }}
+                    data-testid="button-lets-cook"
+                  >
+                    <ChefHat className="w-4 h-4 mr-2" />
+                    Let's Cook!
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      console.log("recipe_v2 generate_again_click");
+                      // Regenerate using original ingredients/prefs (ignores substitutions)
+                      setWorkingIngredients([]);
+                      setViewState("fridge-generating");
+                      setCleanoutSession(prev => prev ? { ...prev, status: "generating" } : null);
+                    }}
+                    data-testid="button-generate-again"
+                  >
+                    Generate again
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full"
+                    onClick={() => {
+                      console.log("recipe_v2 nav_edit_to_new_recipe");
+                      console.log("recipe_v2 substitutions_cleared");
+                      setWorkingIngredients([]);
+                      setViewState("fridge-single");
+                      setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                    }}
+                    data-testid="button-edit-ingredients"
+                  >
+                    Edit Ingredients
+                  </Button>
+                </div>
               </div>
             </div>
           </motion.div>
         )}
 
-        {/* V2 Cook Mode - step-by-step instructions */}
-        {viewState === "cook-mode" && RECIPE_DETAIL_V2 && generatedRecipe && isRecipeV2(generatedRecipe) && (
+        {/* Cook Mode - step-by-step instructions */}
+        {viewState === "cook-mode" && generatedRecipe && (
           <motion.div
             key="cook-mode"
             initial={{ opacity: 0, y: 20 }}
@@ -2231,8 +2120,8 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      {/* V2 Ingredient Substitution Bottom Sheet */}
-      {RECIPE_DETAIL_V2 && selectedIngredient && (
+      {/* Ingredient Substitution Bottom Sheet */}
+      {selectedIngredient && (
         <Drawer open={isSubstituteDrawerOpen} onOpenChange={setIsSubstituteDrawerOpen}>
           <DrawerContent data-testid="drawer-substitute">
             <DrawerHeader>
