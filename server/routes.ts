@@ -327,6 +327,18 @@ STRICT REQUIREMENTS - Return a JSON object with these EXACT fields:
    - "ingredient_ids": Array of ingredient IDs used in this step (e.g., ["ing_1", "ing_3"])
    - "time_minutes": Time for this step in minutes (number or null)
 
+9. "image_prompt": A single paragraph (max ~120 words) describing what the finished dish looks like for a photorealistic image.
+   MUST include:
+   - Cooking method and vessel (e.g., "baked in a cast iron skillet", "roasted on a sheet pan")
+   - 2-4 hero ingredients visible in the final dish
+   - 1-2 texture/doneness cues (e.g., "golden-brown crust", "glossy sauce", "charred edges")
+   - Photography style: "photorealistic, home-cooked, natural window light, 45-degree angle, neutral background, shallow depth of field"
+   MUST NOT include:
+   - Any garnish, herbs, or ingredients NOT in the recipe
+   - Lemon slices, parsley, microgreens, or decorative elements unless explicitly used
+   - Hands, utensils, bread, wine glasses, or people
+   - Text, watermarks, or restaurant plating
+
 EXAMPLE ingredient:
 {
   "id": "ing_1",
@@ -437,6 +449,7 @@ Avoid novelty for its own sake. The result should feel obvious in hindsight.`
             if (hasInvalidRef) continue;
 
           console.log("recipe_v2_parse_success");
+          console.log("recipe_image_prompt_generated");
           
           return res.status(200).json({
             success: true,
