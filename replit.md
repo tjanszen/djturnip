@@ -78,6 +78,7 @@ shared/           # Shared code between frontend and backend
 - `FRIDGE_NEW_FLOW_V1`: Set to "on" to enable single recipe generation endpoint
 - `FRIDGE_SINGLE_RECIPE_SCREEN_V1`: Set to "on" to enable consolidated Crumb-style single-screen UI
 - `RECIPE_DETAIL_V2`: Set to "on" to enable structured RecipeDTO V2 with ingredient substitutions
+- `PROMPT_V3_HOMECOOK`: Set to "on" to enable thoughtful home-cook style prompts for more novel-but-familiar recipes
 
 ### RecipeDTO V2 (RECIPE_DETAIL_V2)
 When `RECIPE_DETAIL_V2=on`, the `/api/recipes/generate-single` endpoint returns structured recipe data:

@@ -352,7 +352,25 @@ ${cuisineInstruction}
 Keep unit system consistent throughout (don't mix cups and grams).
 Return ONLY valid JSON. No markdown, no explanation.`;
 
-        const userPrompt = `Create a recipe for ${prefs.servings} servings using these ingredients: ${ingredients.join(", ")}`;
+        const isPromptV3 = process.env.PROMPT_V3_HOMECOOK === "on";
+        
+        const userPrompt = isPromptV3
+          ? `You are an experienced, thoughtful home-cook assistant.
+
+Create a recipe for ${prefs.servings} servings using these ingredients: ${ingredients.join(", ")}
+
+The recipe should:
+- Feel familiar and achievable for a confident home cook
+- Include one clever but intuitive twist they likely wouldn't have thought of
+- Use pantry staples freely for balance and depth
+- Anchor itself in a recognizable dish or technique
+
+Avoid novelty for its own sake. The result should feel obvious in hindsight.`
+          : `Create a recipe for ${prefs.servings} servings using these ingredients: ${ingredients.join(", ")}`;
+        
+        if (isPromptV3) {
+          console.log("recipe_user_prompt_v3_loaded");
+        }
 
         let parseRetry = 0;
         let lastError = "";
@@ -480,7 +498,25 @@ STRICT REQUIREMENTS:
 
 Return ONLY valid JSON. No markdown, no explanation, just the JSON object.`;
 
-      const userPrompt = `Create a recipe for ${prefs.servings} servings using these ingredients: ${ingredients.join(", ")}`;
+      const isPromptV3 = process.env.PROMPT_V3_HOMECOOK === "on";
+      
+      const userPrompt = isPromptV3
+        ? `You are an experienced, thoughtful home-cook assistant.
+
+Create a recipe for ${prefs.servings} servings using these ingredients: ${ingredients.join(", ")}
+
+The recipe should:
+- Feel familiar and achievable for a confident home cook
+- Include one clever but intuitive twist they likely wouldn't have thought of
+- Use pantry staples freely for balance and depth
+- Anchor itself in a recognizable dish or technique
+
+Avoid novelty for its own sake. The result should feel obvious in hindsight.`
+        : `Create a recipe for ${prefs.servings} servings using these ingredients: ${ingredients.join(", ")}`;
+      
+      if (isPromptV3) {
+        console.log("recipe_user_prompt_v3_loaded");
+      }
 
       let parseRetry = 0;
       let lastError = "";
