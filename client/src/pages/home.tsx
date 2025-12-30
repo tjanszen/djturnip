@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useProcessRecipe, useFridgeRecipes } from "@/hooks/use-recipes";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link2, Loader2, ChefHat, Utensils, Sparkles, ArrowLeft, Heart, RotateCcw, Clock, Refrigerator, TrendingUp, Star, Repeat, ChevronLeft, ChevronRight, Minus, Plus, X, User, Globe, ChevronDown, Trash2, Carrot, Apple, Egg, Salad } from "lucide-react";
+import { Link2, Loader2, ChefHat, Utensils, Sparkles, ArrowLeft, Heart, RotateCcw, Clock, Refrigerator, TrendingUp, Star, Repeat, ChevronLeft, ChevronRight, Minus, Plus, X, User, Globe, ChevronDown, Trash2, Carrot, Apple, Egg, Salad, Check, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -375,6 +375,164 @@ export default function Home() {
     setIsSubstituteDrawerOpen(false);
     setSelectedIngredient(null);
   }, [selectedIngredient, selectedSubstituteId, getOriginalIngredient]);
+
+  // Apply remix patch to base recipe and return derived recipe
+  const applyRemixPatch = useCallback((remix: RemixV2, baseRecipe: GeneratedRecipe): GeneratedRecipe | null => {
+    try {
+      const { patch } = remix;
+      
+      // Start with a copy of base recipe
+      let newIngredients = baseRecipe.ingredients.map(ing => ({
+        ...ing,
+        substitutes: [...ing.substitutes],
+      }));
+      let newSteps = baseRecipe.steps.map(step => ({
+        ...step,
+        ingredient_ids: [...step.ingredient_ids],
+      }));
+      let newTimeMinutes = baseRecipe.time_minutes;
+      let newCaloriesPerServing = baseRecipe.calories_per_serving;
+      
+      // Apply ingredient_overrides
+      if (patch.ingredient_overrides) {
+        for (const override of patch.ingredient_overrides) {
+          const idx = newIngredients.findIndex(ing => ing.id === override.ingredient_id);
+          if (idx === -1) {
+            console.warn(`Remix patch: ingredient_id ${override.ingredient_id} not found`);
+            return null;
+          }
+          if (override.amount !== undefined) {
+            newIngredients[idx] = { ...newIngredients[idx], amount: override.amount };
+          }
+        }
+      }
+      
+      // Add new ingredients
+      if (patch.add_ingredients) {
+        const existingIds = new Set(newIngredients.map(ing => ing.id));
+        for (const addIng of patch.add_ingredients) {
+          if (existingIds.has(addIng.id)) {
+            console.warn(`Remix patch: duplicate ingredient_id ${addIng.id}`);
+            continue;
+          }
+          newIngredients.push({
+            id: addIng.id,
+            name: addIng.name,
+            amount: addIng.amount,
+            substitutes: [],
+          });
+          existingIds.add(addIng.id);
+        }
+      }
+      
+      // Apply step_ops
+      if (patch.step_ops) {
+        for (const op of patch.step_ops) {
+          if (op.op === "add_after") {
+            const idx = newSteps.findIndex(s => s.id === op.step_id);
+            if (idx === -1) {
+              console.warn(`Remix patch: step_id ${op.step_id} not found for add_after`);
+              return null;
+            }
+            if (op.new_step) {
+              newSteps.splice(idx + 1, 0, {
+                id: op.new_step.id,
+                text: op.new_step.text,
+                ingredient_ids: op.new_step.ingredient_ids || [],
+                time_minutes: op.new_step.time_minutes || null,
+              });
+            }
+          } else if (op.op === "replace") {
+            const idx = newSteps.findIndex(s => s.id === op.step_id);
+            if (idx === -1) {
+              console.warn(`Remix patch: step_id ${op.step_id} not found for replace`);
+              return null;
+            }
+            if (op.new_step) {
+              newSteps[idx] = {
+                id: op.new_step.id,
+                text: op.new_step.text,
+                ingredient_ids: op.new_step.ingredient_ids || [],
+                time_minutes: op.new_step.time_minutes || null,
+              };
+            }
+          } else if (op.op === "remove") {
+            const idx = newSteps.findIndex(s => s.id === op.step_id);
+            if (idx === -1) {
+              console.warn(`Remix patch: step_id ${op.step_id} not found for remove`);
+              return null;
+            }
+            newSteps.splice(idx, 1);
+          }
+        }
+      }
+      
+      // Apply meta_updates
+      if (patch.meta_updates) {
+        if (patch.meta_updates.time_minutes !== undefined) {
+          newTimeMinutes = patch.meta_updates.time_minutes;
+        }
+        if (patch.meta_updates.calories_per_serving !== undefined) {
+          newCaloriesPerServing = patch.meta_updates.calories_per_serving;
+        }
+      }
+      
+      return {
+        ...baseRecipe,
+        ingredients: newIngredients,
+        steps: newSteps,
+        time_minutes: newTimeMinutes,
+        calories_per_serving: newCaloriesPerServing,
+      };
+    } catch (err) {
+      console.warn("Remix patch apply failed:", err);
+      return null;
+    }
+  }, []);
+
+  // Handle selecting a remix
+  const handleApplyRemix = useCallback((remixId: string) => {
+    if (!generatedRecipe) return;
+    
+    const remix = generatedRecipe.remixes?.find(r => r.id === remixId);
+    if (!remix) {
+      console.warn(`Remix ${remixId} not found`);
+      return;
+    }
+    
+    const derived = applyRemixPatch(remix, generatedRecipe);
+    if (derived) {
+      setRemixedRecipe(derived);
+      setActiveRemixId(remixId);
+      // Update working ingredients to reflect remixed recipe
+      setWorkingIngredients(
+        derived.ingredients.map(ing => ({
+          ...ing,
+          substitutes: [...ing.substitutes],
+        }))
+      );
+    } else {
+      // Patch failed - stay on base recipe
+      console.warn(`Failed to apply remix ${remixId}`);
+    }
+  }, [generatedRecipe, applyRemixPatch]);
+
+  // Handle undo remix
+  const handleUndoRemix = useCallback(() => {
+    if (!generatedRecipe) return;
+    setRemixedRecipe(null);
+    setActiveRemixId(null);
+    // Reset working ingredients to base recipe
+    setWorkingIngredients(
+      generatedRecipe.ingredients.map(ing => ({
+        ...ing,
+        substitutes: [...ing.substitutes],
+      }))
+    );
+  }, [generatedRecipe]);
+
+  // Get the recipe to display (remixed or base)
+  const displayRecipe = remixedRecipe || generatedRecipe;
   
   const handleQuickRemix = (recipeUrl: string, recipeId: string) => {
     setActiveQuickRemix(recipeId);
