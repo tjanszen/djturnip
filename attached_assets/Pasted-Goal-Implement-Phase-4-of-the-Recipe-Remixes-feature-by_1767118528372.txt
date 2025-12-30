@@ -1,0 +1,55 @@
+Goal: Implement Phase 4 of the “Recipe Remixes” feature by integrating remix ingredient changes with the existing `workingIngredients` substitution system, while keeping ingredient interactivity (drawer + substitutes) unchanged.
+
+Context:
+- This work follows the implementation plan documented at:
+  docs/agent_memory/imp_plans/recipe-remixes.md
+- Before making changes, review that document to confirm Phase 4 scope and non-goals.
+- Phase 3 is assumed complete: remix UI exists and applying a remix produces `activeRemixId` and `remixedRecipe` (derived from base `generatedRecipe`).
+- Current architecture:
+  - `generatedRecipe` remains immutable
+  - `workingIngredients` is a local state copy used for substitutions and ingredient display
+  - Ingredient rows are interactive and open the substitution drawer (must remain)
+
+Do:
+- Review docs/agent_memory/imp_plans/recipe-remixes.md (Phase 4 — Integrate with workingIngredients + substitutions).
+- When a remix is applied:
+  - Update `workingIngredients` to reflect the remix ingredient changes so the Ingredients section (and substitution UX) stays coherent.
+  - Specifically:
+    1) Start from the base `generatedRecipe.ingredients`.
+    2) Apply `patch.ingredient_overrides`:
+       - Find the matching ingredient by `ingredient_id` and update its `amount` (do not change name/id).
+       - Do not remove any existing ingredients.
+    3) Apply `patch.add_ingredients`:
+       - Append up to 2–3 new ingredient rows to `workingIngredients`.
+       - Ensure each new ingredient has a unique `id`.
+       - New ingredients should be non-interactive only if they have no substitutes; otherwise they behave like normal rows.
+       - Do not break existing ingredient row testids/keys.
+  - Preserve existing substitute data and drawer behavior for original ingredients.
+  - Ensure the substitution drawer continues to update `workingIngredients` as it does today.
+
+- When Undo is used (remix cleared):
+  - Reset `workingIngredients` back to the base `generatedRecipe.ingredients` (and keep existing “clear substitutions” behavior consistent with current back navigation behavior).
+  - Ensure no stale “added ingredients” remain.
+
+- When switching from one remix to another (replace, not stack):
+  - Recompute `workingIngredients` from base + the newly selected remix patch (not from the previously remixed workingIngredients), to avoid patch accumulation.
+
+Guardrails:
+- If an override references an ingredient_id not present in the base recipe:
+  - Do not crash; ignore that override and console.warn with a clear message.
+- If add_ingredients contains duplicate IDs:
+  - Ensure uniqueness (e.g., prefix with remix id) before adding.
+
+Do NOT:
+- Remove or change the ingredient substitution UI, chevrons, or drawer mechanics.
+- Persist remix-applied ingredients anywhere beyond local state.
+- Change Cook Mode in this phase (that is Phase 5).
+- Change schema or generation prompts in this phase.
+- Trigger new image generation on remix apply/undo.
+
+Proof:
+- Logs must include: "recipe_remixes_phase4_working_ingredients_integrated"
+- Applying a remix updates the Ingredients list to match the remix (amount overrides + any new ingredients appear).
+- Existing ingredient substitution drawer still works for original ingredients after applying a remix.
+- Undo restores the original Ingredients list (no added remix ingredients remain).
+- Switching between remixes does not accumulate ingredients or amounts incorrectly.
