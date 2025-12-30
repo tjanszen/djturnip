@@ -202,6 +202,7 @@ interface GeneratedRecipe {
 }
 
 console.log("client_recipe_type_image_prompt_added");
+console.log("recipe_remixes_phase3_ui_live");
 
 export default function Home() {
   const [url, setUrl] = useState("");
@@ -271,6 +272,9 @@ export default function Home() {
         if (data.success && data.recipe) {
           console.log("single_screen_v1 generate_success=true");
           setGeneratedRecipe(data.recipe);
+          // Clear remix state when new recipe is generated
+          setRemixedRecipe(null);
+          setActiveRemixId(null);
           setCleanoutSession(prev => prev ? { ...prev, status: "done" } : null);
           setViewState("fridge-result");
         } else {
