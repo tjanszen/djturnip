@@ -68,9 +68,52 @@ export interface IngredientItemV2 {
 }
 
 export interface StepItemV2 {
+  id: string;
   text: string;
   ingredient_ids: string[];
   time_minutes: number | null;
+}
+
+export interface RemixStepV2 {
+  id: string;
+  text: string;
+  ingredient_ids: string[];
+  time_minutes?: number | null;
+}
+
+export interface RemixIngredientOverrideV2 {
+  ingredient_id: string;
+  amount?: string;
+}
+
+export interface RemixAddIngredientV2 {
+  id: string;
+  name: string;
+  amount: string;
+}
+
+export type RemixStepOpV2 =
+  | { op: "add_after"; after_step_id: string; step: RemixStepV2 }
+  | { op: "replace"; step_id: string; step: RemixStepV2 }
+  | { op: "remove"; step_id: string };
+
+export interface RemixMetaUpdatesV2 {
+  time_minutes?: number;
+  calories_per_serving?: number;
+}
+
+export interface RemixPatchV2 {
+  ingredient_overrides?: RemixIngredientOverrideV2[];
+  add_ingredients?: RemixAddIngredientV2[];
+  step_ops?: RemixStepOpV2[];
+  meta_updates?: RemixMetaUpdatesV2;
+}
+
+export interface RemixV2 {
+  id: string;
+  title: string;
+  description: string;
+  patch: RemixPatchV2;
 }
 
 export interface RecipeDTOV2 {
@@ -83,6 +126,7 @@ export interface RecipeDTOV2 {
   ingredients: IngredientItemV2[];
   steps: StepItemV2[];
   image_prompt: string;
+  remixes: RemixV2[];
 }
 
 // Zod schemas for V2 validation

@@ -1,0 +1,161 @@
+Here are the **highest-value questions to ask Replit** that will directly inform a remix strategy (schema + prompt + UI apply/undo + telemetry) and prevent rework. These are phrased so you can paste them as a checklist.
+
+---
+
+## 1) Where to Put Remixes in the Data Contract
+
+1. **Where is `RecipeDTO V2` defined as the source of truth today?**
+   (e.g., `shared/schema.ts` Zod schema + inferred TS type vs hand-written interfaces)
+
+2. **Do we currently have strict schema enforcement (`.strict()` / `additionalProperties: false`)?**
+   If strict, adding `remixes` must be coordinated everywhere.
+
+3. **Are recipe objects ever serialized anywhere (localStorage, URL params, telemetry payloads)?**
+   Remixes can blow up payload size if we’re not careful.
+
+---
+
+## 2) Generation Prompt & Model Behavior
+
+4. **Where is the recipe generation prompt assembled today (exact file/function)?**
+   (We’ll need to add remix instructions to the same place as `image_prompt`.)
+
+5. **Is recipe generation a single model call or multi-step (e.g., generate → validate → retry)?**
+   If there’s a retry loop, remixes need to remain consistent across retries.
+
+6. **What model + parameters are used for recipe generation (temperature, top_p, max tokens)?**
+   Remixes benefit from slightly higher creativity; we may adjust later, but we need baseline.
+
+7. **Do we have a hard token budget or truncation risk?**
+   Adding remixes increases output size. We should know if we’re near limits.
+
+---
+
+## 3) UI / State Architecture for Apply + Undo
+
+8. **Where does “working copy” state live today (substitutions)?**
+   Is it `useState` in the fridge-result page, context, zustand, etc.?
+
+9. **How does Cook Mode get its steps today—does it read from the current recipe object or re-derive?**
+   Remixes will update steps; we must ensure Cook Mode consumes the remixed recipe.
+
+10. **Is there already a stable `recipeKey` hash function in the client?**
+    If yes, we can reuse it to:
+
+* key image caching
+* key remix telemetry
+* key undo state reliably
+
+11. **Do we have a pattern for “apply patch then undo” anywhere?**
+    (Even outside recipes—any reducer/patch utility we can reuse.)
+
+---
+
+## 4) Step & Ingredient IDs (This is Make-or-Break)
+
+12. **Are `ingredient.id` values stable and unique?**
+    (We’ll reference these in remix patches.)
+
+13. **Do steps have IDs today?**
+    Your schema shows steps as `{ text, ingredient_ids, time_minutes? }` but no `id`.
+    For robust patch operations (“add after step X”), it’s much easier if steps have IDs.
+
+14. **If steps don’t have IDs: are we willing to add `step.id` now?**
+    If not, patches will have to use array indices (fragile) or text matching (worse).
+
+This is the single biggest architecture decision for remixes.
+
+---
+
+## 5) How to Apply Remixes (Patch Semantics)
+
+15. **Do we want remixes to output full “remixed recipe” objects, or structured patches (deltas)?**
+
+* Full recipe is easiest to apply but larger output & risk of drift.
+* Patches are safer and reversible, but require step IDs or stable addressing.
+
+16. **What is the smallest acceptable patch format for implementation?**
+    e.g.:
+
+* ingredient amount overrides
+* optional new ingredients appended
+* step insert/replace/remove
+
+17. **Do we need to preserve the original recipe object unchanged for Generate Again?**
+    (You said yes earlier; confirm current implementation already behaves that way.)
+
+---
+
+## 6) Constraints: Pantry vs “New Ingredients”
+
+18. **Do we have a canonical pantry list anywhere in code?**
+    If we want “pantry ingredients don’t count toward 2–3 new ones,” we need a definition:
+
+* hardcoded list
+* taxonomy (oil/vinegar/spices)
+* or simply an instruction with no enforcement (riskier)
+
+19. **Do we want to enforce the 2–3 new ingredient limit in code (validation), or trust the model?**
+    If we enforce, we need:
+
+* count new ingredients not present in original list
+* pantry whitelist logic
+
+---
+
+## 7) Telemetry Plumbing
+
+20. **Where are telemetry events defined and emitted today?**
+    Is it a wrapper utility? Are event names centralized?
+
+21. **Do we have a standard payload shape (e.g., `recipeKey`, `recipeName`, `cuisine`)?**
+    If yes, remixes should follow it.
+
+22. **Any constraints on PII / payload size?**
+    Avoid sending full recipe JSON in telemetry.
+
+---
+
+## 8) Image Generation Interaction
+
+23. **Does remix application regenerate the image, or keep the base image?**
+    Decide now for UX + cost.
+    I’d recommend: keep base image initially (cheap), later optionally regenerate.
+
+24. **Is image generation keyed off `recipeKey` derived from full recipe JSON?**
+    If yes, applying a remix might change the key and unintentionally trigger new image gen unless we decouple keys.
+
+Ask Replit how `recipeKey` is computed today.
+
+---
+
+## 9) What to Ask for “Proof” During Implementation
+
+25. **Can Replit identify existing tests around fridge-result and Cook Mode?**
+    If none, we’ll rely on data-testid + manual scripts.
+
+26. **Can Replit add a small set of `data-testid`s for remix UI elements?**
+    (remix card, apply button/state, undo button)
+
+---
+
+# My top 5 “must ask” questions
+
+If you only ask five, ask these:
+
+1. Do steps have IDs? If not, can we add them?
+2. Where exactly is the V2 recipe schema + prompt assembled?
+3. How is `recipeKey` computed today?
+4. How does Cook Mode consume steps (from current recipe state or derived)?
+5. Where/how is telemetry emitted?
+
+Those answers determine 80% of the implementation design.
+
+---
+
+If you paste Replit’s answers back, I’ll do two things immediately:
+
+* Recommend the best remix schema (full recipe vs patch) for your current setup
+* Draft the exact Replit-agent prompts (schema + prompt + UI + telemetry) in small steps
+
+Ready to send these questions to Replit?

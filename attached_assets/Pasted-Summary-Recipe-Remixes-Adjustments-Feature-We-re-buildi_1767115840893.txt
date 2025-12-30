@@ -1,0 +1,81 @@
+Summary: Recipe Remixes / Adjustments Feature
+
+We’re building a “Remix this recipe” feature on the Recipe Detail Page that gives users 3–4 smart, in-context adjustments to an AI-generated recipe (inspired by Tasty), without regenerating the entire recipe in real time.
+
+What this is
+
+Each recipe will include pre-generated remix options returned as part of the recipe JSON.
+
+Remixes are small, intent-preserving changes (e.g. “Extra saucy”, “Herb it up”, “Mash the potatoes”) that:
+
+Keep the core identity of the dish
+
+Adjust only 1 axis (texture, flavor emphasis, or technique)
+
+Touch at most 2–3 ingredients/steps
+
+Remixes are applied instantly in the UI (ingredients + steps update), with an Undo option.
+
+Only one remix active at a time (no stacking yet).
+
+What this is NOT
+
+Not free-form user prompting
+
+Not a full recipe regeneration
+
+Not dietary transformations (vegan, keto, etc.)
+
+Not a social/community feature (yet)
+
+AI behavior
+
+Recipe generation will also generate 3–4 remix objects alongside the base recipe.
+
+Pantry staples (oil, vinegar, soy sauce, spices, etc.) can be assumed and do not count toward the 2–3 new ingredient limit.
+
+Remixes may add up to 2–3 new ingredients max.
+
+Recipe name never changes.
+
+Core ingredients are never removed (except optional/garnish-level).
+
+Time/calories may update only when obviously affected.
+
+Data & State
+
+Remixes live on the recipe object (V2 schema).
+
+Base recipe remains immutable.
+
+UI applies a remix as a reversible patch (Undo restores base recipe).
+
+“Generate Again” always regenerates from the base recipe.
+
+UX
+
+“Remix this recipe” section appears below Ingredients.
+
+Each remix is shown as a tappable card with a short explanation.
+
+Applying a remix updates Ingredients + Cook Mode steps.
+
+No real-time AI calls when tapping a remix.
+
+Telemetry
+
+We want basic events:
+
+recipe_remixes_shown
+
+recipe_remix_applied
+
+recipe_remix_undone
+
+Why we’re doing this
+
+Give users a delightful, low-effort way to personalize recipes
+
+Keep latency low and UX predictable
+
+Avoid vague user input while still feeling “smart and custom”

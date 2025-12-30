@@ -1,0 +1,48 @@
+Goal: Implement Phase 1 of the “Recipe Remixes” feature by updating the V2 recipe schema to support step IDs and remix patch objects.
+
+Context:
+- This work follows the implementation plan documented at:
+  docs/agent_memory/imp_plans/recipe-remixes.md
+- Before making changes, review that document to understand scope, non-goals, and design decisions.
+- Phase 1 is schema-only. No prompt, UI, cook mode, or telemetry changes should be made in this step.
+
+Do:
+- Review docs/agent_memory/imp_plans/recipe-remixes.md (Phase 1 — Schema updates) to confirm intent and constraints.
+- Update the V2 recipe schema in shared/schema.ts (recipeDTOV2Schema) to include:
+
+  1) Step IDs
+     - Add a required `id: string` field to each item in `steps[]`.
+     - Keep all existing step fields unchanged (text, ingredient_ids, time_minutes).
+
+  2) Remixes array
+     - Add a new required field `remixes: Remix[]` to the recipe schema.
+     - Define a Remix schema with:
+       - id: string
+       - title: string
+       - description: string
+       - patch: object supporting ONLY the following optional fields:
+         - ingredient_overrides?: [{ ingredient_id: string, amount?: string }]
+         - add_ingredients?: [{ id: string, name: string, amount: string }]
+         - step_ops?: array of:
+           - { op: "add_after", after_step_id: string, step: { id, text, ingredient_ids, time_minutes? } }
+           - { op: "replace", step_id: string, step: { id, text, ingredient_ids, time_minutes? } }
+           - { op: "remove", step_id: string }
+         - meta_updates?: { time_minutes?: number, calories_per_serving?: number }
+
+- Ensure the schema remains strict and consistent with existing validation patterns.
+- Update any inferred TypeScript types derived from the schema (e.g., z.infer) so they reflect the new fields.
+
+Do NOT:
+- Modify recipe generation prompts
+- Modify server routes or handlers beyond schema compilation fixes
+- Add UI, cook mode, remix logic, or telemetry
+- Add feature flags
+- Make remixes optional unless strictly required to avoid breaking existing parsing (prefer required per the plan)
+
+Proof:
+- Logs include: "schema_v2_remixes_phase1_complete"
+- TypeScript build passes with no unused or broken types
+- Zod validation fails (expected) if:
+  - a step is missing `id`
+  - the recipe object is missing `remixes`
+- No other runtime behavior changes are observed
