@@ -1443,6 +1443,8 @@ export default function Home() {
                   console.log("recipe_v2 nav_back_to_new_recipe");
                   console.log("recipe_v2 substitutions_cleared");
                   setWorkingIngredients([]);
+                  setRemixedRecipe(null);
+                  setActiveRemixId(null);
                   setViewState("fridge-single");
                   setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
                 }}
@@ -1451,25 +1453,31 @@ export default function Home() {
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               
-              {/* Hero Image */}
+              {/* Hero Image - always use base recipe for caching */}
               <RecipeHeroImage recipe={generatedRecipe} />
             </div>
 
             <div className="px-4 py-6 space-y-6">
-              {/* Metadata badges */}
+              {/* Metadata badges - use displayRecipe for remixed values */}
               <div className="flex flex-wrap gap-3 text-sm">
                 <Badge variant="secondary" data-testid="badge-servings">
-                  {generatedRecipe.servings} servings
+                  {(displayRecipe?.servings ?? generatedRecipe.servings)} servings
                 </Badge>
-                {generatedRecipe.time_minutes && (
+                {(displayRecipe?.time_minutes ?? generatedRecipe.time_minutes) && (
                   <Badge variant="secondary" data-testid="badge-time">
                     <Clock className="w-3 h-3 mr-1" />
-                    {generatedRecipe.time_minutes} min
+                    {displayRecipe?.time_minutes ?? generatedRecipe.time_minutes} min
                   </Badge>
                 )}
-                {generatedRecipe.calories_per_serving && (
+                {(displayRecipe?.calories_per_serving ?? generatedRecipe.calories_per_serving) && (
                   <Badge variant="secondary" data-testid="badge-calories">
-                    {generatedRecipe.calories_per_serving} cal/serving
+                    {displayRecipe?.calories_per_serving ?? generatedRecipe.calories_per_serving} cal/serving
+                  </Badge>
+                )}
+                {activeRemixId && (
+                  <Badge variant="outline" data-testid="badge-remix-active">
+                    <Check className="w-3 h-3 mr-1" />
+                    Remixed
                   </Badge>
                 )}
               </div>
@@ -1517,7 +1525,67 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* CTAs: Let's Cook! (primary) + Remix Recipe (secondary) */}
+              {/* Remix this recipe section */}
+              {generatedRecipe.remixes && generatedRecipe.remixes.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-lg font-medium text-foreground">Remix this recipe</h3>
+                    {activeRemixId && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleUndoRemix}
+                        data-testid="button-undo-remix"
+                      >
+                        <Undo2 className="w-4 h-4 mr-1" />
+                        Undo
+                      </Button>
+                    )}
+                  </div>
+                  <div className="space-y-2" data-testid="list-remixes">
+                    {generatedRecipe.remixes.map((remix, i) => {
+                      const isActive = activeRemixId === remix.id;
+                      return (
+                        <div
+                          key={remix.id}
+                          className={`p-3 rounded-md border cursor-pointer hover-elevate active-elevate-2 ${
+                            isActive 
+                              ? 'border-primary bg-primary/5' 
+                              : 'border-border'
+                          }`}
+                          onClick={() => {
+                            if (isActive) {
+                              handleUndoRemix();
+                            } else {
+                              handleApplyRemix(remix.id);
+                            }
+                          }}
+                          data-testid={`remix-card-${i}`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground" data-testid={`text-remix-title-${i}`}>
+                                {remix.title}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2" data-testid={`text-remix-description-${i}`}>
+                                {remix.description}
+                              </p>
+                            </div>
+                            {isActive && (
+                              <Badge variant="secondary" className="flex-shrink-0" data-testid={`badge-remix-applied-${i}`}>
+                                <Check className="w-3 h-3 mr-1" />
+                                Applied
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* CTAs: Let's Cook! (primary) + Generate Again (secondary) */}
               <div className="flex flex-col gap-3 pt-4">
                 <Button
                   className="w-full"
@@ -1535,15 +1603,17 @@ export default function Home() {
                   className="w-full"
                   onClick={() => {
                     console.log("recipe_v2 remix_recipe_click");
-                    // Regenerate using original ingredients/prefs (ignores substitutions)
+                    // Regenerate using original ingredients/prefs (ignores substitutions and remixes)
                     setWorkingIngredients([]);
+                    setRemixedRecipe(null);
+                    setActiveRemixId(null);
                     setViewState("fridge-generating");
                     setCleanoutSession(prev => prev ? { ...prev, status: "generating" } : null);
                   }}
                   data-testid="button-remix-recipe"
                 >
                   <Repeat className="w-4 h-4 mr-2" />
-                  Remix Recipe
+                  Generate Again
                 </Button>
               </div>
             </div>
