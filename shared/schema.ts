@@ -144,9 +144,65 @@ export const ingredientItemV2Schema = z.object({
 });
 
 export const stepItemV2Schema = z.object({
+  id: z.string().min(1),
   text: z.string(),
   ingredient_ids: z.array(z.string()),
   time_minutes: z.number().nullable(),
+});
+
+// Remix patch schemas
+export const remixStepV2Schema = z.object({
+  id: z.string().min(1),
+  text: z.string(),
+  ingredient_ids: z.array(z.string()),
+  time_minutes: z.number().nullable().optional(),
+});
+
+export const remixIngredientOverrideV2Schema = z.object({
+  ingredient_id: z.string(),
+  amount: z.string().optional(),
+});
+
+export const remixAddIngredientV2Schema = z.object({
+  id: z.string(),
+  name: z.string(),
+  amount: z.string(),
+});
+
+export const remixStepOpV2Schema = z.discriminatedUnion("op", [
+  z.object({
+    op: z.literal("add_after"),
+    after_step_id: z.string(),
+    step: remixStepV2Schema,
+  }),
+  z.object({
+    op: z.literal("replace"),
+    step_id: z.string(),
+    step: remixStepV2Schema,
+  }),
+  z.object({
+    op: z.literal("remove"),
+    step_id: z.string(),
+  }),
+]);
+
+export const remixMetaUpdatesV2Schema = z.object({
+  time_minutes: z.number().optional(),
+  calories_per_serving: z.number().optional(),
+});
+
+export const remixPatchV2Schema = z.object({
+  ingredient_overrides: z.array(remixIngredientOverrideV2Schema).optional(),
+  add_ingredients: z.array(remixAddIngredientV2Schema).optional(),
+  step_ops: z.array(remixStepOpV2Schema).optional(),
+  meta_updates: remixMetaUpdatesV2Schema.optional(),
+});
+
+export const remixV2Schema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().min(1),
+  patch: remixPatchV2Schema,
 });
 
 export const recipeDTOV2Schema = z.object({
@@ -159,7 +215,8 @@ export const recipeDTOV2Schema = z.object({
   ingredients: z.array(ingredientItemV2Schema).min(1),
   steps: z.array(stepItemV2Schema).min(1),
   image_prompt: z.string().min(1),
+  remixes: z.array(remixV2Schema).min(1),
 });
 
 // Log schema update for observability
-console.log("schema_v2_image_prompt_added");
+console.log("schema_v2_remixes_phase1_complete");
