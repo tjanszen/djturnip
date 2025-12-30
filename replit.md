@@ -91,9 +91,16 @@ The `/api/recipes/generate-single` endpoint returns structured recipe data with 
 - **calories_per_serving**: Estimated calories (optional)
 - **explanation**: 1-3 sentences explaining why the recipe works (flavor, texture, or technique rationale)
 - **Ingredients**: Array of objects with `id`, `name`, `amount`, and `substitutes[]` (each substitute has `id`, `name`, `amount`)
-- **Steps**: Array of objects with `text` (includes ingredient amounts in parentheses), `ingredient_ids[]`, and `time_minutes`
+- **Steps**: Array of objects with `id`, `text` (includes ingredient amounts in parentheses), `ingredient_ids[]`, and `time_minutes`
+- **remixes**: Array of 1+ remix objects, each containing:
+  - `id`, `title`, `description`
+  - `patch`: Object with optional fields:
+    - `ingredient_overrides`: Array of `{ ingredient_id, amount? }`
+    - `add_ingredients`: Array of `{ id, name, amount }` (max 2-3 non-pantry)
+    - `step_ops`: Array of step operations (`add_after`, `replace`, `remove`)
+    - `meta_updates`: Optional `{ time_minutes?, calories_per_serving? }`
 
-ID-based ingredient references enable substitution without step text replacement. Validation ensures all `ingredient_ids` in steps reference actual ingredient IDs.
+ID-based ingredient references enable substitution without step text replacement. Step IDs enable robust patch operations for remixes. Validation ensures all `ingredient_ids` in steps reference actual ingredient IDs.
 
 ### Frontend Features
 - **Recipe Summary Screen**: 2-column ingredient layout (name | amount), hidden steps, "Let's Cook!" and "Generate again" CTAs
