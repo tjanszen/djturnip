@@ -117,13 +117,12 @@ ID-based ingredient references enable substitution without step text replacement
   - Placeholder CTAs: Favorite and Done (no-op)
 - **Navigation Rules**:
   - Recipe Summary back arrow returns to consolidated "New Recipe" (fridge-single) and clears substitutions
-  - "Edit Ingredients" on Recipe Summary navigates to New Recipe and clears substitutions
-  - "Generate again" regenerates using original ingredients/prefs (ignores substitutions)
+  - "Remix Recipe" regenerates using original ingredients/prefs (ignores substitutions)
   - Cook Mode back arrow returns to Recipe Summary (preserves substitutions)
   - Substitutions are ephemeral (UI-local working copy only, never mutate original RecipeDTO)
 - **Telemetry logs**:
-  - `recipe_v2 nav_back_to_new_recipe`, `nav_edit_to_new_recipe`, `nav_to_cook_mode`, `nav_back_to_summary`
-  - `recipe_v2 generate_again_click`, `substitutions_cleared`
+  - `recipe_v2 nav_back_to_new_recipe`, `nav_to_cook_mode`, `nav_back_to_summary`
+  - `recipe_v2 remix_recipe_click`, `substitutions_cleared`
   - `recipe_v2_generate_start`, `recipe_v2_parse_success`, `recipe_v2_parse_retry`, `recipe_v2_generate_error`
 
 ### Key NPM Packages

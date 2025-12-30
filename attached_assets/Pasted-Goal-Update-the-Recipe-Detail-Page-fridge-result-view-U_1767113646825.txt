@@ -1,0 +1,71 @@
+Goal: Update the Recipe Detail Page ("fridge-result" view) UX/UI to a clean, full-width layout (no centered card), with new section order and simplified bottom actions — while keeping the Ingredients section fully interactive as it is today.
+
+Do:
+- Locate the Recipe Detail Page component/view ("fridge-result") and update the layout to remove the current card/container styling:
+  - Remove bg-card/border/shadow/rounded-2xl “card in the middle” look.
+  - Remove max-w centered container behavior.
+  - Use a full-width, mobile-first vertical layout with minimal horizontal padding only for text sections (hero image should be edge-to-edge or near edge-to-edge).
+
+- Update visual hierarchy and section order to exactly:
+  1) Hero Image (top)
+  2) Metadata row: Servings | Time | Calories (if present)
+  3) Short Description (recipe.description)
+  4) Ingredients section (UNCHANGED behavior)
+  5) Primary CTA: “Let’s Cook!”
+  6) Secondary CTA: “Remix Recipe” (replaces “Generate again”)
+
+- Header:
+  - Keep back arrow in upper-left (ghost/icon-only) with existing testid: data-testid="button-result-back"
+  - Remove any trash/delete icon in upper-right (do not render it).
+  - Keep title/description readable (retain existing data-testid="text-recipe-name" and data-testid="text-recipe-summary").
+
+- Hero Image:
+  - Keep existing async image generation via POST /api/recipes/generate-image and existing client-side caching by recipe hash.
+  - Change aspect ratio from aspect-square to a clean full-width hero ratio:
+    - Use 4:3 (preferred) or 16:9; choose one and apply consistently.
+  - Keep object-cover.
+
+- Metadata row:
+  - Keep the 3 badges (servings, time, calories optional) under the image.
+  - Ensure full-width and wraps on small screens.
+
+- Remove “Why this works” from UI:
+  - Do NOT render the explanation section at all.
+  - Keep the `explanation` field in JSON unchanged.
+
+- Ingredients section:
+  - DO NOT change this section’s UI or behavior.
+  - Keep ingredient interactivity exactly as it exists today:
+    - chevrons, tappable rows, substitution drawer, working copy state, etc.
+  - Ensure layout changes do not break ingredient interactions.
+
+- Action buttons:
+  - Keep “Let’s Cook!” as primary (existing data-testid="button-lets-cook") and keep navigation to Cook Mode unchanged.
+  - Replace “Generate again” button text with “Remix Recipe”:
+    - Keep same behavior: trigger a new recipe generation with the same inputs as today.
+    - Keep existing testid if tests rely on it, otherwise update to data-testid="button-remix-recipe" and update any tests accordingly.
+    - Telemetry: rename event generate_again_click -> remix_recipe_click only if telemetry changes are low-risk; otherwise keep event name and change only label.
+  - Remove ONLY the bottom hypertext link “Edit Ingredients” entirely (do not render it).
+    - Do not change ingredient editing/substitution mechanics inside the Ingredients section.
+
+- Keep all other behavior unchanged:
+  - Recipe generation flow
+  - Cuisine logic
+  - DTO fields and parsing
+  - Cook mode screen
+
+Do NOT:
+- Add new feature flags
+- Change backend schemas/prompts
+- Remove ingredient substitution drawer/working copy logic
+- Add new endpoints
+- Rework image generation integration beyond aspect ratio/layout
+
+Proof:
+- Logs must still include: "recipe_image_gen_success recipeKey=<hash>" when image loads.
+- Back button works and returns to ingredient input screen.
+- Recipe detail page shows: Image → badges → description → ingredients (interactive) → Let’s Cook → Remix Recipe.
+- “Why this works” is not visible anywhere on the page.
+- Ingredients remain tappable and substitution drawer still works exactly as before.
+- “Edit Ingredients” link is not visible anywhere.
+- “Remix Recipe” triggers a new recipe + new hero image generation (new recipeKey) without crashing.
