@@ -177,20 +177,11 @@ Deliverable:
 Deliverable:
 - Generated recipes pass schema validation consistently with remixes.
 
-### Phase 3 — UI: remix section + apply/undo (no stacking) ✅ COMPLETE
+### Phase 3 — UI: remix section + apply/undo (no stacking)
 4) Render remix cards on recipe detail page.
 5) Implement apply/undo state and patch application to derive `remixedRecipe`.
 Deliverable:
 - User can apply one remix and undo; base recipe remains intact.
-Implementation notes:
-- Added `activeRemixId` and `remixedRecipe` state variables
-- Created `applyRemixPatch` helper function that applies ingredient_overrides, add_ingredients, step_ops, and meta_updates
-- Added "Remix this recipe" section below Ingredients with tappable cards showing title/description
-- Applied remix shows "Applied" badge; Undo button appears in section header
-- Clicking different remix replaces active remix (no stacking)
-- Graceful failure: if patch references missing IDs, logs warning and stays on base recipe
-- Hero image uses base `generatedRecipe` for caching (no regeneration on apply/undo)
-- Log: `recipe_remixes_phase3_ui_live`
 
 ### Phase 4 — Integrate with workingIngredients + substitutions
 6) On apply: reconcile `workingIngredients` with remix ingredient changes while keeping substitution UX intact.
