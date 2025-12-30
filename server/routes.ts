@@ -323,6 +323,7 @@ STRICT REQUIREMENTS - Return a JSON object with these EXACT fields:
    - 1-2 substitutes per ingredient is ideal
 
 8. "steps": Array of step objects. Each object MUST have:
+   - "id": Unique stable ID like "step_1", "step_2", etc.
    - "text": The full instruction text. MUST include ingredient amounts in parentheses after ingredient mentions (e.g., "Add the chicken (2 cups, diced) to the pan")
    - "ingredient_ids": Array of ingredient IDs used in this step (e.g., ["ing_1", "ing_3"])
    - "time_minutes": Time for this step in minutes (number or null)
@@ -339,6 +340,43 @@ STRICT REQUIREMENTS - Return a JSON object with these EXACT fields:
    - Hands, utensils, bread, wine glasses, or people
    - Text, watermarks, or restaurant plating
 
+10. "remixes": Array with EXACTLY 3-4 remix objects. Each remix is a small, intent-preserving adjustment.
+    Each remix object MUST have:
+    - "id": Unique ID like "remix_1", "remix_2", etc.
+    - "title": Short user-facing label (2-5 words, e.g., "Extra Saucy", "Herb It Up", "Mash the Potatoes")
+    - "description": One sentence explaining what changes and why
+    - "patch": Object with ONLY these optional fields:
+      - "ingredient_overrides": Array of { "ingredient_id": string, "amount"?: string } to modify existing ingredient amounts
+      - "add_ingredients": Array of { "id": string, "name": string, "amount": string } for new ingredients (MAX 2-3, pantry staples don't count)
+      - "step_ops": Array of step operations:
+        - { "op": "add_after", "after_step_id": string, "step": { "id": string, "text": string, "ingredient_ids": [], "time_minutes": number|null } }
+        - { "op": "replace", "step_id": string, "step": { "id": string, "text": string, "ingredient_ids": [], "time_minutes": number|null } }
+        - { "op": "remove", "step_id": string }
+      - "meta_updates": { "time_minutes"?: number, "calories_per_serving"?: number } - only if obviously affected
+
+    REMIX RULES:
+    - Preserve the core identity of the dish - do NOT rename the recipe
+    - Do NOT remove core ingredients (only optional/garnish-level ingredients)
+    - Each remix should change only ONE axis: texture/sauce OR flavor emphasis OR technique/format
+    - Each remix should touch at most 2-3 ingredients/steps
+    - Pantry staples (oil, vinegar, soy sauce, mustard, common spices) can be assumed and don't count toward new ingredient limits
+    - Time/calorie updates only when obviously impacted
+
+EXAMPLE remix:
+{
+  "id": "remix_1",
+  "title": "Extra Saucy",
+  "description": "Double the sauce and add a splash of cream for a richer, more indulgent finish.",
+  "patch": {
+    "ingredient_overrides": [{ "ingredient_id": "ing_3", "amount": "1 cup" }],
+    "add_ingredients": [{ "id": "ing_new_1", "name": "heavy cream", "amount": "2 tbsp" }],
+    "step_ops": [
+      { "op": "add_after", "after_step_id": "step_4", "step": { "id": "step_4a", "text": "Stir in heavy cream (2 tbsp) and simmer for 1 minute.", "ingredient_ids": ["ing_new_1"], "time_minutes": 1 } }
+    ],
+    "meta_updates": { "calories_per_serving": 380 }
+  }
+}
+
 EXAMPLE ingredient:
 {
   "id": "ing_1",
@@ -352,6 +390,7 @@ EXAMPLE ingredient:
 
 EXAMPLE step:
 {
+  "id": "step_1",
   "text": "Heat oil in a pan over medium heat. Add the red onion (1/2 cup, diced) and sauté until translucent, about 3 minutes.",
   "ingredient_ids": ["ing_1"],
   "time_minutes": 3

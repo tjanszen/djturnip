@@ -1,0 +1,69 @@
+Goal: Implement Phase 2 of the “Recipe Remixes” feature by updating the recipe generation prompt to emit step IDs and structured remixes that conform to the V2 schema.
+
+Context:
+- This work follows the implementation plan documented at:
+  docs/agent_memory/imp_plans/recipe-remixes.md
+- Before making changes, review that document to understand scope, constraints, and non-goals.
+- Phase 2 is prompt-only. No schema, UI, cook mode, or telemetry changes should be made in this step.
+- Phase 1 (schema changes) is assumed complete and available.
+
+Do:
+- Review docs/agent_memory/imp_plans/recipe-remixes.md (Phase 2 — Generation prompt updates).
+- Locate the recipe generation prompt in:
+  server/routes.ts under the /api/recipes/generate-single endpoint.
+- Update the prompt instructions so that the AI MUST return JSON that includes:
+
+  1) Step IDs
+     - Each item in `steps[]` must include a required `id: string`.
+     - IDs should be unique within the recipe.
+     - Keep all existing step fields unchanged (text, ingredient_ids, time_minutes).
+
+  2) Remixes array
+     - Include a `remixes` array with EXACTLY 3–4 remix objects.
+     - Each remix must include:
+       - id: string
+       - title: short, user-facing label (e.g., “Extra Saucy”, “Herb It Up”)
+       - description: one sentence explaining what changes and why
+       - patch: structured patch object that conforms exactly to the V2 schema:
+         - ingredient_overrides?: [{ ingredient_id, amount? }]
+         - add_ingredients?: [{ id, name, amount }] (max 2–3)
+         - step_ops?: array of:
+           - { op: "add_after", after_step_id, step }
+           - { op: "replace", step_id, step }
+           - { op: "remove", step_id }
+         - meta_updates?: { time_minutes?, calories_per_serving? }
+
+- Enforce remix generation rules in the prompt:
+  - Preserve the core identity of the dish.
+  - Do NOT rename the recipe.
+  - Do NOT remove core ingredients.
+  - Each remix should change only ONE axis:
+    - texture/sauce OR
+    - flavor emphasis OR
+    - technique/format.
+  - Each remix should touch at most 2–3 ingredients/steps.
+  - Remixes may add up to 2–3 non-pantry ingredients.
+  - Pantry staples (oil, vinegar, soy sauce, mustard, common spices) may be assumed and do NOT count toward the new ingredient limit.
+  - Time/calorie updates should be included ONLY when obviously impacted.
+
+- Add or reinforce a strict output constraint:
+  - “Return ONLY valid JSON that conforms to the schema. Do not include any text before or after the JSON object.”
+
+- Keep all existing recipe fields, cuisine logic, and generation behavior unchanged aside from adding step IDs and remixes.
+
+Do NOT:
+- Modify shared/schema.ts
+- Modify UI components
+- Modify cook mode
+- Add remix application logic
+- Add feature flags
+- Change model parameters (temperature, top_p, etc.) in this phase
+
+Proof:
+- Logs include: "recipe_remixes_phase2_prompt_updated"
+- Generated recipes consistently:
+  - include step IDs on every step
+  - include 3–4 remixes
+  - pass recipeDTOV2Schema validation without retries
+- Remix patch objects reference valid step IDs and ingredient IDs
+- No user-facing behavior changes yet
