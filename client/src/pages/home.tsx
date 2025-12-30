@@ -203,6 +203,7 @@ interface GeneratedRecipe {
 
 console.log("client_recipe_type_image_prompt_added");
 console.log("recipe_remixes_phase3_ui_live");
+console.log("recipe_remixes_phase4_working_ingredients_integrated");
 
 export default function Home() {
   const [url, setUrl] = useState("");
@@ -402,8 +403,8 @@ export default function Home() {
         for (const override of patch.ingredient_overrides) {
           const idx = newIngredients.findIndex(ing => ing.id === override.ingredient_id);
           if (idx === -1) {
-            console.warn(`Remix patch: ingredient_id ${override.ingredient_id} not found`);
-            return null;
+            console.warn(`Remix patch: ingredient_id ${override.ingredient_id} not found, skipping override`);
+            continue; // Skip this override, don't fail the whole patch
           }
           if (override.amount !== undefined) {
             newIngredients[idx] = { ...newIngredients[idx], amount: override.amount };
@@ -433,38 +434,38 @@ export default function Home() {
       if (patch.step_ops) {
         for (const op of patch.step_ops) {
           if (op.op === "add_after") {
-            const idx = newSteps.findIndex(s => s.id === op.step_id);
+            const idx = newSteps.findIndex(s => s.id === op.after_step_id);
             if (idx === -1) {
-              console.warn(`Remix patch: step_id ${op.step_id} not found for add_after`);
-              return null;
+              console.warn(`Remix patch: after_step_id ${op.after_step_id} not found for add_after, skipping`);
+              continue;
             }
-            if (op.new_step) {
+            if (op.step) {
               newSteps.splice(idx + 1, 0, {
-                id: op.new_step.id,
-                text: op.new_step.text,
-                ingredient_ids: op.new_step.ingredient_ids || [],
-                time_minutes: op.new_step.time_minutes || null,
+                id: op.step.id,
+                text: op.step.text,
+                ingredient_ids: op.step.ingredient_ids || [],
+                time_minutes: op.step.time_minutes || null,
               });
             }
           } else if (op.op === "replace") {
             const idx = newSteps.findIndex(s => s.id === op.step_id);
             if (idx === -1) {
-              console.warn(`Remix patch: step_id ${op.step_id} not found for replace`);
-              return null;
+              console.warn(`Remix patch: step_id ${op.step_id} not found for replace, skipping`);
+              continue;
             }
-            if (op.new_step) {
+            if (op.step) {
               newSteps[idx] = {
-                id: op.new_step.id,
-                text: op.new_step.text,
-                ingredient_ids: op.new_step.ingredient_ids || [],
-                time_minutes: op.new_step.time_minutes || null,
+                id: op.step.id,
+                text: op.step.text,
+                ingredient_ids: op.step.ingredient_ids || [],
+                time_minutes: op.step.time_minutes || null,
               };
             }
           } else if (op.op === "remove") {
             const idx = newSteps.findIndex(s => s.id === op.step_id);
             if (idx === -1) {
-              console.warn(`Remix patch: step_id ${op.step_id} not found for remove`);
-              return null;
+              console.warn(`Remix patch: step_id ${op.step_id} not found for remove, skipping`);
+              continue;
             }
             newSteps.splice(idx, 1);
           }
