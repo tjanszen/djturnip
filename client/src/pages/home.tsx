@@ -14,7 +14,7 @@ import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { RecipeAlternative, RecipeStyle, FridgeRecipe } from "@shared/routes";
-import type { IngredientItemV2, StepItemV2, SubstituteItemV2 } from "@shared/schema";
+import type { IngredientItemV2, StepItemV2, SubstituteItemV2, RemixV2 } from "@shared/schema";
 
 // In-memory image cache (persists across re-renders but not page refreshes)
 const imageByRecipeKey: Record<string, string> = {};
@@ -198,6 +198,7 @@ interface GeneratedRecipe {
   ingredients: IngredientItemV2[];
   steps: StepItemV2[];
   image_prompt: string;
+  remixes: RemixV2[];
 }
 
 console.log("client_recipe_type_image_prompt_added");
@@ -229,6 +230,10 @@ export default function Home() {
   const [selectedIngredient, setSelectedIngredient] = useState<IngredientItemV2 | null>(null);
   const [selectedSubstituteId, setSelectedSubstituteId] = useState<string>("original");
   const [isSubstituteDrawerOpen, setIsSubstituteDrawerOpen] = useState(false);
+  
+  // Remix state
+  const [activeRemixId, setActiveRemixId] = useState<string | null>(null);
+  const [remixedRecipe, setRemixedRecipe] = useState<GeneratedRecipe | null>(null);
   
   const { mutate: processRecipe, isPending: isProcessingRecipe } = useProcessRecipe();
   const { mutate: generateFridgeRecipes, isPending: isGeneratingFridge } = useFridgeRecipes();

@@ -1,0 +1,62 @@
+Goal: Implement Phase 3 of the “Recipe Remixes” feature by adding a Remix UI section to the Recipe Detail Page and supporting apply-one + undo behavior (no stacking), without changing Cook Mode or telemetry yet.
+
+Context:
+- This work follows the implementation plan documented at:
+  docs/agent_memory/imp_plans/recipe-remixes.md
+- Before making changes, review that document to confirm Phase 3 scope and non-goals.
+- Phase 1 (schema) and Phase 2 (prompt output) are assumed complete, so generated recipes now include:
+  - steps[].id
+  - remixes[3–4] with patch objects
+- Current architecture notes (from prior review):
+  - generatedRecipe is immutable in React state
+  - workingIngredients is managed separately for substitutions
+  - Cook Mode reads from generatedRecipe state (do not change in this phase)
+  - recipeKey is based on name + ingredients + steps; do not cause image regeneration on remix apply
+
+Do:
+- Review docs/agent_memory/imp_plans/recipe-remixes.md (Phase 3 — UI: remix section + apply/undo).
+- In the Recipe Detail Page (“fridge-result” view) UI:
+  - Add a new section titled “Remix this recipe” (or “Remix Recipe”) placed below the Ingredients section (preferred).
+  - Render 3–4 remix options from `generatedRecipe.remixes` as tappable cards/rows showing:
+    - remix.title
+    - remix.description (1 line / short wrap)
+- Add UI state to support one active remix:
+  - activeRemixId: string | null
+  - remixedRecipe: RecipeDTO | null
+- Implement apply behavior:
+  - On selecting a remix, compute a derived recipe object by applying the remix.patch to the base `generatedRecipe`:
+    - Apply patch.ingredient_overrides to ingredient amounts by matching ingredient_id
+    - Append patch.add_ingredients (ensure unique ingredient ids; do not remove core ingredients)
+    - Apply patch.step_ops using step IDs (add_after / replace / remove) to produce a new steps[] array
+    - Apply patch.meta_updates if present (time_minutes, calories_per_serving)
+  - Store the derived result in `remixedRecipe` and set `activeRemixId`.
+  - Update the Recipe Detail Page rendering to use:
+    - `remixedRecipe` when active
+    - `generatedRecipe` when no remix active
+  - Ensure the base `generatedRecipe` remains unchanged.
+- Implement Undo:
+  - Provide an “Undo” control visible when a remix is active.
+  - Undo clears activeRemixId and remixedRecipe and reverts the UI to the base recipe.
+- UI affordances:
+  - Selected remix card should show an “Applied” state (badge/check).
+  - Tapping a different remix replaces the active remix (still no stacking).
+- Guardrails:
+  - If a remix patch cannot be applied safely (missing referenced step_id / ingredient_id), fail gracefully:
+    - do not crash
+    - show base recipe
+    - optionally console.warn a message indicating patch apply failure
+
+Do NOT:
+- Modify the Ingredients section behavior or substitution drawer logic yet (keep it exactly as-is in this phase).
+- Modify Cook Mode behavior (steps source switching happens in a later phase).
+- Modify telemetry (events come in a later phase).
+- Regenerate the hero image or change image caching behavior.
+- Change schema or prompt in this phase.
+
+Proof:
+- Logs must include: "recipe_remixes_phase3_ui_live"
+- Recipe detail page shows 3–4 remix options for a generated recipe that includes remixes.
+- Selecting a remix updates the visible recipe content (e.g., meta/ingredients/steps where displayed) based on remixedRecipe.
+- Undo restores the base recipe view reliably.
+- No crashes if a remix patch references missing IDs (graceful fallback).
+- No additional image generation occurs when applying/undoing a remix (base recipeKey remains the one used for image caching).
