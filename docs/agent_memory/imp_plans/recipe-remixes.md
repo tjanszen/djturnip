@@ -183,11 +183,19 @@ Deliverable:
 Deliverable:
 - User can apply one remix and undo; base recipe remains intact.
 
-### Phase 4 — Integrate with workingIngredients + substitutions
+### Phase 4 — Integrate with workingIngredients + substitutions ✅ COMPLETE
 6) On apply: reconcile `workingIngredients` with remix ingredient changes while keeping substitution UX intact.
 7) On undo: reset to base.
 Deliverable:
 - Remixes update ingredients while substitutions continue to work.
+Implementation notes:
+- `handleApplyRemix` updates `workingIngredients` with derived recipe's ingredients (includes overrides + added ingredients)
+- `handleUndoRemix` resets `workingIngredients` back to base `generatedRecipe.ingredients`
+- Switching between remixes recomputes from base + new patch (no accumulation)
+- Fixed step_ops to use correct schema fields: `after_step_id` for add_after, `step` instead of `new_step`
+- Updated guardrails: missing ingredient_id in overrides logs warning and continues (doesn't fail)
+- Missing step_id in step_ops logs warning and continues (graceful failure)
+- Log: `recipe_remixes_phase4_working_ingredients_integrated`
 
 ### Phase 5 — Cook Mode step source switching
 8) Pass/consume steps from `remixedRecipe` when remix active; otherwise base.
