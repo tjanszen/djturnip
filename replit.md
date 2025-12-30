@@ -122,6 +122,18 @@ ID-based ingredient references enable substitution without step text replacement
   - Ingredient badges show working copy names (reflects substitutions)
   - Back arrow returns to Recipe Summary
   - Placeholder CTAs: Favorite and Done (no-op)
+- **Recipe Remixes** (Phase 3 complete): Pre-generated alternative variations of each recipe
+  - 3-4 remix options displayed below Ingredients section as tappable cards
+  - Each remix shows title and description (1-2 lines)
+  - Apply one remix at a time by tapping; shows "Applied" badge
+  - Undo button appears in section header when remix is active
+  - Clicking different remix replaces current (no stacking)
+  - Remixes apply patches: ingredient_overrides, add_ingredients, step_ops, meta_updates
+  - `applyRemixPatch` helper computes derived recipe from base + patch
+  - State: `activeRemixId`, `remixedRecipe` (derived), `displayRecipe` (remixed or base)
+  - Hero image always uses base recipe for caching (no regeneration on apply/undo)
+  - Graceful failure: missing IDs in patch log warning and stay on base recipe
+  - Log: `recipe_remixes_phase3_ui_live`
 - **Navigation Rules**:
   - Recipe Summary back arrow returns to consolidated "New Recipe" (fridge-single) and clears substitutions
   - "Remix Recipe" regenerates using original ingredients/prefs (ignores substitutions)
