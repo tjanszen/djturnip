@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useProcessRecipe, useFridgeRecipes } from "@/hooks/use-recipes";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -7,14 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/drawer";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { RecipeAlternative, RecipeStyle, FridgeRecipe } from "@shared/routes";
-import type { IngredientItemV2, StepItemV2, SubstituteItemV2 } from "@shared/schema";
+import type { IngredientItemV2, StepItemV2 } from "@shared/schema";
 
 // In-memory image cache (persists across re-renders but not page refreshes)
 const imageByRecipeKey: Record<string, string> = {};
@@ -78,7 +76,7 @@ function RecipeHeroImage({ recipe }: { recipe: { name: string; ingredients: { na
 
   if (isLoading) {
     return (
-      <div className="w-full aspect-square rounded-xl overflow-hidden mb-4" data-testid="image-skeleton">
+      <div className="w-full aspect-[4/3] overflow-hidden" data-testid="image-skeleton">
         <Skeleton className="w-full h-full" />
       </div>
     );
@@ -89,7 +87,7 @@ function RecipeHeroImage({ recipe }: { recipe: { name: string; ingredients: { na
   }
 
   return (
-    <div className="w-full aspect-square rounded-xl overflow-hidden mb-4" data-testid="recipe-hero-image-container">
+    <div className="w-full aspect-[4/3] overflow-hidden" data-testid="recipe-hero-image-container">
       <img 
         src={imageUrl} 
         alt={recipe.name}
@@ -224,11 +222,6 @@ export default function Home() {
   const [generatedRecipe, setGeneratedRecipe] = useState<GeneratedRecipe | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
   
-  // V2 ingredient substitution state
-  const [workingIngredients, setWorkingIngredients] = useState<IngredientItemV2[]>([]);
-  const [selectedIngredient, setSelectedIngredient] = useState<IngredientItemV2 | null>(null);
-  const [selectedSubstituteId, setSelectedSubstituteId] = useState<string>("original");
-  const [isSubstituteDrawerOpen, setIsSubstituteDrawerOpen] = useState(false);
   
   const { mutate: processRecipe, isPending: isProcessingRecipe } = useProcessRecipe();
   const { mutate: generateFridgeRecipes, isPending: isGeneratingFridge } = useFridgeRecipes();
@@ -301,75 +294,6 @@ export default function Home() {
     }
   }, [viewState, cleanoutSession]);
   
-  // Initialize working copy when recipe is generated
-  useEffect(() => {
-    if (generatedRecipe) {
-      // Deep copy the ingredients to create a working copy
-      setWorkingIngredients(
-        generatedRecipe.ingredients.map(ing => ({
-          ...ing,
-          substitutes: [...ing.substitutes],
-        }))
-      );
-    }
-  }, [generatedRecipe]);
-
-  // Helper to get original ingredient from generatedRecipe by ID
-  const getOriginalIngredient = useCallback((id: string): IngredientItemV2 | undefined => {
-    if (!generatedRecipe) return undefined;
-    return generatedRecipe.ingredients.find(ing => ing.id === id);
-  }, [generatedRecipe]);
-
-  // Handle opening the substitute drawer
-  const handleIngredientTap = useCallback((ingredient: IngredientItemV2) => {
-    if (ingredient.substitutes.length === 0) return;
-    setSelectedIngredient(ingredient);
-    // Find if current working ingredient differs from original
-    const original = getOriginalIngredient(ingredient.id);
-    if (original && (ingredient.name === original.name && ingredient.amount === original.amount)) {
-      setSelectedSubstituteId("original");
-    } else {
-      // Find which substitute matches current state
-      const matchingSub = original?.substitutes.find(
-        sub => sub.name === ingredient.name && sub.amount === ingredient.amount
-      );
-      setSelectedSubstituteId(matchingSub?.id || "original");
-    }
-    setIsSubstituteDrawerOpen(true);
-  }, [getOriginalIngredient]);
-
-  // Handle swap confirmation
-  const handleSwapConfirm = useCallback(() => {
-    if (!selectedIngredient) return;
-    const original = getOriginalIngredient(selectedIngredient.id);
-    if (!original) return;
-
-    setWorkingIngredients(prev => 
-      prev.map(ing => {
-        if (ing.id !== selectedIngredient.id) return ing;
-        
-        if (selectedSubstituteId === "original") {
-          // Revert to original
-          return {
-            ...ing,
-            name: original.name,
-            amount: original.amount,
-          };
-        } else {
-          // Apply substitute
-          const substitute = original.substitutes.find(s => s.id === selectedSubstituteId);
-          if (!substitute) return ing;
-          return {
-            ...ing,
-            name: substitute.name,
-            amount: substitute.amount,
-          };
-        }
-      })
-    );
-    setIsSubstituteDrawerOpen(false);
-    setSelectedIngredient(null);
-  }, [selectedIngredient, selectedSubstituteId, getOriginalIngredient]);
   
   const handleQuickRemix = (recipeUrl: string, recipeId: string) => {
     setActiveQuickRemix(recipeId);
@@ -1268,140 +1192,105 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.4 }}
-            className="w-full max-w-lg mt-8"
+            className="w-full"
           >
-            <div className="bg-card border border-border shadow-lg rounded-2xl overflow-hidden">
-              <div className="p-8 space-y-6">
-                <div className="flex items-start gap-3">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      // Clear substitutions and navigate back to New Recipe
-                      console.log("recipe_v2 nav_back_to_new_recipe");
-                      console.log("recipe_v2 substitutions_cleared");
-                      setWorkingIngredients([]);
-                      setViewState("fridge-single");
-                      setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
-                    }}
-                    data-testid="button-result-back"
-                  >
-                    <ArrowLeft className="w-5 h-5" />
-                  </Button>
-                  <div className="flex-1">
-                    <h2 className="text-2xl font-serif font-medium text-foreground" data-testid="text-recipe-name">
-                      {generatedRecipe.name}
-                    </h2>
-                    <p className="text-muted-foreground mt-1" data-testid="text-recipe-summary">
-                      {generatedRecipe.description}
-                    </p>
-                  </div>
-                </div>
+            {/* Back button - fixed position over hero */}
+            <div className="absolute top-4 left-4 z-10">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="bg-background/80 backdrop-blur-sm"
+                onClick={() => {
+                  console.log("recipe_v2 nav_back_to_new_recipe");
+                  setViewState("fridge-single");
+                  setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
+                }}
+                data-testid="button-result-back"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </div>
 
-                <RecipeHeroImage recipe={generatedRecipe} />
+            {/* Hero Image - edge-to-edge */}
+            <RecipeHeroImage recipe={generatedRecipe} />
 
-                <div className="flex flex-wrap gap-3 text-sm">
-                  <Badge variant="secondary" data-testid="badge-servings">
-                    {generatedRecipe.servings} servings
+            {/* Content section with padding */}
+            <div className="px-4 py-6 space-y-5">
+              {/* Metadata row */}
+              <div className="flex flex-wrap gap-2 text-sm">
+                <Badge variant="secondary" data-testid="badge-servings">
+                  {generatedRecipe.servings} servings
+                </Badge>
+                {generatedRecipe.time_minutes && (
+                  <Badge variant="secondary" data-testid="badge-time">
+                    <Clock className="w-3 h-3 mr-1" />
+                    {generatedRecipe.time_minutes} min
                   </Badge>
-                  {generatedRecipe.time_minutes && (
-                    <Badge variant="secondary" data-testid="badge-time">
-                      <Clock className="w-3 h-3 mr-1" />
-                      {generatedRecipe.time_minutes} min
-                    </Badge>
-                  )}
-                  {generatedRecipe.calories_per_serving && (
-                    <Badge variant="secondary" data-testid="badge-calories">
-                      {generatedRecipe.calories_per_serving} cal/serving
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Why this works explanation */}
-                {generatedRecipe.explanation && (
-                  <div className="bg-muted/30 rounded-lg p-4" data-testid="section-explanation">
-                    <h4 className="text-sm font-medium text-foreground mb-1">Why this works</h4>
-                    <p className="text-sm text-muted-foreground" data-testid="text-explanation">
-                      {generatedRecipe.explanation}
-                    </p>
-                  </div>
                 )}
+                {generatedRecipe.calories_per_serving && (
+                  <Badge variant="secondary" data-testid="badge-calories">
+                    {generatedRecipe.calories_per_serving} cal/serving
+                  </Badge>
+                )}
+              </div>
 
-                {/* Recipe Summary: 2-column ingredient layout with substitution support */}
-                <div className="space-y-3">
-                  <h3 className="text-lg font-medium text-foreground">Ingredients</h3>
-                  <div className="space-y-0" data-testid="list-ingredients">
-                    {workingIngredients.map((ing, i) => {
-                      const original = getOriginalIngredient(ing.id);
-                      const hasSubstitutes = original && original.substitutes.length > 0;
-                      const isTappable = hasSubstitutes;
-                      
-                      return (
-                        <div 
-                          key={ing.id} 
-                          className={`flex items-center justify-between py-3 border-b border-border last:border-b-0 ${isTappable ? 'cursor-pointer hover-elevate active-elevate-2' : ''}`}
-                          onClick={isTappable ? () => handleIngredientTap(ing) : undefined}
-                          data-testid={`ingredient-row-${i}`}
-                        >
-                          <span className="text-sm text-foreground flex-1" data-testid={`text-ingredient-name-${i}`}>
-                            {ing.name}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground text-right" data-testid={`text-ingredient-amount-${i}`}>
-                              {ing.amount || ""}
-                            </span>
-                            {isTappable && (
-                              <ChevronRight className="w-4 h-4 text-muted-foreground" data-testid={`chevron-ingredient-${i}`} />
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+              {/* Title and Description */}
+              <div>
+                <h2 className="text-2xl font-serif font-medium text-foreground" data-testid="text-recipe-name">
+                  {generatedRecipe.name}
+                </h2>
+                <p className="text-muted-foreground mt-1" data-testid="text-recipe-summary">
+                  {generatedRecipe.description}
+                </p>
+              </div>
 
-                {/* CTAs: Let's Cook! (primary) + Generate again + Edit Ingredients (secondary) */}
-                <div className="flex flex-col gap-3 pt-4">
-                  <Button
-                    className="w-full"
-                    onClick={() => {
-                      console.log("recipe_v2 nav_to_cook_mode");
-                      setViewState("cook-mode");
-                    }}
-                    data-testid="button-lets-cook"
-                  >
-                    <ChefHat className="w-4 h-4 mr-2" />
-                    Let's Cook!
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      console.log("recipe_v2 generate_again_click");
-                      // Regenerate using original ingredients/prefs (ignores substitutions)
-                      setWorkingIngredients([]);
-                      setViewState("fridge-generating");
-                      setCleanoutSession(prev => prev ? { ...prev, status: "generating" } : null);
-                    }}
-                    data-testid="button-generate-again"
-                  >
-                    Generate again
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-full"
-                    onClick={() => {
-                      console.log("recipe_v2 nav_edit_to_new_recipe");
-                      console.log("recipe_v2 substitutions_cleared");
-                      setWorkingIngredients([]);
-                      setViewState("fridge-single");
-                      setCleanoutSession(prev => prev ? { ...prev, status: "confirm" } : null);
-                    }}
-                    data-testid="button-edit-ingredients"
-                  >
-                    Edit Ingredients
-                  </Button>
+              {/* Ingredients - simple non-interactive list */}
+              <div className="space-y-3">
+                <h3 className="text-lg font-medium text-foreground">Ingredients</h3>
+                <div className="space-y-0" data-testid="list-ingredients">
+                  {generatedRecipe.ingredients.map((ing, i) => (
+                    <div 
+                      key={ing.id} 
+                      className="flex items-center justify-between py-3 border-b border-border last:border-b-0"
+                      data-testid={`ingredient-row-${i}`}
+                    >
+                      <span className="text-sm text-foreground flex-1" data-testid={`text-ingredient-name-${i}`}>
+                        {ing.name}
+                      </span>
+                      <span className="text-sm text-muted-foreground text-right" data-testid={`text-ingredient-amount-${i}`}>
+                        {ing.amount || ""}
+                      </span>
+                    </div>
+                  ))}
                 </div>
+              </div>
+
+              {/* CTAs: Let's Cook! (primary) + Remix Recipe (secondary) */}
+              <div className="flex flex-col gap-3 pt-4">
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    console.log("recipe_v2 nav_to_cook_mode");
+                    setViewState("cook-mode");
+                  }}
+                  data-testid="button-lets-cook"
+                >
+                  <ChefHat className="w-4 h-4 mr-2" />
+                  Let's Cook!
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    console.log("recipe_v2 remix_recipe_click");
+                    setViewState("fridge-generating");
+                    setCleanoutSession(prev => prev ? { ...prev, status: "generating" } : null);
+                  }}
+                  data-testid="button-remix-recipe"
+                >
+                  <Repeat className="w-4 h-4 mr-2" />
+                  Remix Recipe
+                </Button>
               </div>
             </div>
           </motion.div>
@@ -1460,9 +1349,9 @@ export default function Home() {
                 ) : (
                   <div className="space-y-6" data-testid="list-cook-steps">
                     {generatedRecipe.steps.map((step, i) => {
-                      // Map ingredient_ids to working copy names for display context
+                      // Map ingredient_ids to original recipe ingredients
                       const referencedIngredients = step.ingredient_ids
-                        .map(id => workingIngredients.find(ing => ing.id === id))
+                        .map(id => generatedRecipe.ingredients.find(ing => ing.id === id))
                         .filter((ing): ing is IngredientItemV2 => ing !== undefined);
                       
                       return (
@@ -2210,71 +2099,6 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      {/* Ingredient Substitution Bottom Sheet */}
-      {selectedIngredient && (
-        <Drawer open={isSubstituteDrawerOpen} onOpenChange={setIsSubstituteDrawerOpen}>
-          <DrawerContent data-testid="drawer-substitute">
-            <DrawerHeader>
-              <DrawerTitle data-testid="drawer-title">{selectedIngredient.name}</DrawerTitle>
-              {selectedIngredient.amount && (
-                <DrawerDescription data-testid="drawer-amount">{selectedIngredient.amount}</DrawerDescription>
-              )}
-            </DrawerHeader>
-            <div className="px-4 pb-4">
-              <RadioGroup 
-                value={selectedSubstituteId} 
-                onValueChange={setSelectedSubstituteId}
-                className="space-y-3"
-                data-testid="radio-substitutes"
-              >
-                {/* Original ingredient option */}
-                {(() => {
-                  const original = getOriginalIngredient(selectedIngredient.id);
-                  if (!original) return null;
-                  return (
-                    <div className="flex items-center space-x-3 py-2 px-3 rounded-md border border-border">
-                      <RadioGroupItem value="original" id="substitute-original" data-testid="radio-original" />
-                      <Label htmlFor="substitute-original" className="flex-1 cursor-pointer">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{original.name}</span>
-                          <span className="text-sm text-muted-foreground">{original.amount || ""}</span>
-                        </div>
-                      </Label>
-                    </div>
-                  );
-                })()}
-                
-                {/* Substitute options */}
-                {(() => {
-                  const original = getOriginalIngredient(selectedIngredient.id);
-                  if (!original) return null;
-                  return original.substitutes.map((sub, i) => (
-                    <div key={sub.id} className="flex items-center space-x-3 py-2 px-3 rounded-md border border-border">
-                      <RadioGroupItem value={sub.id} id={`substitute-${sub.id}`} data-testid={`radio-substitute-${i}`} />
-                      <Label htmlFor={`substitute-${sub.id}`} className="flex-1 cursor-pointer">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{sub.name}</span>
-                          <span className="text-sm text-muted-foreground">{sub.amount || ""}</span>
-                        </div>
-                      </Label>
-                    </div>
-                  ));
-                })()}
-              </RadioGroup>
-            </div>
-            <DrawerFooter className="flex-row gap-3">
-              <DrawerClose asChild>
-                <Button variant="outline" className="flex-1" data-testid="button-cancel-swap">
-                  Cancel
-                </Button>
-              </DrawerClose>
-              <Button className="flex-1" onClick={handleSwapConfirm} data-testid="button-confirm-swap">
-                Swap
-              </Button>
-            </DrawerFooter>
-          </DrawerContent>
-        </Drawer>
-      )}
     </div>
   );
 }
