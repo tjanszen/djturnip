@@ -470,6 +470,28 @@ Avoid novelty for its own sake. The result should feel obvious in hindsight.`
 
             const recipe: RecipeDTOV2 = validation.data;
 
+            // Validate step IDs are present and unique
+            const stepIds = new Set<string>();
+            let hasStepIdIssue = false;
+            for (const step of recipe.steps) {
+              if (!step.id || step.id.trim() === '') {
+                lastError = `Step missing required 'id' field`;
+                parseRetry = 1;
+                console.log(`recipe_v2_parse_retry=${parseRetry}`);
+                hasStepIdIssue = true;
+                break;
+              }
+              if (stepIds.has(step.id)) {
+                lastError = `Duplicate step ID: ${step.id}`;
+                parseRetry = 1;
+                console.log(`recipe_v2_parse_retry=${parseRetry}`);
+                hasStepIdIssue = true;
+                break;
+              }
+              stepIds.add(step.id);
+            }
+            if (hasStepIdIssue) continue;
+
             // Validate ingredient_ids in steps reference actual ingredients
             const ingredientIds = new Set(recipe.ingredients.map(i => i.id));
             let hasInvalidRef = false;
@@ -487,8 +509,47 @@ Avoid novelty for its own sake. The result should feel obvious in hindsight.`
             }
             if (hasInvalidRef) continue;
 
+            // Validate remixes reference valid step and ingredient IDs
+            let hasRemixIssue = false;
+            for (const remix of recipe.remixes) {
+              if (remix.patch.ingredient_overrides) {
+                for (const override of remix.patch.ingredient_overrides) {
+                  if (!ingredientIds.has(override.ingredient_id)) {
+                    lastError = `Remix ${remix.id} references unknown ingredient ID: ${override.ingredient_id}`;
+                    parseRetry = 1;
+                    console.log(`recipe_v2_parse_retry=${parseRetry}`);
+                    hasRemixIssue = true;
+                    break;
+                  }
+                }
+              }
+              if (hasRemixIssue) break;
+              
+              if (remix.patch.step_ops) {
+                for (const op of remix.patch.step_ops) {
+                  if (op.op === 'add_after' && !stepIds.has(op.after_step_id)) {
+                    lastError = `Remix ${remix.id} references unknown step ID: ${op.after_step_id}`;
+                    parseRetry = 1;
+                    console.log(`recipe_v2_parse_retry=${parseRetry}`);
+                    hasRemixIssue = true;
+                    break;
+                  }
+                  if ((op.op === 'replace' || op.op === 'remove') && !stepIds.has(op.step_id)) {
+                    lastError = `Remix ${remix.id} references unknown step ID: ${op.step_id}`;
+                    parseRetry = 1;
+                    console.log(`recipe_v2_parse_retry=${parseRetry}`);
+                    hasRemixIssue = true;
+                    break;
+                  }
+                }
+              }
+              if (hasRemixIssue) break;
+            }
+            if (hasRemixIssue) continue;
+
           console.log("recipe_v2_parse_success");
           console.log("recipe_image_prompt_generated");
+          console.log("recipe_remixes_phase2_prompt_updated");
           
           return res.status(200).json({
             success: true,
