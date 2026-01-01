@@ -1,0 +1,58 @@
+Goal:
+Implement Phase 6 — Remix telemetry logging, per:
+docs/agent_memory/imp_plans/recipe-remixes.md (Phase 6: Telemetry).
+
+Context:
+- This is V2-only.
+- Remixes are pre-generated and non-stackable.
+- `generatedRecipe` is immutable and represents the base recipe.
+- `remixedRecipe` is a derived variant when a remix is active.
+- `activeRemixId` tracks the currently applied remix (or null).
+- `recipeKey` must remain the BASE recipe key at all times.
+- Telemetry uses console.log() strings only (no analytics SDK).
+- Phase 5 is complete: Cook Mode consumes remixed steps when active.
+
+Do:
+1) Add telemetry when remix cards are first rendered:
+   - Fire once per recipe load.
+   - Log:
+     console.log("recipe_v2 remixes_shown recipeKey=<key> count=<n>");
+2) Add telemetry when a remix is applied:
+   - Fire when user applies a remix.
+   - Log:
+     console.log("recipe_v2 remix_applied recipeKey=<key> remixId=<id>");
+3) Add telemetry when a remix is undone:
+   - Fire when user taps Undo.
+   - Log:
+     console.log("recipe_v2 remix_undone recipeKey=<key> remixId=<id>");
+4) Add telemetry when Cook Mode starts with a remix active (optional but recommended):
+   - Fire once on entering Cook Mode if `activeRemixId !== null`.
+   - Log:
+     console.log("recipe_v2 remix_cook_started recipeKey=<key> remixId=<id>");
+5) Ensure all telemetry:
+   - Uses the BASE `recipeKey` (not derived or remixed variants)
+   - Fires once per user action (no duplicate logs on re-render)
+   - Does not block UI or introduce side effects
+
+Do NOT:
+- Introduce a telemetry utility or SDK
+- Change recipeKey computation
+- Add persistence
+- Add feature flags
+- Log full recipe payloads
+
+Gate via feature flag:
+None (per implementation plan).
+
+Proof:
+- `remixes_shown` fires once when remix cards are visible.
+- `remix_applied` fires exactly once per apply action.
+- `remix_undone` fires exactly once per undo action.
+- `remix_cook_started` fires only when entering Cook Mode with a remix active.
+- All logs include the BASE recipeKey and correct remixId.
+- No duplicate logs caused by re-renders.
+
+Verification:
+- Manually apply and undo multiple remixes.
+- Navigate into and out of Cook Mode.
+- Confirm console output matches expected events and counts.

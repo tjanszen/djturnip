@@ -237,6 +237,9 @@ export default function Home() {
   const [activeRemixId, setActiveRemixId] = useState<string | null>(null);
   const [remixedRecipe, setRemixedRecipe] = useState<GeneratedRecipe | null>(null);
   
+  // Phase 6 telemetry: track remixes_shown per recipe
+  const remixesShownKeyRef = useRef<string | null>(null);
+  
   const { mutate: processRecipe, isPending: isProcessingRecipe } = useProcessRecipe();
   const { mutate: generateFridgeRecipes, isPending: isGeneratingFridge } = useFridgeRecipes();
   const { toast } = useToast();
@@ -322,6 +325,18 @@ export default function Home() {
         }))
       );
     }
+  }, [generatedRecipe]);
+
+  // Phase 6 telemetry: remixes_shown (fire once per recipe load)
+  useEffect(() => {
+    if (!generatedRecipe) return;
+    if (!generatedRecipe.remixes || generatedRecipe.remixes.length === 0) return;
+    
+    const baseKey = computeRecipeKey(generatedRecipe);
+    if (remixesShownKeyRef.current === baseKey) return; // Already logged for this recipe
+    
+    remixesShownKeyRef.current = baseKey;
+    console.log(`recipe_v2 remixes_shown recipeKey=${baseKey} count=${generatedRecipe.remixes.length}`);
   }, [generatedRecipe]);
 
   // Helper to get original ingredient from generatedRecipe by ID
@@ -516,6 +531,9 @@ export default function Home() {
           substitutes: [...ing.substitutes],
         }))
       );
+      // Phase 6 telemetry: remix_applied
+      const baseKey = computeRecipeKey(generatedRecipe);
+      console.log(`recipe_v2 remix_applied recipeKey=${baseKey} remixId=${remixId}`);
     } else {
       // Patch failed - stay on base recipe
       console.warn(`Failed to apply remix ${remixId}`);
@@ -525,6 +543,11 @@ export default function Home() {
   // Handle undo remix
   const handleUndoRemix = useCallback(() => {
     if (!generatedRecipe) return;
+    // Phase 6 telemetry: remix_undone (capture before resetting)
+    if (activeRemixId) {
+      const baseKey = computeRecipeKey(generatedRecipe);
+      console.log(`recipe_v2 remix_undone recipeKey=${baseKey} remixId=${activeRemixId}`);
+    }
     setRemixedRecipe(null);
     setActiveRemixId(null);
     // Reset working ingredients to base recipe
@@ -534,7 +557,7 @@ export default function Home() {
         substitutes: [...ing.substitutes],
       }))
     );
-  }, [generatedRecipe]);
+  }, [generatedRecipe, activeRemixId]);
 
   // Get the recipe to display (remixed or base)
   const displayRecipe = remixedRecipe || generatedRecipe;
@@ -1596,6 +1619,11 @@ export default function Home() {
                   className="w-full"
                   onClick={() => {
                     console.log("recipe_v2 nav_to_cook_mode");
+                    // Phase 6 telemetry: remix_cook_started (if remix active)
+                    if (activeRemixId && generatedRecipe) {
+                      const baseKey = computeRecipeKey(generatedRecipe);
+                      console.log(`recipe_v2 remix_cook_started recipeKey=${baseKey} remixId=${activeRemixId}`);
+                    }
                     setViewState("cook-mode");
                   }}
                   data-testid="button-lets-cook"
