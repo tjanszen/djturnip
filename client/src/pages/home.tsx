@@ -1626,7 +1626,22 @@ export default function Home() {
         )}
 
         {/* Cook Mode - step-by-step instructions */}
-        {viewState === "cook-mode" && generatedRecipe && (
+        {viewState === "cook-mode" && generatedRecipe && (() => {
+          // Phase 5: Determine step source based on active remix
+          let cookModeSteps = generatedRecipe.steps;
+          if (activeRemixId !== null) {
+            if (remixedRecipe) {
+              cookModeSteps = remixedRecipe.steps;
+              console.log(`recipe_remixes_phase5_steps_source=remix remixId=${activeRemixId}`);
+            } else {
+              console.warn("recipe_remixes_phase5_steps_source=fallback_missing_remixedRecipe");
+              // Defensive fallback: use base recipe steps
+            }
+          } else {
+            console.log("recipe_remixes_phase5_steps_source=base");
+          }
+          
+          return (
           <motion.div
             key="cook-mode"
             initial={{ opacity: 0, y: 20 }}
@@ -1661,7 +1676,7 @@ export default function Home() {
                 </div>
 
                 {/* Steps list */}
-                {generatedRecipe.steps.length === 0 ? (
+                {cookModeSteps.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-muted-foreground" data-testid="text-no-steps">
                       Unable to load steps
@@ -1677,7 +1692,7 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="space-y-6" data-testid="list-cook-steps">
-                    {generatedRecipe.steps.map((step, i) => {
+                    {cookModeSteps.map((step, i) => {
                       // Map ingredient_ids to working copy names for display context
                       const referencedIngredients = step.ingredient_ids
                         .map(id => workingIngredients.find(ing => ing.id === id))
@@ -1723,7 +1738,7 @@ export default function Home() {
                 )}
 
                 {/* Bottom CTAs: Favorite and Done */}
-                {generatedRecipe.steps.length > 0 && (
+                {cookModeSteps.length > 0 && (
                   <div className="flex gap-3 pt-4 border-t border-border">
                     <Button
                       variant="outline"
@@ -1746,7 +1761,8 @@ export default function Home() {
               </div>
             </div>
           </motion.div>
-        )}
+        );
+        })()}
 
         {viewState === "fridge-error" && (
           <motion.div
