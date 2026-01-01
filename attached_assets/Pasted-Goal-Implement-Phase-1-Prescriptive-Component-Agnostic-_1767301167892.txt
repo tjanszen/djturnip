@@ -1,0 +1,62 @@
+Goal:
+Implement Phase 1 — Prescriptive Component-Agnostic Flavor Framework,
+per docs/agent_memory/imp_plans/flavor-completeness-framework.md (Phase 1).
+
+Snapshot:
+- Phase 0 is complete; fixtures exist and baseline outputs were reviewed.
+- Recipe generation prompt is assembled in:
+  server/routes.ts → /api/recipes/generate-single
+- PROMPT_V3_HOMECOOK is a text block used when PROMPT_V3_HOMECOOK=on.
+- This phase is PROMPT-ONLY.
+
+Do:
+1) Locate the existing PROMPT_V3_HOMECOOK guidance text.
+2) Replace ONLY the guidance section with the following concise bullet rules:
+
+   ---
+   You are an experienced, thoughtful home-cook assistant.
+
+   Requirements:
+   - Keep recipes familiar, achievable, and balanced; avoid novelty for its own sake.
+   - Think in components: protein, vegetable, starch, sauce, topping (as applicable).
+   - Flavor axes: aromatics; seasoning beyond salt; acid or umami; fat or richness; texture contrast.
+   - Each major component should intentionally hit at least 2 flavor axes.
+   - Prefer transformative cooking actions over simple mixing or warming
+     (e.g. sear, roast, char, bloom spices, deglaze, reduce, blend/emulsify).
+   - Cooking steps should include at least one transformative verb for the main component.
+   - Mild or creamy components should include contrast (acid, crunch, heat, or char).
+   - Use pantry staples freely for depth and balance.
+   - Include one clever but intuitive twist that feels obvious in hindsight.
+   ---
+
+3) Preserve ALL existing non-flavor requirements exactly as-is, including:
+   - JSON schema and required fields
+   - Step ID requirements
+   - Remix rules and limits
+   - Image prompt rules
+   - Validation expectations
+
+4) Add the following console log at the point where this prompt variant is used:
+   console.log("prompt_v3_flavor_axes_v1_active");
+
+Do NOT:
+- Add or modify schema fields
+- Add retries, linting, or self-critique loops
+- Change model, temperature, or token limits
+- Modify remix behavior or counts
+- Add scoring, evaluation, or commentary
+- Expand guidance beyond the bullets above
+
+Gate via feature flag:
+PROMPT_V3_HOMECOOK_FLAVOR_AXES_V1 = on
+(prompt version tag only; no runtime behavior change)
+
+Proof:
+- Re-run Phase 0 fixtures (must include: dairy-heavy, mild protein, bland starch).
+- Previously weak cases show improved balance and transformative actions.
+- Recipes remain schema-valid.
+- No noticeable increase in verbosity or novelty.
+
+Verification:
+- Diff confirms only PROMPT_V3_HOMECOOK text changed.
+- Console shows "prompt_v3_flavor_axes_v1_active" when prompt is active.

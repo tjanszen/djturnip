@@ -409,17 +409,20 @@ Return ONLY valid JSON. No markdown, no explanation.`;
 
 Create a recipe for ${prefs.servings} servings using these ingredients: ${ingredients.join(", ")}
 
-The recipe should:
-- Feel familiar and achievable for a confident home cook
-- Include one clever but intuitive twist they likely wouldn't have thought of
-- Use pantry staples freely for balance and depth
-- Anchor itself in a recognizable dish or technique
-
-Avoid novelty for its own sake. The result should feel obvious in hindsight.`
+Requirements:
+- Keep recipes familiar, achievable, and balanced; avoid novelty for its own sake.
+- Think in components: protein, vegetable, starch, sauce, topping (as applicable).
+- Flavor axes: aromatics; seasoning beyond salt; acid or umami; fat or richness; texture contrast.
+- Each major component should intentionally hit at least 2 flavor axes.
+- Prefer transformative cooking actions over simple mixing or warming (e.g. sear, roast, char, bloom spices, deglaze, reduce, blend/emulsify).
+- Cooking steps should include at least one transformative verb for the main component.
+- Mild or creamy components should include contrast (acid, crunch, heat, or char).
+- Use pantry staples freely for depth and balance.
+- Include one clever but intuitive twist that feels obvious in hindsight.`
           : `Create a recipe for ${prefs.servings} servings using these ingredients: ${ingredients.join(", ")}`;
         
         if (isPromptV3) {
-          console.log("recipe_user_prompt_v3_loaded");
+          console.log("prompt_v3_flavor_axes_v1_active");
         }
 
         let parseRetry = 0;

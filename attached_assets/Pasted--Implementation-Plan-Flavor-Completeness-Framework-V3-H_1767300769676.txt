@@ -1,0 +1,220 @@
+# Implementation Plan: Flavor Completeness Framework (V3 Homecook)
+
+Owner: DJ Turnip team  
+Mode: Architect (solo builder; tightly scoped changes)  
+Scope: Prompting + generation-quality guardrails  
+Status: Phase 0 complete
+
+---
+
+## Snapshot / Current State
+
+- Phase 0 (Flavor Calibration) is complete:
+  - A curated fixture list exists
+  - Baseline outputs have been generated and reviewed
+  - Known failure modes identified:
+    - Bland or underdeveloped components
+    - Over-reliance on “mix and warm”
+    - Weak handling of mild ingredients and dairy-heavy components
+
+- The system currently:
+  - Produces schema-valid recipes
+  - Uses PROMPT_V3_HOMECOOK for higher-quality generation
+  - Lacks a generalized, component-level flavor reasoning framework
+
+This plan formalizes the next steps to improve **culinary completeness** without destabilizing the system.
+
+---
+
+## Non-goals
+
+- No schema changes
+- No UI changes
+- No retries or linting in Phase 1
+- No new model or temperature changes
+- No free-form critique or scoring
+- No user-facing experimentation
+
+---
+
+## Core Idea
+
+Replace sauce-specific flavor rules with a **component-agnostic flavor completeness framework**.
+
+Instead of reasoning:
+> “If there is a sauce, add aromatics and acid”
+
+The system should reason:
+> “Each major component (protein, vegetable, starch, sauce, topping) should feel intentional, balanced, and transformed.”
+
+This is achieved incrementally, starting with **prompt-only guidance**.
+
+---
+
+## Phase 0 — Flavor Calibration (COMPLETE, ONGOING)
+
+### Purpose
+Create a stable personal baseline so improvements can be evaluated without relying on memory or vibes.
+
+### What exists
+- A list of known-hard ingredient fixtures
+- Saved baseline outputs
+- Qualitative labels based on gut-check (“complete” vs “thin / unfinished”)
+
+### Ongoing use
+- Re-run a small subset of fixtures before and after any prompt changes
+- Compare outputs side-by-side
+- Decisions are based on specific improvements or regressions
+
+> Phase 0 is a permanent calibration practice, not a one-time step.
+
+---
+
+## Phase 1 — Prompt Update: Prescriptive Component-Agnostic Flavor Framework
+
+### Goal
+Eliminate the most common bland or underdeveloped recipes using **prompt-only changes**, without introducing new system behavior.
+
+### Scope (IMPORTANT)
+This phase:
+- Modifies **only** the PROMPT_V3_HOMECOOK text
+- Does **not** add retries, linting, or logic
+- Does **not** change schema, UI, or remix behavior
+
+The Replit agent should behave like an **editor**, not an inventor.
+
+---
+
+### Work
+
+Update the PROMPT_V3_HOMECOOK guidance to explicitly include:
+
+#### 1. Component-Level Reasoning
+The prompt must instruct the model to reason in terms of:
+- Protein
+- Vegetable
+- Starch
+- Sauce
+- Topping (or equivalent components)
+
+#### 2. Flavor Axes Framework
+Introduce a lightweight, principle-based model:
+
+- Aromatics  
+- Seasoning beyond salt  
+- Acid or umami  
+- Fat or richness  
+- Texture contrast  
+
+Each **major component** should intentionally address **at least two** of these axes.
+
+#### 3. Explicit Culinary Guidance
+The prompt must clearly instruct the model to:
+- Add contrast when ingredients are mild by nature
+- Prefer **transformative actions** (searing, roasting, deglazing, blending, blooming spices)
+  over simple combining or warming
+- Explicitly address texture for dairy or blended components
+  (e.g., blending, thinning, emulsifying, melting)
+
+#### 4. Preservation of Existing Rules
+The update must preserve:
+- JSON schema and required fields
+- Step ID requirements
+- Remix generation rules
+- Image prompt rules
+- Validation expectations
+
+---
+
+### Constraints (Do NOT)
+
+The Phase 1 change must NOT:
+- Add new schema fields
+- Add retries, linting, or self-critique loops
+- Change the model or generation parameters
+- Add scoring or evaluation language
+- Introduce long ingredient lists or enumerative examples
+- Alter remix counts or behavior
+
+---
+
+### Deliverables
+
+- Revised PROMPT_V3_HOMECOOK text
+- Prompt version tag (e.g. `PROMPT_V3_HOMECOOK_FLAVOR_AXES_V1`)
+
+---
+
+### Acceptance Criteria
+
+- Re-running Phase 0 fixtures shows clear improvement in previously weak cases
+- Recipes feel more complete without becoming verbose or overengineered
+- No increase in schema validation failures
+- No novelty-driven or off-theme ingredient additions
+- Prompt diff is isolated to V3 Homecook guidance only
+
+---
+
+## Phase 2 — Optional: Post-Generation Flavor Lint (Deferred)
+
+### Goal
+Catch remaining incomplete recipes deterministically, if Phase 1 is insufficient.
+
+### Status
+Not required unless Phase 1 fails to address recurring failure modes.
+
+---
+
+## Phase 3 — Optional: Targeted Repair Retry
+
+### Goal
+Fix specific deficiencies without destabilizing otherwise good recipes.
+
+### Status
+Deferred until Phase 2 proves necessary.
+
+---
+
+## Phase 4 — Optional: Telemetry (Later)
+
+### Goal
+Provide observability once recipe generation volume increases.
+
+### Status
+Deferred (solo-builder context).
+
+---
+
+## Phase 5 — Optional: Remix-Level Flavor Elevation
+
+### Goal
+Provide a user-facing “boost flavor” remix even when base recipes pass quality checks.
+
+---
+
+## Risks & Mitigations
+
+### Risk: Replit agent introduces unintended changes
+Mitigation: Phase 1 is explicitly scoped to prompt text only, with a strict Do/Do-Not list.
+
+### Risk: Over-seasoned or busy recipes
+Mitigation: Require balance (≥2 axes), not maximal intensity.
+
+### Risk: Regressions over time
+Mitigation: Continuous use of Phase 0 fixtures.
+
+---
+
+## Rollback Plan
+
+- Revert to previous PROMPT_V3_HOMECOOK version
+- Keep Phase 0 fixtures for comparison
+- No structural rollback required
+
+---
+
+## Readiness Checks
+
+- Phase 0 complete? ✅
+- Next action clear? → Implement Phase 1 prompt update
+- Evidence defined? → Fixture before/after comparisons
