@@ -197,10 +197,19 @@ Implementation notes:
 - Missing step_id in step_ops logs warning and continues (graceful failure)
 - Log: `recipe_remixes_phase4_working_ingredients_integrated`
 
-### Phase 5 — Cook Mode step source switching
+### Phase 5 — Cook Mode step source switching ✅ COMPLETE
 8) Pass/consume steps from `remixedRecipe` when remix active; otherwise base.
 Deliverable:
 - Cook Mode instructions reflect the applied remix.
+Implementation notes:
+- Cook Mode uses IIFE pattern to compute `cookModeSteps` before rendering
+- Logic: `if (activeRemixId !== null && remixedRecipe) => remixedRecipe.steps; else => generatedRecipe.steps`
+- Defensive fallback: If `activeRemixId` set but `remixedRecipe` null, logs warning and uses base steps
+- All step references in Cook Mode (`map`, `length` checks) now use `cookModeSteps`
+- Logs:
+  - `recipe_remixes_phase5_steps_source=base` (no remix active)
+  - `recipe_remixes_phase5_steps_source=remix remixId=<id>` (remix active)
+  - `recipe_remixes_phase5_steps_source=fallback_missing_remixedRecipe` (defensive fallback)
 
 ### Phase 6 — Telemetry
 9) Add remix shown/applied/undone/cook-started logs with base recipeKey.
