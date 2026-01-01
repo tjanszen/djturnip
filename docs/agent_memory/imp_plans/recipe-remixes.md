@@ -211,10 +211,19 @@ Implementation notes:
   - `recipe_remixes_phase5_steps_source=remix remixId=<id>` (remix active)
   - `recipe_remixes_phase5_steps_source=fallback_missing_remixedRecipe` (defensive fallback)
 
-### Phase 6 — Telemetry
+### Phase 6 — Telemetry ✅ COMPLETE
 9) Add remix shown/applied/undone/cook-started logs with base recipeKey.
 Deliverable:
 - Events appear once per action; recipeKey stable across apply/undo.
+Implementation notes:
+- `remixesShownKeyRef` tracks which recipeKey has already fired `remixes_shown`
+- useEffect fires `remixes_shown` once per recipe load when remixes are present
+- Logs implemented:
+  - `recipe_v2 remixes_shown recipeKey=<key> count=<n>` (once per recipe load)
+  - `recipe_v2 remix_applied recipeKey=<key> remixId=<id>` (on apply)
+  - `recipe_v2 remix_undone recipeKey=<key> remixId=<id>` (on undo, captures ID before reset)
+  - `recipe_v2 remix_cook_started recipeKey=<key> remixId=<id>` (Cook Mode entry with remix active)
+- All logs use BASE recipeKey from `computeRecipeKey(generatedRecipe)`
 
 ---
 
