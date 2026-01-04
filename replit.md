@@ -74,7 +74,8 @@ shared/           # Shared code between frontend and backend
 - `DATABASE_URL`: PostgreSQL connection string
 - `AI_INTEGRATIONS_OPENAI_API_KEY`: OpenAI API key
 - `AI_INTEGRATIONS_OPENAI_BASE_URL`: OpenAI API base URL
-- `ALT_RECIPES`: Set to "on" to enable AI recipe alternatives generation
+- `ALT_RECIPES`: Set to "on" to enable AI recipe alternatives generation (V1)
+- `ALT_RECIPES_V2`: Set to "on" to enable V2 recipe remix with categorized alternatives (basic elevations + delightful twists). Takes precedence over ALT_RECIPES when enabled.
 - `FRIDGE_NEW_FLOW_V1`: Set to "on" to enable single recipe generation endpoint
 - `FRIDGE_SINGLE_RECIPE_SCREEN_V1`: Set to "on" to enable consolidated Crumb-style single-screen UI
 - `PROMPT_V3_HOMECOOK`: Set to "on" to enable thoughtful home-cook style prompts with Flavor Axes Framework (component-level reasoning: protein/vegetable/starch/sauce/topping, each hitting 2+ flavor axes: aromatics, seasoning, acid/umami, fat/richness, texture contrast)
