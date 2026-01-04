@@ -12,12 +12,19 @@ Return a JSON object with an "alternatives" array containing EXACTLY 9 items tot
 - EXACTLY 5 items with kind="basic"
 - EXACTLY 4 items with kind="delight"
 
-Each alternative MUST have:
-- "kind": either "basic" or "delight"
-- "title": 4–7 words max
-- "changes": an array of EXACTLY 2 or 3 objects, each with:
-  - "action": 2–5 words
-  - "details": specific ingredient names with amounts and/or exact technique instructions
+STRICT STRUCTURE REQUIREMENTS:
+Each alternative MUST have exactly this structure:
+{
+  "kind": "basic" or "delight",
+  "title": "4-7 word title",
+  "changes": [
+    { "action": "2-5 word action", "details": "specific instruction with measurement" },
+    { "action": "2-5 word action", "details": "specific instruction with measurement" }
+  ]
+}
+
+CRITICAL: Every alternative MUST have 2 or 3 changes. Never return just 1 change.
+CRITICAL: Every "details" field MUST include at least one specific measurement (e.g., "1 tsp", "2 tbsp", "1/2 cup", "3 oz", "5 minutes", "350°F").
 
 Rules:
 - Keep the dish identity recognizable; do not turn it into a different dish category.
@@ -25,7 +32,6 @@ Rules:
 - Basics are universal improvements (flavor, texture, balance) and should NOT depend heavily on the style.
 - Delights should lean into the provided style more strongly and be surprising but still plausible for home cooks.
 - Pantry staples are allowed (oil, butter, vinegar, soy sauce, mustard, spices, stock, etc.).
-- Be concrete and actionable: include quantities, times, temperatures, or specific techniques.
 - Use the provided ingredients/instructions as ground truth; do not invent that the base recipe contains items it does not list.
 - If the base recipe already includes an element (e.g., lemon juice), do not propose the exact same addition; propose a complementary upgrade instead.
 - Assume a standard home kitchen; avoid rare equipment.

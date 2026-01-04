@@ -8,15 +8,15 @@ function hasSpecificDetails(details: string): boolean {
 
 const changeSchema = z.object({
   action: z.string().min(1, "action cannot be empty"),
-  details: z.union([
-    z.string().min(1, "details cannot be empty"),
-    z.object({}).passthrough(),
-  ]).transform((val) => {
-    if (typeof val === "object") {
-      return JSON.stringify(val);
-    }
-    return val;
-  }),
+  details: z.preprocess(
+    (val) => {
+      if (typeof val === "object" && val !== null) {
+        return JSON.stringify(val);
+      }
+      return val;
+    },
+    z.string().min(1, "details cannot be empty")
+  ),
 });
 
 const alternativeSchema = z.object({
@@ -93,6 +93,8 @@ export function validateV2Response(content: string): ValidationResult {
     const issues = result.error.issues.map(issue => 
       `${issue.path.join('.')}: ${issue.message}`
     );
+    
+    console.log("url_remix_v2_validation_details", issues.slice(0, 5));
     
     return {
       success: false,
