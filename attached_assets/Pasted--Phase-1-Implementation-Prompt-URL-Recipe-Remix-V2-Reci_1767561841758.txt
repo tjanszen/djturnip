@@ -1,0 +1,159 @@
+# Phase 1 Implementation Prompt — URL Recipe Remix V2 (Recipe Extraction)
+
+Goal  
+Implement **Phase 1 only**: extract structured recipe content from a user-provided URL so V2 remix generation can operate on real recipe data instead of guessing from the URL.
+
+This phase focuses **only on backend recipe extraction**, not AI prompts, remix logic, or frontend changes.
+
+---
+
+## Scope (Phase 1 Only)
+- Fetch recipe page HTML from URL
+- Extract structured recipe data (title, ingredients, instructions)
+- Return a normalized internal recipe object for downstream use
+- Add basic logging and failure handling
+- No OpenAI calls
+- No remix generation
+- No frontend changes
+
+---
+
+## Tasks
+
+### 1. Fetch Recipe Page
+- Perform a server-side HTTP GET for the provided recipe URL.
+- Handle common failures:
+  - Non-200 responses
+  - Timeouts
+  - Unsupported content types
+- Enforce reasonable limits:
+  - Timeout (e.g., 5–10 seconds)
+  - Max HTML size (to avoid pathological pages)
+
+---
+
+### 2. Extract Structured Recipe Data (Priority Order)
+
+Attempt extraction in the following order:
+
+#### A. JSON-LD / Schema.org (Primary Path)
+- Parse `<script type="application/ld+json">`
+- Look for `@type: "Recipe"`
+- Extract when available:
+  - `name` → recipe title
+  - `recipeIngredient` → ingredients array
+  - `recipeInstructions` → instructions
+    - Handle both string and `{ text }` formats
+- This path should handle most major recipe sites.
+
+#### B. HTML Heuristics (Fallback)
+If JSON-LD is missing or invalid:
+- Use common selectors and patterns to extract:
+  - Ingredients list
+  - Instructions/steps
+- Accept imperfect results, but ensure:
+  - Ingredients array is non-empty
+  - Instructions array is non-empty
+
+#### C. Last-Resort Text Fallback (Optional)
+- Extract readable main content
+- Attempt to segment into ingredients and steps heuristically
+- This is optional and may be deferred if complexity is high
+
+---
+
+### 3. Normalize Extracted Recipe Object
+
+Produce a normalized internal structure:
+
+    {
+      title: string,
+      ingredients: string[],
+      instructions: string[],
+      sourceUrl: string
+    }
+
+Normalization rules:
+- Strip excessive whitespace
+- Preserve original ingredient phrasing (do NOT attempt unit parsing yet)
+- Preserve instruction order
+- If multiple recipes are detected, select the first valid one
+
+---
+
+### 4. Failure Handling Policy
+
+Define clear behavior if extraction fails:
+
+Recommended policy:
+- If **both** ingredients and instructions are empty:
+  - Log extraction failure
+  - Return a controlled error (e.g., 422: "Could not parse recipe from URL")
+- Do NOT silently hallucinate recipe content
+
+Alternative (if product prefers “always return something”):
+- On extraction failure, explicitly fall back to V1 remix logic
+- Log fallback usage clearly
+
+Choose ONE policy and document it in code comments.
+
+---
+
+### 5. Logging & Telemetry
+
+Add lightweight, structured logging:
+
+Required logs:
+- `"url_remix_v2_extract_start"` with domain
+- `"url_remix_v2_extract_success"` with:
+  - ingredient_count
+  - instruction_count
+- `"url_remix_v2_extract_fail"` with reason
+
+All telemetry/log keys must use the prefix:
+- `url_remix_v2_*`
+
+---
+
+### 6. Verification & Testing
+
+Add minimal verification to confirm extraction works:
+
+Manual or automated checks:
+- Test against at least **3 common recipe sites**
+- Confirm:
+  - title is non-empty
+  - ingredients.length ≥ 5 (or reasonable)
+  - instructions.length ≥ 3 (or reasonable)
+
+Edge case checks:
+- Page with no recipe → controlled failure
+- Page with malformed JSON-LD → fallback path engaged
+
+---
+
+## Out of Scope (Explicitly Do NOT Do)
+- Do not call OpenAI
+- Do not generate remix alternatives
+- Do not modify prompts
+- Do not change frontend behavior
+- Do not add new schema fields to API responses yet
+
+---
+
+## Gate
+- This functionality must only be used when:
+  - `ALT_RECIPES_V2=on`
+- When flag is OFF:
+  - Existing behavior remains unchanged
+
+---
+
+## Proof of Completion
+- Logs show successful extraction events for known recipe URLs
+- Controlled failure for non-recipe URLs
+- No changes observed in V1 behavior when flag is OFF
+
+---
+
+Phase 1 complete when structured recipe extraction is reliable enough to feed into Phase 2 prompt generation.
