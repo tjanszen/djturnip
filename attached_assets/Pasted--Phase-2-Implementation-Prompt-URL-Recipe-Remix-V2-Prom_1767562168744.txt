@@ -1,0 +1,210 @@
+# Phase 2 Implementation Prompt — URL Recipe Remix V2 (Prompt Generation Using Extracted Recipe Data)
+
+Goal  
+Implement **Phase 2 only**: generate high-quality “Basic Elevations” + “Delightful Twists” swipe cards **using extracted recipe content** (title, ingredients, instructions) from Phase 1.
+
+This phase adds:
+- The **V2 LLM prompt** (exact text)
+- The **V2 generation call** wired into the V2 route handler
+- The **V2 response parsing** (JSON object) returning `alternatives[]` to the client
+
+Out of scope:
+- Phase 3 strict validation + retry guardrails (counts enforcement, etc.) unless you already have light validation
+- Frontend UI changes (badges/sorting)
+
+---
+
+## Output Contract (V2)
+Return JSON object:
+
+    {
+      "alternatives": [
+        {
+          "kind": "basic",
+          "title": "Brighten and sharpen flavor",
+          "changes": [
+            { "action": "Add acid", "details": "Add 1–2 tsp lemon juice; adjust salt." },
+            { "action": "Boost aromatics", "details": "Add 2 tbsp minced scallion or red onion." }
+          ]
+        }
+      ]
+    }
+
+Requirements:
+- `alternatives[]` length: **exactly 9**
+- Composition: **5 basic + 4 delight** (to preserve “9 cards” UX)
+- Each card:
+  - `kind`: "basic" | "delight"
+  - `title`: short (4–7 words)
+  - `changes`: exactly 2–3 items
+    - `action`: 2–5 words
+    - `details`: concrete ingredients + amounts and/or precise technique
+
+---
+
+## Phase 2 Tasks
+
+### 1. Create a Prompt Template for V2 Remix Generation
+Add a dedicated prompt template (e.g., `server/prompts/urlRemixV2.ts`) containing:
+
+- V2 System Prompt (exact text below)
+- V2 User Message template that injects extracted recipe data:
+  - title
+  - ingredients list
+  - instructions list
+  - style focus
+  - (optional) any metadata you already extract (time/servings)
+
+Do not reuse the V1 prompt.
+
+---
+
+### 2. Implement the V2 LLM Call Using Extracted Recipe Content
+In the V2 route handler (when `ALT_RECIPES_V2=on`):
+
+- Call the extractor (already implemented)
+- If extraction fails: keep the current 422 behavior (already implemented)
+- Build the user prompt from the extracted recipe object
+- Call the model (`gpt-4o-mini`) with:
+  - JSON object response format
+  - Max tokens appropriate for 9 cards (recommend 1500–2500)
+
+Return the parsed JSON to the client.
+
+---
+
+### 3. Minimal Parsing / Safe Handling
+- Parse model output as JSON object
+- Ensure `alternatives` exists and is an array before returning
+- If parsing fails:
+  - Return 502 with a safe error message
+  - Log failure with `url_remix_v2_generate_fail`
+
+(Strict validation and retry policy will be added in Phase 3.)
+
+---
+
+## V2 Prompt Text (Exact)
+
+### System Prompt (V2)
+You are a chef assistant. Your job is to propose swipe-card modifications that elevate an existing recipe.
+
+You will receive:
+- Recipe title
+- Ingredients list
+- Instructions/steps
+- A style focus: creative / umami / protein / seasonal
+
+Return a JSON object with an "alternatives" array containing EXACTLY 9 items total:
+- EXACTLY 5 items with kind="basic"
+- EXACTLY 4 items with kind="delight"
+
+Each alternative MUST have:
+- "kind": either "basic" or "delight"
+- "title": 4–7 words max
+- "changes": an array of EXACTLY 2 or 3 objects, each with:
+  - "action": 2–5 words
+  - "details": specific ingredient names with amounts and/or exact technique instructions
+
+Rules:
+- Keep the dish identity recognizable; do not turn it into a different dish category.
+- No duplicates: do not repeat the same core idea across multiple cards.
+- Basics are universal improvements (flavor, texture, balance) and should NOT depend heavily on the style.
+- Delights should lean into the provided style more strongly and be surprising but still plausible for home cooks.
+- Pantry staples are allowed (oil, butter, vinegar, soy sauce, mustard, spices, stock, etc.).
+- Be concrete and actionable: include quantities, times, temperatures, or specific techniques.
+- Use the provided ingredients/instructions as ground truth; do not invent that the base recipe contains items it does not list.
+- If the base recipe already includes an element (e.g., lemon juice), do not propose the exact same addition; propose a complementary upgrade instead.
+- Assume a standard home kitchen; avoid rare equipment.
+
+Return only valid JSON.
+
+### User Message Template (V2)
+Analyze and elevate the recipe below into 9 swipe-card alternatives.
+
+Style focus: {style}
+
+Recipe title: {title}
+
+Ingredients:
+- {ingredient_1}
+- {ingredient_2}
+- {ingredient_3}
+...
+
+Instructions:
+1. {step_1}
+2. {step_2}
+3. {step_3}
+...
+
+Constraints reminder:
+- 5 basic + 4 delight
+- each card has 2–3 changes
+- changes must be specific and actionable
+
+Return only valid JSON.
+
+---
+
+## Style Handling (Implementation Guidance)
+Style parameter should bias **delight** more than **basic**.
+
+Implementation:
+- Do NOT change the schema by style
+- Do NOT generate 9 delights for creative mode
+- Do include style cues more prominently in delight cards:
+  - creative: playful pairings, fun serving formats, unexpected but plausible flavor directions
+  - umami: miso/soy/parm/mushroom/fish sauce/tomato concentrate, browned butter, roasted notes
+  - protein: add-on proteins, protein-forward swaps, egg/legume/cheese additions
+  - seasonal: produce/herbs aligned with the current season, seasonal spice profiles
+
+---
+
+## Telemetry (Phase 2)
+Add telemetry prefix `url_remix_v2_*` for generation:
+
+- `url_remix_v2_generate_start`
+  - domain
+  - style
+  - ingredient_count
+  - instruction_count
+- `url_remix_v2_generate_success`
+  - latency_ms
+  - total_cards (should be 9)
+  - model
+- `url_remix_v2_generate_fail`
+  - reason (json_parse_fail, openai_error, unexpected_shape)
+
+(Strict validation telemetry comes in Phase 3.)
+
+---
+
+## Verification Checklist
+
+### Manual Test
+With `ALT_RECIPES_V2=on`, POST `/api/recipes/process` with a known recipe URL.
+Confirm:
+- Response is 200
+- JSON parses
+- alternatives.length == 9
+- Contains a mix of kind="basic" and kind="delight"
+- Each card has 2–3 changes with concrete details
+
+### Quick Quality Smoke Test
+Pick one recipe (e.g., cookies, bolognese) and confirm:
+- Basic cards are sensible universal upgrades (salt balance, browning, acid, aromatics, texture)
+- Delight cards reflect style focus more strongly and feel novel but edible
+
+---
+
+## Gate
+- Entire Phase 2 logic must only run when `ALT_RECIPES_V2=on`
+- When `ALT_RECIPES_V2=off`, V1 remains unchanged
+
+---
+
+## Proof of Completion
+- For 3 known recipe URLs, V2 returns valid JSON with 9 alternatives and plausible content
+- Telemetry logs generation start/success/fail with `url_remix_v2_*` prefix
+- No regressions to V1 behavior when flags are off

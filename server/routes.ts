@@ -6,6 +6,7 @@ import { z } from "zod";
 import { recipeDTOV2Schema, type RecipeDTOV2 } from "@shared/schema";
 import OpenAI from "openai";
 import { extractRecipeFromUrl } from "./recipeExtractor";
+import { V2_SYSTEM_PROMPT, buildV2UserPrompt, parseV2Response } from "./prompts/urlRemixV2";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -618,36 +619,69 @@ Requirements:
         }
         
         const { recipe } = extractionResult;
+        const style = input.style || 'creative';
+        const domain = new URL(input.url).hostname;
+        
         console.log(`url_remix_v2_extracted title="${recipe.title}" ingredients=${recipe.ingredients.length} instructions=${recipe.instructions.length} method=${extractionResult.method}`);
         
-        // Phase 1 stub: Return placeholder alternatives with extracted recipe data
-        console.log("url_remix_v2_generate");
+        // Phase 2: Generate alternatives using V2 prompt with extracted recipe
+        console.log(`url_remix_v2_generate_start domain=${domain} style=${style} ingredient_count=${recipe.ingredients.length} instruction_count=${recipe.instructions.length}`);
+        const startTime = Date.now();
         
-        const alternatives = Array.from({ length: 9 }, (_, i) => ({
-          kind: i < 5 ? "basic" : "delight" as const,
-          title: `V2 Placeholder Card ${i + 1}`,
-          changes: [
-            { action: "Placeholder action", details: `Placeholder detail for card ${i + 1}` },
-            { action: "Another action", details: `Another placeholder detail for card ${i + 1}` },
-            ...(i % 2 === 0 ? [{ action: "Third action", details: `Third detail for card ${i + 1}` }] : []),
-          ],
-        }));
-        
-        console.log("url_remix_v2_alternatives_count", alternatives.length);
-        console.log("url_remix_v2_basic_count", alternatives.filter(a => a.kind === "basic").length);
-        console.log("url_remix_v2_delight_count", alternatives.filter(a => a.kind === "delight").length);
-        
-        return res.status(200).json({
-          message: "Recipe URL processed with V2 alternatives.",
-          url: input.url,
-          extractedRecipe: {
-            title: recipe.title,
-            ingredientCount: recipe.ingredients.length,
-            instructionCount: recipe.instructions.length,
-            method: extractionResult.method,
-          },
-          alternatives,
-        });
+        try {
+          const userPrompt = buildV2UserPrompt(recipe, style);
+          
+          const response = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: V2_SYSTEM_PROMPT },
+              { role: "user", content: userPrompt }
+            ],
+            response_format: { type: "json_object" },
+            max_tokens: 2000,
+          });
+          
+          const content = response.choices[0]?.message?.content || "{}";
+          const parsed = parseV2Response(content);
+          
+          if (!parsed || !parsed.alternatives || parsed.alternatives.length === 0) {
+            const latencyMs = Date.now() - startTime;
+            console.log(`url_remix_v2_generate_fail reason=json_parse_fail latency_ms=${latencyMs}`);
+            return res.status(502).json({
+              message: "Failed to generate recipe alternatives",
+              url: input.url,
+              error: "Invalid response format from AI",
+            });
+          }
+          
+          const latencyMs = Date.now() - startTime;
+          const basicCount = parsed.alternatives.filter(a => a.kind === "basic").length;
+          const delightCount = parsed.alternatives.filter(a => a.kind === "delight").length;
+          
+          console.log(`url_remix_v2_generate_success latency_ms=${latencyMs} total_cards=${parsed.alternatives.length} basic=${basicCount} delight=${delightCount} model=gpt-4o-mini`);
+          
+          return res.status(200).json({
+            message: "Recipe URL processed with V2 alternatives.",
+            url: input.url,
+            extractedRecipe: {
+              title: recipe.title,
+              ingredientCount: recipe.ingredients.length,
+              instructionCount: recipe.instructions.length,
+              method: extractionResult.method,
+            },
+            alternatives: parsed.alternatives,
+          });
+          
+        } catch (err) {
+          const latencyMs = Date.now() - startTime;
+          const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+          console.log(`url_remix_v2_generate_fail reason=openai_error error=${errorMsg} latency_ms=${latencyMs}`);
+          return res.status(502).json({
+            message: "Failed to generate recipe alternatives",
+            url: input.url,
+            error: "AI generation failed",
+          });
+        }
       }
 
       // V1 Path: Check if ALT_RECIPES is enabled
