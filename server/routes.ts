@@ -5,6 +5,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { recipeDTOV2Schema, type RecipeDTOV2 } from "@shared/schema";
 import OpenAI from "openai";
+import { extractRecipeFromUrl } from "./recipeExtractor";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -602,6 +603,24 @@ Requirements:
       // V2 Routing: Check if ALT_RECIPES_V2 is enabled
       if (process.env.ALT_RECIPES_V2 === "on") {
         console.log("url_remix_v2 enabled");
+        
+        // Phase 1: Extract recipe from URL
+        const extractionResult = await extractRecipeFromUrl(input.url);
+        
+        if (!extractionResult.success || !extractionResult.recipe) {
+          // Extraction failed - return controlled error (policy: do NOT hallucinate)
+          console.log("url_remix_v2_extraction_failed");
+          return res.status(422).json({
+            message: "Could not parse recipe from URL",
+            url: input.url,
+            error: extractionResult.error || "Unknown extraction error",
+          });
+        }
+        
+        const { recipe } = extractionResult;
+        console.log(`url_remix_v2_extracted title="${recipe.title}" ingredients=${recipe.ingredients.length} instructions=${recipe.instructions.length} method=${extractionResult.method}`);
+        
+        // Phase 1 stub: Return placeholder alternatives with extracted recipe data
         console.log("url_remix_v2_generate");
         
         const alternatives = Array.from({ length: 9 }, (_, i) => ({
@@ -621,6 +640,12 @@ Requirements:
         return res.status(200).json({
           message: "Recipe URL processed with V2 alternatives.",
           url: input.url,
+          extractedRecipe: {
+            title: recipe.title,
+            ingredientCount: recipe.ingredients.length,
+            instructionCount: recipe.instructions.length,
+            method: extractionResult.method,
+          },
           alternatives,
         });
       }
