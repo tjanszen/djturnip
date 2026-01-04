@@ -1,0 +1,187 @@
+# Implementation Plan: URL Recipe Remix V2 (Elevations + Delight)
+
+## Goal
+Replace the current “9 generic remixes” behavior for recipe URLs with a higher-quality system that generates:
+- **4–5 Basic Elevations** (familiar, reliable improvements)
+- **4–5 Delightful Twists** (novel, surprising, but still plausible)
+
+The output must remain compatible with the existing **swipe-card UI**.
+
+---
+
+## High-Level Strategy
+- Introduce a **new feature flag** (`ALT_RECIPES_V2`) to safely roll out the change.
+- Preserve the existing `/api/recipes/process` endpoint.
+- Keep the top-level `alternatives[]` array so the frontend does not break.
+- Add a lightweight categorization (`kind: "basic" | "delight"`) to distinguish variation types.
+- Replace the prompt logic entirely for V2.
+
+---
+
+## Phase 0 — Feature Flag & Routing
+
+### Tasks
+- Add feature flag: `ALT_RECIPES_V2` (default: off).
+- In `/api/recipes/process`:
+  - If `ALT_RECIPES_V2=on`, route to **V2 remix logic**.
+  - Otherwise, fall back to existing remix behavior.
+
+### Acceptance Criteria
+- Existing behavior unchanged when `ALT_RECIPES_V2=off`.
+- Logs clearly indicate which remix version is used.
+
+---
+
+## Phase 1 — Output Contract (Swipe-Compatible)
+
+### Response Shape (V2)
+    {
+      "alternatives": [
+        {
+          "kind": "basic",
+          "title": "Boost aromatics and acid",
+          "changes": [
+            {
+              "action": "Add aromatics",
+              "details": "Add 2 tbsp minced red onion and 1 grated garlic clove."
+            },
+            {
+              "action": "Brighten",
+              "details": "Add 1–2 tsp lemon juice or pickle brine; adjust salt."
+            }
+          ]
+        }
+      ]
+    }
+
+### Contract Rules
+- `alternatives[]` length: **8–10 total**
+- `kind`: `"basic"` or `"delight"`
+- Exactly **4–5 basic** and **4–5 delight**
+- Each alternative:
+  - `title`: 4–7 words
+  - `changes`: exactly **2 or 3** items
+  - Each change has `action` (2–5 words) and `details` (specific ingredients/technique)
+
+### UI Compatibility
+- Swipe cards continue to render `alternatives[]`.
+- `kind` can be ignored by UI initially or shown as a badge later.
+
+---
+
+## Phase 2 — New Prompt (Elevations + Delight)
+
+### Prompt Intent
+- Replace “9 modifications” with:
+  - **Basic Elevations** → flavor, texture, balance improvements
+  - **Delightful Twists** → playful, creative, but credible ideas
+
+### Prompt Requirements (V2)
+- Explicitly require:
+  - 4–5 `kind="basic"`
+  - 4–5 `kind="delight"`
+- Enforce:
+  - Specific ingredients + amounts
+  - No duplicate ideas across cards
+  - Dish identity remains recognizable
+- Allow pantry staples freely
+- Treat `style` input as a **bias**, not the entire strategy
+
+---
+
+## Phase 3 — Validation & Guardrails
+
+### Backend Validation
+- Update Zod schema for V2 path:
+  - `alternatives.length` between 8 and 10
+  - Count enforcement:
+    - 4–5 basics
+    - 4–5 delights
+  - `changes.length` exactly 2 or 3
+  - `kind` ∈ { `"basic"`, `"delight"` }
+
+### Soft Quality Checks (Optional)
+- Titles must be unique
+- Avoid repeated `action` strings across many cards
+- Retry generation once if counts are invalid
+
+---
+
+## Phase 4 — Frontend (Optional Enhancements)
+
+### Minimal (No UI Changes)
+- Render swipe cards exactly as today.
+- Ignore `kind`.
+
+### Enhanced (Recommended)
+- Add a small badge or label:
+  - “Basic Elevation”
+  - “Delightful Twist”
+- Optionally:
+  - Show Basics first, then Delights
+  - Or visually group sections
+
+All UI changes should be gated by `ALT_RECIPES_V2`.
+
+---
+
+## Phase 5 — Rollout & Monitoring
+
+### Rollout Plan
+1. Deploy backend changes with `ALT_RECIPES_V2=off`.
+2. Enable flag in staging.
+3. Verify:
+   - Response shape
+   - Swipe UI rendering
+4. Gradually enable in production.
+
+### Metrics to Log
+- `alternatives_total`
+- `alternatives_basic_count`
+- `alternatives_delight_count`
+- Validation retry rate
+- User engagement (swipes, saves, re-remix)
+
+---
+
+## Replit Agent Tasks (Summary)
+
+### Task 1 — Backend V2 Remix
+- Add `ALT_RECIPES_V2` flag.
+- Implement V2 prompt + response parsing.
+- Add V2 Zod validation.
+- Preserve V1 behavior when flag is off.
+
+### Task 2 — Frontend Badge (Optional)
+- Render `kind` as a badge on swipe cards.
+- Ensure backward compatibility when `kind` is missing.
+
+---
+
+## Verification Checklist
+
+### Backend
+- [ ] `ALT_RECIPES_V2=on` returns 8–10 alternatives
+- [ ] Exactly 4–5 basic and 4–5 delight
+- [ ] Each card has 2–3 concrete changes
+- [ ] Validation passes with no retries for known URLs
+
+### Frontend
+- [ ] Swipe cards render normally
+- [ ] No regressions when V2 flag is off
+
+---
+
+## Follow-Ups (After Launch)
+- ADR: “URL Remix V2: Elevations + Delight”
+- Glossary entry: “Basic Elevation vs Delightful Twist”
+- Playbook: “Handling V2 validation failures and fallback”
+
+---
+
+## Readiness Check
+- Inputs ready? ✅
+- Feature flag defined? ✅
+- Validation + evidence defined? ✅
+
+**Ready to prompt the Replit agent.**

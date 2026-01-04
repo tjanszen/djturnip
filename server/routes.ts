@@ -595,10 +595,37 @@ Requirements:
       
       console.log("Received Recipe URL:", input.url);
       console.log("ALT_RECIPES flag:", process.env.ALT_RECIPES || "off");
+      console.log("ALT_RECIPES_V2 flag:", process.env.ALT_RECIPES_V2 || "off");
 
       await storage.createRecipe({ url: input.url });
 
-      // Check if ALT_RECIPES is enabled
+      // V2 Routing: Check if ALT_RECIPES_V2 is enabled
+      if (process.env.ALT_RECIPES_V2 === "on") {
+        console.log("url_remix_v2 enabled");
+        console.log("url_remix_v2_generate");
+        
+        const alternatives = Array.from({ length: 9 }, (_, i) => ({
+          kind: i < 5 ? "basic" : "delight" as const,
+          title: `V2 Placeholder Card ${i + 1}`,
+          changes: [
+            { action: "Placeholder action", details: `Placeholder detail for card ${i + 1}` },
+            { action: "Another action", details: `Another placeholder detail for card ${i + 1}` },
+            ...(i % 2 === 0 ? [{ action: "Third action", details: `Third detail for card ${i + 1}` }] : []),
+          ],
+        }));
+        
+        console.log("url_remix_v2_alternatives_count", alternatives.length);
+        console.log("url_remix_v2_basic_count", alternatives.filter(a => a.kind === "basic").length);
+        console.log("url_remix_v2_delight_count", alternatives.filter(a => a.kind === "delight").length);
+        
+        return res.status(200).json({
+          message: "Recipe URL processed with V2 alternatives.",
+          url: input.url,
+          alternatives,
+        });
+      }
+
+      // V1 Path: Check if ALT_RECIPES is enabled
       if (process.env.ALT_RECIPES === "on") {
         const style = input.style || 'creative';
         console.log(`Generating 9 ${style} recipe alternatives...`);

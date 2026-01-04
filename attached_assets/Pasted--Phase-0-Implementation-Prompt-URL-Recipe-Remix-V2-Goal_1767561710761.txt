@@ -1,0 +1,120 @@
+# Phase 0 Implementation Prompt — URL Recipe Remix V2
+
+Goal  
+Implement **Phase 0 only**: introduce a feature flag and routing logic for URL Recipe Remix V2, without changing existing V1 behavior or prompts.
+
+---
+
+## Scope (Phase 0 Only)
+- Feature flag
+- Request routing
+- Stubbed V2 response
+- Logging / telemetry
+- No scraping
+- No new prompt logic
+- No frontend changes required
+
+---
+
+## Tasks
+
+### 1. Add Feature Flag
+- Add a new feature flag named `ALT_RECIPES_V2`.
+- Default state: **OFF**.
+- Configure it the same way as existing flags (env/config parity with `ALT_RECIPES`).
+
+---
+
+### 2. Route `/api/recipes/process` Based on Flag
+In the POST handler for `/api/recipes/process`:
+
+- If `ALT_RECIPES_V2` is **ON**:
+  - Route the request to a new handler/function (e.g. `processRecipeUrlV2`).
+- If `ALT_RECIPES_V2` is **OFF**:
+  - Preserve the existing V1 logic exactly as-is.
+
+Do not modify or refactor V1 behavior in this phase.
+
+---
+
+### 3. Implement V2 Handler as a Stub
+Create a new handler (or equivalent abstraction) for V2 that returns a **stubbed but valid response** compatible with the existing swipe-card UI.
+
+Requirements for the stubbed response:
+- Top-level field: `alternatives`
+- `alternatives` must contain **exactly 9 items** (to match current UI expectations)
+- Each item must include:
+  - `title` (string)
+  - `changes`: array with **exactly 2 or 3 items**
+    - each change includes `action` and `details`
+- Content can be obvious placeholders (e.g. “V2 placeholder card 1”)
+- You MAY include `kind: "basic" | "delight"` if it does not break clients
+  - If unsure, omit `kind` for now (it will be added in Phase 2)
+
+Example shape (illustrative only):
+
+    {
+      "alternatives": [
+        {
+          "title": "V2 Placeholder Card 1",
+          "changes": [
+            { "action": "Placeholder action", "details": "Placeholder detail text" },
+            { "action": "Another action", "details": "Another placeholder detail" }
+          ]
+        }
+      ]
+    }
+
+The purpose is to validate routing, not content quality.
+
+---
+
+### 4. Logging & Telemetry
+Add lightweight observability:
+
+- Log when V2 routing is used:
+  - Message must include: `"url_remix_v2 enabled"`
+- Emit at least one telemetry event or counter:
+  - Name prefix: `url_remix_v2_`
+  - Minimum event: `url_remix_v2_generate`
+
+No dashboards or alerts required in this phase.
+
+---
+
+### 5. Minimal Verification
+Add a minimal test, assertion, or manual verification path that confirms:
+
+- With `ALT_RECIPES_V2=off`:
+  - `/api/recipes/process` returns the existing V1 response shape.
+- With `ALT_RECIPES_V2=on`:
+  - `/api/recipes/process` returns the V2 stubbed response.
+  - `alternatives` is present and length == 9.
+
+---
+
+## Out of Scope (Explicitly Do NOT Do)
+- Do not implement new prompt text
+- Do not scrape or fetch recipe content
+- Do not modify frontend rendering
+- Do not change V1 validation rules
+- Do not remove or rename existing flags
+
+---
+
+## Gate
+Feature must be fully gated by:
+
+- `ALT_RECIPES_V2=off` by default
+
+---
+
+## Proof of Completion
+- Logs show `"url_remix_v2 enabled"` only when the flag is ON
+- Manual or automated check confirms:
+  - V1 path untouched when flag OFF
+  - V2 stub response returned when flag ON
+
+---
+
+Ready for Phase 1 once this routing layer is stable.
