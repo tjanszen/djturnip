@@ -602,8 +602,10 @@ Requirements:
 
       await storage.createRecipe({ url: input.url });
 
-      // V2 Routing: Check if ALT_RECIPES_V2 is enabled
-      if (process.env.ALT_RECIPES_V2 === "on") {
+      // V2 Routing: Default path for URL Recipe Remix
+      // V2 is now the default behavior (Phase 4)
+      if (process.env.ALT_RECIPES_V2 !== "off") {
+        console.log("url_remix_v2_used");
         console.log("url_remix_v2 enabled");
         
         // Phase 1: Extract recipe from URL
@@ -695,7 +697,10 @@ Requirements:
       }
 
       // V1 Path: Check if ALT_RECIPES is enabled
+      // DEPRECATED: V1 remix logic - kept only for fallback safety
+      // TODO: Remove after Phase 5 when V2 is fully stable
       if (process.env.ALT_RECIPES === "on") {
+        console.log("url_remix_v1_used");
         const style = input.style || 'creative';
         console.log(`Generating 9 ${style} recipe alternatives...`);
         

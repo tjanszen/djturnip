@@ -2106,7 +2106,7 @@ export default function Home() {
             transition={{ duration: 0.4 }}
             className="w-full max-w-md mt-8 flex flex-col items-center"
           >
-            <div className="w-full flex justify-between items-center mb-6">
+            <div className="w-full flex justify-between items-center mb-4">
               <Button
                 variant="ghost"
                 size="icon"
@@ -2120,6 +2120,12 @@ export default function Home() {
               </p>
               <div className="w-9" />
             </div>
+
+            {recipeMode === "remix" && (
+              <p className="text-xs text-muted-foreground text-center mb-4" data-testid="text-remix-helper">
+                Basics make it better. Delights make it fun.
+              </p>
+            )}
 
             <div className="relative w-full">
               <AnimatePresence mode="wait">
@@ -2137,11 +2143,24 @@ export default function Home() {
                   >
                     <Card className="w-full" data-testid={`card-swipe-${currentIndex}`}>
                       <CardHeader className="pb-3">
-                        <div className="flex items-center gap-2">
-                          <Utensils className="w-5 h-5 text-primary shrink-0" />
-                          <CardTitle className="text-xl font-medium leading-tight" data-testid="text-swipe-title">
-                            {currentRemix.title}
-                          </CardTitle>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Utensils className="w-5 h-5 text-primary shrink-0" />
+                            <CardTitle className="text-xl font-medium leading-tight" data-testid="text-swipe-title">
+                              {currentRemix.title}
+                            </CardTitle>
+                          </div>
+                          {(currentRemix as { kind?: string }).kind && (
+                            <Badge 
+                              variant="outline" 
+                              className="text-xs shrink-0"
+                              data-testid="badge-remix-kind"
+                            >
+                              {(currentRemix as { kind?: string }).kind === "basic" 
+                                ? "Basic Elevation" 
+                                : "Delightful Twist"}
+                            </Badge>
+                          )}
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-4">

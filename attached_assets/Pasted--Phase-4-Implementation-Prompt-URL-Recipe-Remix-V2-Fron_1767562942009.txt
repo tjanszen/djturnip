@@ -1,0 +1,164 @@
+# Phase 4 Implementation Prompt — URL Recipe Remix V2 (Frontend UX + Default Rollout)
+
+Goal  
+Implement **Phase 4 only**: finalize the user-facing experience for URL Recipe Remix V2 and make it the default behavior, given there are **no existing users to migrate**.
+
+This phase focuses on:
+- Frontend presentation clarity (Basic vs Delight)
+- Ordering and affordances that explain the new behavior
+- Safely flipping `ALT_RECIPES_V2` to ON by default
+- Removing dead V1 complexity where appropriate
+
+Out of scope:
+- Prompt tuning
+- Extraction logic
+- Validation logic
+- Performance optimizations
+
+---
+
+## Assumptions
+- There are currently **no production users**
+- V1 exists only for safety and fallback
+- Swipe-card UI already renders `alternatives[]`
+- Backend already returns `kind: "basic" | "delight"` for V2
+
+---
+
+## Phase 4 Tasks
+
+## 1. Frontend: Display Card Type (Basic vs Delight)
+
+### Requirements
+- Visually distinguish **Basic Elevations** from **Delightful Twists**
+- Keep the swipe-card layout unchanged
+- Do not add interaction complexity
+
+### Implementation
+- Add a small badge or label to each card based on `alternative.kind`:
+  - `basic` → label: **Basic Elevation**
+  - `delight` → label: **Delightful Twist**
+- Badge should be subtle:
+  - Small pill or tag
+  - Neutral colors (not status/error colors)
+- If `kind` is missing (defensive):
+  - Hide the badge
+  - Card still renders normally
+
+### Acceptance Criteria
+- Every V2 card shows a clear but unobtrusive label
+- No visual regressions to swipe behavior
+
+---
+
+## 2. Frontend: Card Ordering
+
+### Requirements
+- Cards should feel intentionally grouped
+- Avoid random mixing of basic and delight cards
+
+### Implementation
+- Preserve backend order, which should already be:
+  - Basics first (5)
+  - Delights second (4)
+- Do NOT add sorting logic unless backend order is unreliable
+
+### Acceptance Criteria
+- Users see familiar “safe” improvements first
+- Creative twists appear after basics
+
+---
+
+## 3. Optional UX Copy (Strongly Recommended)
+
+### Inline Helper Text (One-Time)
+Add a small explanatory line above or below the swipe deck:
+
+Example copy:
+- “Start with easy upgrades, then explore creative twists.”
+or
+- “Basics make it better. Delights make it fun.”
+
+This copy:
+- Appears only on URL remix results
+- Does not require dismissal
+- Is purely informational
+
+---
+
+## 4. Make V2 the Default Path
+
+Since there are no users to migrate:
+
+### Backend Changes
+- Set `ALT_RECIPES_V2=on` by default in all environments
+- Keep the flag in place temporarily for rollback safety
+
+### Behavior
+- All URL remix requests use V2 by default
+- V1 is only reachable via:
+  - Explicit fallback after validation failure
+  - Manual override during debugging
+
+---
+
+## 5. Deprecate V1 Remix Prompt (Soft)
+
+### Recommended Cleanup
+- Mark V1 remix prompt and logic as **deprecated** in comments
+- Add a TODO with a removal date or phase (e.g., “remove after Phase 5”)
+- Do NOT delete yet (fallback depends on it)
+
+---
+
+## 6. Telemetry Finalization (Low Effort, High Value)
+
+Add or confirm:
+- `url_remix_v2_used` (emitted when V2 path is taken)
+- `url_remix_v1_fallback_used` (already implemented)
+
+Since there are no users, telemetry is primarily for:
+- Confidence during development
+- Catching regressions early
+
+---
+
+## Verification Checklist
+
+### Frontend
+- [ ] Swipe cards render with badges
+- [ ] Badge text matches kind
+- [ ] Cards ordered: basics first, delights second
+- [ ] Helper copy appears only for URL remix results
+
+### Backend
+- [ ] `ALT_RECIPES_V2` defaults to ON
+- [ ] V2 path executes without manual flagging
+- [ ] V1 fallback still works on forced failures
+
+### End-to-End
+- [ ] Known recipe URLs produce:
+  - 9 cards
+  - 5 Basic Elevations
+  - 4 Delightful Twists
+- [ ] No crashes or malformed UI states
+
+---
+
+## Out of Scope (Explicitly Do NOT Do)
+- No A/B testing
+- No user cohort logic
+- No analytics dashboards
+- No additional prompt tuning
+
+---
+
+## Proof of Completion
+- URL remix feature defaults to V2
+- UI clearly communicates “Basic vs Delight”
+- V1 is effectively invisible but still available as a safety net
+- System feels intentionally designed, not experimental
+
+---
+
+Once Phase 4 is complete, the URL Remix feature is **product-ready**, not just technically complete.
