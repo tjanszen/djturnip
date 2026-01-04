@@ -6,7 +6,8 @@ import { z } from "zod";
 import { recipeDTOV2Schema, type RecipeDTOV2 } from "@shared/schema";
 import OpenAI from "openai";
 import { extractRecipeFromUrl } from "./recipeExtractor";
-import { V2_SYSTEM_PROMPT, buildV2UserPrompt, parseV2Response } from "./prompts/urlRemixV2";
+import { V2_SYSTEM_PROMPT, buildV2UserPrompt } from "./prompts/urlRemixV2";
+import { validateV2Response } from "./validation/urlRemixV2.zod";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -624,64 +625,73 @@ Requirements:
         
         console.log(`url_remix_v2_extracted title="${recipe.title}" ingredients=${recipe.ingredients.length} instructions=${recipe.instructions.length} method=${extractionResult.method}`);
         
-        // Phase 2: Generate alternatives using V2 prompt with extracted recipe
-        console.log(`url_remix_v2_generate_start domain=${domain} style=${style} ingredient_count=${recipe.ingredients.length} instruction_count=${recipe.instructions.length}`);
-        const startTime = Date.now();
+        // Phase 2+3: Generate alternatives with strict validation and retry
+        // Policy: Option A - fallback to V1 on final failure (max 1 retry = 2 attempts)
+        const MAX_ATTEMPTS = 2;
+        const userPrompt = buildV2UserPrompt(recipe, style);
+        let lastValidationError = "";
         
-        try {
-          const userPrompt = buildV2UserPrompt(recipe, style);
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+          console.log(`url_remix_v2_generate_start domain=${domain} style=${style} attempt=${attempt} ingredient_count=${recipe.ingredients.length} instruction_count=${recipe.instructions.length}`);
+          const startTime = Date.now();
           
-          const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-              { role: "system", content: V2_SYSTEM_PROMPT },
-              { role: "user", content: userPrompt }
-            ],
-            response_format: { type: "json_object" },
-            max_tokens: 2000,
-          });
-          
-          const content = response.choices[0]?.message?.content || "{}";
-          const parsed = parseV2Response(content);
-          
-          if (!parsed || !parsed.alternatives || parsed.alternatives.length === 0) {
-            const latencyMs = Date.now() - startTime;
-            console.log(`url_remix_v2_generate_fail reason=json_parse_fail latency_ms=${latencyMs}`);
-            return res.status(502).json({
-              message: "Failed to generate recipe alternatives",
-              url: input.url,
-              error: "Invalid response format from AI",
+          try {
+            const response = await openai.chat.completions.create({
+              model: "gpt-4o-mini",
+              messages: [
+                { role: "system", content: V2_SYSTEM_PROMPT },
+                { role: "user", content: userPrompt }
+              ],
+              response_format: { type: "json_object" },
+              max_tokens: 2000,
             });
+            
+            const content = response.choices[0]?.message?.content || "{}";
+            const validation = validateV2Response(content);
+            const latencyMs = Date.now() - startTime;
+            
+            if (validation.success && validation.data) {
+              const basicCount = validation.data.alternatives.filter(a => a.kind === "basic").length;
+              const delightCount = validation.data.alternatives.filter(a => a.kind === "delight").length;
+              
+              console.log(`url_remix_v2_generate_success latency_ms=${latencyMs} total_cards=${validation.data.alternatives.length} basic=${basicCount} delight=${delightCount} attempt=${attempt} model=gpt-4o-mini`);
+              
+              return res.status(200).json({
+                message: "Recipe URL processed with V2 alternatives.",
+                url: input.url,
+                extractedRecipe: {
+                  title: recipe.title,
+                  ingredientCount: recipe.ingredients.length,
+                  instructionCount: recipe.instructions.length,
+                  method: extractionResult.method,
+                },
+                alternatives: validation.data.alternatives,
+              });
+            }
+            
+            // Validation failed
+            lastValidationError = validation.error || "Unknown validation error";
+            console.log(`url_remix_v2_validation_fail attempt=${attempt} latency_ms=${latencyMs} error="${lastValidationError}" issues=${validation.issues?.length || 0}`);
+            
+            if (attempt < MAX_ATTEMPTS) {
+              console.log(`url_remix_v2_retry attempt=${attempt + 1}`);
+            }
+            
+          } catch (err) {
+            const latencyMs = Date.now() - startTime;
+            const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+            lastValidationError = errorMsg;
+            console.log(`url_remix_v2_generate_fail reason=openai_error attempt=${attempt} error="${errorMsg}" latency_ms=${latencyMs}`);
+            
+            if (attempt < MAX_ATTEMPTS) {
+              console.log(`url_remix_v2_retry attempt=${attempt + 1}`);
+            }
           }
-          
-          const latencyMs = Date.now() - startTime;
-          const basicCount = parsed.alternatives.filter(a => a.kind === "basic").length;
-          const delightCount = parsed.alternatives.filter(a => a.kind === "delight").length;
-          
-          console.log(`url_remix_v2_generate_success latency_ms=${latencyMs} total_cards=${parsed.alternatives.length} basic=${basicCount} delight=${delightCount} model=gpt-4o-mini`);
-          
-          return res.status(200).json({
-            message: "Recipe URL processed with V2 alternatives.",
-            url: input.url,
-            extractedRecipe: {
-              title: recipe.title,
-              ingredientCount: recipe.ingredients.length,
-              instructionCount: recipe.instructions.length,
-              method: extractionResult.method,
-            },
-            alternatives: parsed.alternatives,
-          });
-          
-        } catch (err) {
-          const latencyMs = Date.now() - startTime;
-          const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-          console.log(`url_remix_v2_generate_fail reason=openai_error error=${errorMsg} latency_ms=${latencyMs}`);
-          return res.status(502).json({
-            message: "Failed to generate recipe alternatives",
-            url: input.url,
-            error: "AI generation failed",
-          });
         }
+        
+        // All attempts failed - fallback to V1 (Option A policy)
+        console.log(`url_remix_v2_fallback_to_v1 reason="${lastValidationError}"`);
+        // Fall through to V1 logic below
       }
 
       // V1 Path: Check if ALT_RECIPES is enabled

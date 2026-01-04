@@ -1,0 +1,103 @@
+# Phase 3 Implementation Prompt — URL Recipe Remix V2 (Strict Validation + Retry Guardrails)
+
+Goal  
+Implement **Phase 3 only**: add strict backend validation + a deterministic retry policy for URL Recipe Remix V2 outputs, enforcing exact counts, shape, and minimal specificity so swipe cards are consistently actionable.
+
+This phase assumes Phase 2 already generates V2 alternatives via `gpt-4o-mini` and returns:
+- 200 on success
+- 502 on parse failure
+
+Out of scope:
+- Frontend UI changes (badges/sorting)
+- Prompt/content tuning (unless needed for validation failures)
+- Extraction improvements
+
+---
+
+## Scope (Phase 3 Only)
+- Zod schema for V2 response contract (strict)
+- Additional semantic guardrails (minimal specificity)
+- Count enforcement (5 basic + 4 delight)
+- Retry-on-validation-failure (max 1 retry)
+- Final failure policy (choose and implement)
+- Telemetry for validation + retries
+
+---
+
+## Decisions (Make These Explicit in Code Comments)
+
+### Card Counts (Strict)
+Enforce exactly:
+- `alternatives.length === 9`
+- `basicCount === 5`
+- `delightCount === 4`
+
+### Retry Limit
+- Max **1 retry** on validation failure (total attempts: 2)
+
+### Final Failure Policy (Choose ONE)
+Pick ONE and implement consistently:
+
+**Option A (Recommended for consumer UX): fallback to V1**
+- If V2 fails after retry:
+  - Fall back to the existing V1 behavior (current remix system)
+  - Return 200 with V1 payload
+  - Emit explicit fallback telemetry
+
+**Option B (Recommended for strict correctness): return error**
+- If V2 fails after retry:
+  - Return 502 with safe error message and error code
+  - Do NOT fall back
+
+Recommendation: **Option A** unless you strongly prefer failing fast.
+
+---
+
+## Tasks
+
+### 1. Add Strict Zod Schema for V2 Output
+Create or update a schema module (e.g. `server/validation/urlRemixV2.zod.ts`) validating:
+
+Top-level:
+- `alternatives`: array with exact length 9
+
+Each alternative object:
+- `kind`: enum `"basic" | "delight"` (required)
+- `title`: non-empty string
+- `changes`: array length 2 or 3
+
+Each change object:
+- `action`: non-empty string
+- `details`: non-empty string
+
+Add a `.superRefine` (or equivalent) for:
+- exact counts: 5 basic, 4 delight
+- unique titles (recommended strictness)
+- optional: prevent repeated `action` across too many cards (soft or strict; see below)
+
+Example of expected shape:
+
+    {
+      "alternatives": [
+        {
+          "kind": "basic",
+          "title": "Brighten and sharpen flavor",
+          "changes": [
+            { "action": "Add acid", "details": "Add 1–2 tsp lemon juice; adjust salt." },
+            { "action": "Boost aromatics", "details": "Add 2 tbsp minced scallion." }
+          ]
+        }
+      ]
+    }
+
+---
+
+### 2. Add Minimal “Specificity” Guardrail (Blocking)
+Fail validation if any `details` is too vague.
+
+Implement a lightweight check that `details` must include at least ONE of:
+- a number token (e.g., `\d` or common fractions like 1/2, ¼)
+- OR a unit token: `tsp`, `tbsp`, `cup`, `oz`, `g`, `kg`, `ml`, `l`, `pinch`
+- OR a time/temp token: `minute`, `min`, `°F`, `°C`, `F`, `C`
+
+This is intentionally simple a
