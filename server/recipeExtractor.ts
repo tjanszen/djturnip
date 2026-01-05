@@ -34,6 +34,7 @@ export async function extractRecipeFromUrl(url: string): Promise<ExtractionResul
     const jsonLdResult = extractFromJsonLd($, url);
     if (jsonLdResult.success && jsonLdResult.recipe) {
       console.log(`url_remix_v2_extract_success method=json-ld ingredient_count=${jsonLdResult.recipe.ingredients.length} instruction_count=${jsonLdResult.recipe.instructions.length}`);
+      console.log(`url_remix_v2_ingredients`, JSON.stringify(jsonLdResult.recipe.ingredients, null, 2));
       return { ...jsonLdResult, method: 'json-ld' };
     }
 
@@ -41,6 +42,7 @@ export async function extractRecipeFromUrl(url: string): Promise<ExtractionResul
     const htmlResult = extractFromHtmlHeuristics($, url);
     if (htmlResult.success && htmlResult.recipe) {
       console.log(`url_remix_v2_extract_success method=html-heuristics ingredient_count=${htmlResult.recipe.ingredients.length} instruction_count=${htmlResult.recipe.instructions.length}`);
+      console.log(`url_remix_v2_ingredients`, JSON.stringify(htmlResult.recipe.ingredients, null, 2));
       return { ...htmlResult, method: 'html-heuristics' };
     }
 
