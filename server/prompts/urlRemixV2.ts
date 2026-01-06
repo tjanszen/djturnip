@@ -6,11 +6,10 @@ You will receive:
 - Recipe title
 - Ingredients list
 - Instructions/steps
-- A style focus: creative / umami / protein / seasonal
 
 Return a JSON object with an "alternatives" array containing EXACTLY 9 items total:
-- EXACTLY 5 items with kind="basic"
-- EXACTLY 4 items with kind="delight"
+- EXACTLY 5 items with kind="basic" (universal improvements: flavor, texture, balance)
+- EXACTLY 4 items with kind="delight" (surprising twists that are still plausible for home cooks)
 
 STRICT STRUCTURE REQUIREMENTS:
 Each alternative MUST have exactly this structure:
@@ -29,8 +28,8 @@ CRITICAL: Every "details" field MUST include at least one specific measurement (
 Rules:
 - Keep the dish identity recognizable; do not turn it into a different dish category.
 - No duplicates: do not repeat the same core idea across multiple cards.
-- Basics are universal improvements (flavor, texture, balance) and should NOT depend heavily on the style.
-- Delights should lean into the provided style more strongly and be surprising but still plausible for home cooks.
+- Basics should be broadly appealing improvements any home cook would appreciate.
+- Delights should be creative, unexpected twists (fusion elements, bold flavors, unique techniques) but still achievable.
 - Pantry staples are allowed (oil, butter, vinegar, soy sauce, mustard, spices, stock, etc.).
 - Use the provided ingredients/instructions as ground truth; do not invent that the base recipe contains items it does not list.
 - If the base recipe already includes an element (e.g., lemon juice), do not propose the exact same addition; propose a complementary upgrade instead.
@@ -38,7 +37,7 @@ Rules:
 
 Return only valid JSON.`;
 
-export function buildV2UserPrompt(recipe: ExtractedRecipe, style: string): string {
+export function buildV2UserPrompt(recipe: ExtractedRecipe): string {
   const ingredientsList = recipe.ingredients
     .map((ing) => `- ${ing}`)
     .join("\n");
@@ -48,8 +47,6 @@ export function buildV2UserPrompt(recipe: ExtractedRecipe, style: string): strin
     .join("\n");
 
   return `Analyze and elevate the recipe below into 9 swipe-card alternatives.
-
-Style focus: ${style}
 
 Recipe title: ${recipe.title}
 

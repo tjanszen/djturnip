@@ -622,19 +622,19 @@ Requirements:
         }
         
         const { recipe } = extractionResult;
-        const style = input.style || 'creative';
         const domain = new URL(input.url).hostname;
         
         console.log(`url_remix_v2_extracted title="${recipe.title}" ingredients=${recipe.ingredients.length} instructions=${recipe.instructions.length} method=${extractionResult.method}`);
         
         // Phase 2+3: Generate alternatives with strict validation and retry
         // Policy: Option A - fallback to V1 on final failure (max 1 retry = 2 attempts)
+        // Note: style parameter is accepted but ignored in V2 (reserved for future use)
         const MAX_ATTEMPTS = 2;
-        const userPrompt = buildV2UserPrompt(recipe, style);
+        const userPrompt = buildV2UserPrompt(recipe);
         let lastValidationError = "";
         
         for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-          console.log(`url_remix_v2_generate_start domain=${domain} style=${style} attempt=${attempt} ingredient_count=${recipe.ingredients.length} instruction_count=${recipe.instructions.length}`);
+          console.log(`url_remix_v2_generate_start domain=${domain} attempt=${attempt} ingredient_count=${recipe.ingredients.length} instruction_count=${recipe.instructions.length}`);
           const startTime = Date.now();
           
           try {

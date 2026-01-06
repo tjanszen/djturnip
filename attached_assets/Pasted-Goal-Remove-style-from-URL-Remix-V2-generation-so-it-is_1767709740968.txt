@@ -1,0 +1,33 @@
+Goal: Remove “style” from URL Remix V2 generation so it is not used at all (and is not hardcoded to "creative"), while keeping the style concept in the codebase for potential future use.
+
+Do:
+1) Find where `style` is currently being set/forced to `"creative"` for the URL remix flow (likely in:
+   - the frontend request payload to POST `/api/recipes/process`, and/or
+   - the backend handler that sets a default when style is missing, and/or
+   - the V2 prompt builder that always injects `Style focus: ${style}`).
+2) Update the URL remix V2 path so the LLM prompt does NOT include style at all:
+   - Remove the `Style focus: ...` line from the user message template for V2 (`server/prompts/urlRemixV2.ts`).
+   - Remove any style-specific instructions in the V2 system prompt that reference “style focus” (e.g., “Delights should lean into the provided style…”).
+   - Ensure the system prompt still clearly enforces: 9 cards total, 5 basic + 4 delight, 2–3 changes, specificity, and “delightful twists” guidance WITHOUT relying on style.
+3) Keep the `style` field in request types/interfaces and API payloads (do not deprecate or delete it), but make it unused:
+   - It can still be accepted if sent, but should be ignored in V2 prompt generation.
+   - If your code currently defaults missing style to `"creative"`, stop doing that for V2 (leave the defaulting logic in place for V1 only if it’s needed there).
+4) Update telemetry/logging for V2:
+   - Stop logging `style` as a dimension for V2 events (since it’s unused), OR log it as `"ignored"` / `null` to avoid confusion.
+   - Do not change event names; just adjust fields so it’s clear style is not active.
+5) Add a small regression test / request-level check:
+   - With `ALT_RECIPES_V2=on`, send a request with `style="umami"` and confirm output still validates and that the prompt sent to the model does not include any style line (add a debug log in non-prod if needed).
+   - With `ALT_RECIPES_V2=on`, send a request without style and confirm no default `"creative"` is injected anywhere.
+
+Gate via feature flag: ALT_RECIPES_V2=off by default
+
+Proof:
+- Logs must include: "url_remix_v2 prompt_built" and confirm it does NOT contain "Style focus:" (in non-prod / debug only)
+- POST /api/recipes/process with ALT_RECIPES_V2=on succeeds whether style is provided or omitted
+- V2 output still passes strict validation (9 cards, 5 basic + 4 delight, 2–3 changes, specificity)
+- No changes to V1 behavior (style can remain as-is there)
+
+Readiness Checks:
+- Inputs ready? (V2 extraction + generation already working) ✅
+- Flags named? (ALT_RECIPES_V2) ✅
+- Evidence defined? (prompt no longer includes style, validation still passes) ✅
