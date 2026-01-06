@@ -1,0 +1,45 @@
+Goal: In the URL Remix swipe flow, display the ORIGINAL recipe ingredients below the “Skip or save this recipe” controls, using the same visual list format as Fridge Cleanout, but WITHOUT ingredient swap dropdowns.
+
+Do:
+1) Locate the UI component/page that renders the URL Remix swipe experience (the card with remix title + changes and the “Skip or save this recipe” controls).
+2) Identify how the URL Remix API response is shaped today. We need the original ingredients to render:
+   - Prefer using the V2 response’s extracted recipe data (title + ingredient list).
+   - If the current API response only includes ingredientCount/instructionCount, update the backend to include the actual ingredient lines array (strings) in the response (e.g., `extractedRecipe.ingredients: string[]`), gated so it doesn’t affect unrelated flows.
+3) Backend change (if needed):
+   - In `/api/recipes/process` V2 path, include the extracted ingredient lines in the JSON response.
+   - Example addition:
+         extractedRecipe: {
+           title: string,
+           ingredients: string[],
+           ingredientCount: number,
+           instructionCount: number,
+           method: string
+         }
+   - Keep validation/fallback behavior intact. If extraction fails we already return 422.
+4) Frontend rendering:
+   - Under the “Skip or save this recipe” area, add a new section:
+     - Header: “Ingredients”
+     - Body: a simple list/table of ingredient name + amount using the same styles/layout as the Fridge Cleanout ingredients list.
+   - Reuse the Fridge Cleanout ingredient list component if it exists (preferred), but configure it in “read-only” mode:
+     - No dropdown / no chevron / no swapping interactions
+     - No click handlers for ingredient substitution
+   - If reuse is hard, copy the minimal presentational layout (row + divider + right-aligned amount) but do not include the swap UI.
+5) Data mapping:
+   - If extracted ingredients are raw strings (e.g., “1/2 cup mayonnaise”), render them as a single left-aligned line OR attempt a light split into `{name, amount}` only if you already have parsing utilities from Fridge Cleanout.
+   - Do not build a new ingredient parser in this task. Prefer the simplest rendering that matches the Fridge Cleanout look.
+6) Empty/error states:
+   - If ingredients are missing (shouldn’t happen with successful extraction), hide the section or show a short fallback: “Ingredients unavailable for this recipe.”
+7) QA checks:
+   - Run the URL Remix flow end-to-end with a known recipe URL:
+     - Swipe cards still work
+     - Skip/Save controls unchanged
+     - Ingredients list appears below them
+     - No ingredient rows are clickable; no dropdowns appear
+   - Verify layout on mobile widths (no overflow; amounts truncate gracefully).
+
+Gate via feature flag: ALT_RECIPES_V2=off by default (but the UI change should work whenever the URL remix screen is shown; if the data only exists in V2, show the list only when `extractedRecipe.ingredients` exists)
+
+Proof:
+- The URL Remix swipe screen shows an “Ingredients” section below the Skip/Save controls.
+- The ingredients list matches the Fridge Cleanout visual style but has NO swap dropdowns or click interactions.
+- Swiping, skipping, and saving behave exactly as before.

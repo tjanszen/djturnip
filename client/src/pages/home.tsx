@@ -209,6 +209,7 @@ export default function Home() {
   const [url, setUrl] = useState("");
   const [ingredients, setIngredients] = useState("");
   const [alternatives, setAlternatives] = useState<RecipeAlternative[]>([]);
+  const [extractedIngredients, setExtractedIngredients] = useState<string[]>([]);
   const [fridgeRecipes, setFridgeRecipes] = useState<FridgeRecipe[]>([]);
   const [activeStyle, setActiveStyle] = useState<RecipeStyle | null>(null);
   const [viewState, setViewState] = useState<ViewState>("search");
@@ -575,11 +576,13 @@ export default function Home() {
         
         if (data.alternatives && data.alternatives.length > 0) {
           setAlternatives(data.alternatives);
+          setExtractedIngredients(data.extractedRecipe?.ingredients || []);
           setCurrentIndex(0);
           setSavedRemixes([]);
           setViewState("swiping");
         } else {
           setAlternatives([]);
+          setExtractedIngredients([]);
         }
         
         setActiveQuickRemix(null);
@@ -620,11 +623,13 @@ export default function Home() {
         
         if (data.alternatives && data.alternatives.length > 0) {
           setAlternatives(data.alternatives);
+          setExtractedIngredients(data.extractedRecipe?.ingredients || []);
           setCurrentIndex(0);
           setSavedRemixes([]);
           setViewState("swiping");
         } else {
           setAlternatives([]);
+          setExtractedIngredients([]);
         }
         
         setUrl("");
@@ -767,6 +772,7 @@ export default function Home() {
   const handleBackToSearch = () => {
     setViewState("search");
     setAlternatives([]);
+    setExtractedIngredients([]);
     setFridgeRecipes([]);
     setCurrentIndex(0);
     setSavedRemixes([]);
@@ -2301,6 +2307,25 @@ export default function Home() {
             <p className="text-xs text-muted-foreground mt-4">
               Skip or save this recipe
             </p>
+
+            {recipeMode === "remix" && extractedIngredients.length > 0 && (
+              <div className="w-full mt-8">
+                <h3 className="text-lg font-medium text-foreground mb-3">Original Ingredients</h3>
+                <div className="space-y-0 bg-card rounded-md border border-border p-4" data-testid="list-original-ingredients">
+                  {extractedIngredients.map((ingredient, i) => (
+                    <div 
+                      key={i} 
+                      className="flex items-center py-3 border-b border-border last:border-b-0"
+                      data-testid={`original-ingredient-row-${i}`}
+                    >
+                      <span className="text-sm text-foreground" data-testid={`text-original-ingredient-${i}`}>
+                        {ingredient}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
 

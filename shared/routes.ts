@@ -74,6 +74,13 @@ export const api = {
         200: z.object({ 
           message: z.string(), 
           url: z.string(),
+          extractedRecipe: z.object({
+            title: z.string(),
+            ingredients: z.array(z.string()),
+            ingredientCount: z.number(),
+            instructionCount: z.number(),
+            method: z.string().optional(),
+          }).optional(),
           alternatives: z.array(recipeAlternativeSchema).optional(),
         }),
         400: errorSchemas.validation,

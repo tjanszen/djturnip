@@ -663,6 +663,7 @@ Requirements:
                 url: input.url,
                 extractedRecipe: {
                   title: recipe.title,
+                  ingredients: recipe.ingredients,
                   ingredientCount: recipe.ingredients.length,
                   instructionCount: recipe.instructions.length,
                   method: extractionResult.method,
