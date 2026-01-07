@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { RecipeAlternative, RecipeStyle, FridgeRecipe } from "@shared/routes";
 import type { IngredientItemV2, StepItemV2, SubstituteItemV2, RemixV2 } from "@shared/schema";
+import { RecipeResultsLayout } from "@/components/recipe-results-layout";
 
 // In-memory image cache (persists across re-renders but not page refreshes)
 const imageByRecipeKey: Record<string, string> = {};
@@ -210,6 +211,7 @@ export default function Home() {
   const [ingredients, setIngredients] = useState("");
   const [alternatives, setAlternatives] = useState<RecipeAlternative[]>([]);
   const [extractedIngredients, setExtractedIngredients] = useState<string[]>([]);
+  const [extractedTitle, setExtractedTitle] = useState<string>("");
   const [fridgeRecipes, setFridgeRecipes] = useState<FridgeRecipe[]>([]);
   const [activeStyle, setActiveStyle] = useState<RecipeStyle | null>(null);
   const [viewState, setViewState] = useState<ViewState>("search");
@@ -577,12 +579,14 @@ export default function Home() {
         if (data.alternatives && data.alternatives.length > 0) {
           setAlternatives(data.alternatives);
           setExtractedIngredients(data.extractedRecipe?.ingredients || []);
+          setExtractedTitle(data.extractedRecipe?.title || "");
           setCurrentIndex(0);
           setSavedRemixes([]);
           setViewState("swiping");
         } else {
           setAlternatives([]);
           setExtractedIngredients([]);
+          setExtractedTitle("");
         }
         
         setActiveQuickRemix(null);
@@ -624,12 +628,14 @@ export default function Home() {
         if (data.alternatives && data.alternatives.length > 0) {
           setAlternatives(data.alternatives);
           setExtractedIngredients(data.extractedRecipe?.ingredients || []);
+          setExtractedTitle(data.extractedRecipe?.title || "");
           setCurrentIndex(0);
           setSavedRemixes([]);
           setViewState("swiping");
         } else {
           setAlternatives([]);
           setExtractedIngredients([]);
+          setExtractedTitle("");
         }
         
         setUrl("");
@@ -773,6 +779,7 @@ export default function Home() {
     setViewState("search");
     setAlternatives([]);
     setExtractedIngredients([]);
+    setExtractedTitle("");
     setFridgeRecipes([]);
     setCurrentIndex(0);
     setSavedRemixes([]);
@@ -2105,33 +2112,54 @@ export default function Home() {
 
         {/* 
           ==========================================================================
-          URL REMIX RESULTS — UX GUARDRAILS (Phase 0)
+          URL REMIX RESULTS — Phase 3 Complete
           See: docs/agent_memory/imp_plans/remix_result_layout.md
           ==========================================================================
           
-          DESIGN INTENT:
-          - Calm, editorial, read-only results presentation
-          - Single-column, vertical reading flow
-          - Hierarchy driven by spacing and typography, not affordances
-          
-          CONSTRAINTS (Locked):
-          - No primary actions on the results screen
-          - Remix cards are informational only, not selectable
-          - Ingredients list is read-only (reference, not configuration UI)
-          - No swipe interactions in final design (Phase 2+ will remove)
-          - No "Let's Cook!" or "Generate Again" CTAs in final design
-          - All remix cards visible at once (no pagination/carousel)
-          - No hover affordances implying selection on cards
-          
-          TODO: Phase 1+ will implement layout changes per remix_result_layout.md
-          - Replace swipe UI with Fridge Cleanout-style vertical card list
-          - Extract shared RecipeResultsLayout component
-          - Remove interactive affordances from cards and ingredients
+          IMPLEMENTATION (Phase 3):
+          - URL Remix now uses RecipeResultsLayout in read-only mode
+          - Single-column, vertical reading flow with all cards visible
+          - No swipe, no Skip/Save, no Generate Again, no Let's Cook
+          - Fridge Cleanout still uses legacy swipe UI (unchanged)
           ==========================================================================
         */}
-        {viewState === "swiping" && (
+        
+        {/* URL Remix Results - Read-only editorial layout */}
+        {viewState === "swiping" && recipeMode === "remix" && (
           <motion.div
-            key="swiping"
+            key="remix-results"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-2xl mt-8"
+          >
+            <div className="flex items-center mb-6">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleBackToSearch}
+                data-testid="button-back"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <span className="text-sm text-muted-foreground ml-2">New Recipe</span>
+            </div>
+
+            <RecipeResultsLayout
+              mode="readOnly"
+              title={extractedTitle || "Recipe Remix"}
+              ingredients={extractedIngredients}
+              remixCards={alternatives}
+              testIdPrefix="remix-results"
+            />
+          </motion.div>
+        )}
+
+        {/* Fridge Cleanout - Legacy swipe UI (unchanged) */}
+        {viewState === "swiping" && recipeMode === "fridge" && (
+          <motion.div
+            key="swiping-fridge"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
@@ -2153,69 +2181,9 @@ export default function Home() {
               <div className="w-9" />
             </div>
 
-            {recipeMode === "remix" && (
-              <p className="text-xs text-muted-foreground text-center mb-4" data-testid="text-remix-helper">
-                Basics make it better. Delights make it fun.
-              </p>
-            )}
-
             <div className="relative w-full">
               <AnimatePresence mode="wait">
-                {recipeMode === "remix" && currentRemix && (
-                  <motion.div
-                    key={`remix-${currentIndex}`}
-                    initial={{ opacity: 0, x: 50 }}
-                    animate={{ 
-                      opacity: 1, 
-                      x: swipeDirection === "left" ? -300 : swipeDirection === "right" ? 300 : 0,
-                      rotate: swipeDirection === "left" ? -10 : swipeDirection === "right" ? 10 : 0,
-                    }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <Card className="w-full" data-testid={`card-swipe-${currentIndex}`}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <Utensils className="w-5 h-5 text-primary shrink-0" />
-                            <CardTitle className="text-xl font-medium leading-tight" data-testid="text-swipe-title">
-                              {currentRemix.title}
-                            </CardTitle>
-                          </div>
-                          {(currentRemix as { kind?: string }).kind && (
-                            <Badge 
-                              variant="outline" 
-                              className="text-xs shrink-0"
-                              data-testid="badge-remix-kind"
-                            >
-                              {(currentRemix as { kind?: string }).kind === "basic" 
-                                ? "Basic Elevation" 
-                                : "Delightful Twist"}
-                            </Badge>
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {currentRemix.changes && currentRemix.changes.length > 0 ? (
-                          currentRemix.changes.map((change, changeIndex) => (
-                            <div key={changeIndex} className="space-y-1">
-                              <p className="text-sm font-medium text-foreground" data-testid={`text-swipe-action-${changeIndex}`}>
-                                {change.action}
-                              </p>
-                              <p className="text-sm text-muted-foreground pl-3 border-l-2 border-border" data-testid={`text-swipe-details-${changeIndex}`}>
-                                {change.details}
-                              </p>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-sm text-muted-foreground italic">No specific changes available</p>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                )}
-
-                {recipeMode === "fridge" && currentFridgeRecipe && (
+                {currentFridgeRecipe && (
                   <motion.div
                     key={`fridge-${currentIndex}`}
                     initial={{ opacity: 0, x: 50 }}
@@ -2333,31 +2301,6 @@ export default function Home() {
             <p className="text-xs text-muted-foreground mt-4">
               Skip or save this recipe
             </p>
-
-            {/* 
-              Original Ingredients List — READ-ONLY per remix_result_layout.md
-              - Reference list only, not configuration UI
-              - No chevrons, dropdowns, or tap handlers
-              - Phase 2+ will move this above remix cards in vertical layout
-            */}
-            {recipeMode === "remix" && extractedIngredients.length > 0 && (
-              <div className="w-full mt-8">
-                <h3 className="text-lg font-medium text-foreground mb-3">Original Ingredients</h3>
-                <div className="space-y-0 bg-card rounded-md border border-border p-4" data-testid="list-original-ingredients">
-                  {extractedIngredients.map((ingredient, i) => (
-                    <div 
-                      key={i} 
-                      className="flex items-center py-3 border-b border-border last:border-b-0"
-                      data-testid={`original-ingredient-row-${i}`}
-                    >
-                      <span className="text-sm text-foreground" data-testid={`text-original-ingredient-${i}`}>
-                        {ingredient}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </motion.div>
         )}
 

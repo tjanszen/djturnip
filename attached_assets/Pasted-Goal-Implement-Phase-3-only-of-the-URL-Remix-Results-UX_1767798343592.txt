@@ -1,0 +1,77 @@
+Goal: Implement **Phase 3 only** of the URL Remix Results UX refactor, as defined in  
+`docs/agent_memory/imp_plans/remix_result_layout.md`.
+
+Phase 3 replaces the current URL Remix “swipe” UX with a **read-only Fridge Cleanout–style results view** using the shared layout extracted in Phase 2. This phase must preserve the same route behavior: user pastes URL → clicks Remix → content is replaced with results (no navigation).
+
+---
+
+Do:
+1) Read and understand the implementation plan at:
+   - `docs/agent_memory/imp_plans/remix_result_layout.md`
+   Focus specifically on:
+   - “Phase 3 — Ingredients Section (Read-Only, List-First)”
+   - “Phase 4 — Remix Section (Editorial Cards)”
+   - The UX intent: calm, editorial, non-interactive, spacing/typography-driven hierarchy
+
+2) Wire URL Remix success state to render the shared results layout
+   - In the URL Remix screen/route, after a successful `/api/recipes/process` response, render the shared `RecipeResultsLayout` (or the shared component you extracted in Phase 2) instead of the existing swipe UI.
+   - Provide it the URL Remix data:
+     - `title` from `extractedRecipe.title`
+     - `ingredients` from `extractedRecipe.ingredients` (raw strings are fine)
+     - `remixCards` from `alternatives[]` (9 total, ordered)
+   - Ensure this happens on the SAME route (replace content as it does today).
+
+3) Implement **read-only mode** for URL Remix results
+   - Add/enable a `mode="readOnly"` (or equivalent prop) when rendering `RecipeResultsLayout` for URL Remix.
+   - Read-only requirements:
+     A) Ingredients list:
+        - No chevrons
+        - No dropdowns
+        - No swap/substitute UI
+        - No tap/click handlers on ingredient rows
+     B) Remix cards:
+        - Render cards in the same visual format as Fridge Cleanout remix cards
+        - Cards are presentational only:
+          - no swipe
+          - no click/select
+          - no hover affordances that imply interaction
+        - Each card should show:
+          - the card `title`
+          - the `changes[]` list (action + details)
+
+4) Preserve ordering and content density
+   - Render all 9 cards in a vertical stack (scrolling is expected).
+   - Preserve backend order (Basics first, then Delights).
+   - Do NOT add Basic/Delight labels or sections in the UI for now.
+
+5) Remove legacy URL Remix results UI elements in the success state
+   - In the URL Remix success/results state only, ensure the following are NOT rendered:
+     - swipe controls / swipe deck UI
+     - “Skip or save this recipe”
+     - “Generate Again”
+     - “Let’s Cook!” CTA
+   - Keep the URL input form visible only in the pre-results state (or whatever the app does today), but the success state should be the new results layout.
+
+6) Error behavior remains unchanged in this phase
+   - Keep inline errors near the input (Phase 4 will refine loading/error polish if needed).
+   - Do not add skeleton loaders or spinners here.
+
+Out of Scope for Phase 3:
+- Loading state changes (handled in Phase 5 per plan, if applicable)
+- Backend changes (Phase 1 already provided ingredients)
+- Adding any new navigation links (“Try another recipe”)
+- Sticky headers, advanced scrolling UX
+- Remix selection or cooking CTA behavior
+
+---
+
+Gate via feature flag: Keep existing gating behavior as-is (e.g., ALT_RECIPES_V2 stays off by default). This phase should not change flag defaults.
+
+Proof:
+- With `ALT_RECIPES_V2=on`, a valid recipe URL produces a results screen that matches Fridge Cleanout structure:
+  - Recipe title at top
+  - Ingredients list rendered read-only (no chevrons/dropdowns/clicks)
+  - Remix section renders all 9 cards with title + changes list
+- No swipe UI, no Skip/Save, no Generate Again, no Let’s Cook CTA in the results state.
+- URL Remix still uses the same route; content is replaced after generation.
+- Fridge Cleanout flow remains unchanged (interactive mode still works).
