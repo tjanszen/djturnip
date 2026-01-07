@@ -1,11 +1,17 @@
 # Phased Implementation Plan — URL Remix UX (Fridge Cleanout–Style, Read-Only)
 
-## Status: Phase 3 Complete ✓
+## Status: Visual Alignment Complete ✓
 - Phase 0: UX Guardrails added (comments in home.tsx)
 - Phase 1: Backend already returns title + ingredients
 - Phase 2: RecipeResultsLayout created at `client/src/components/recipe-results-layout.tsx`
 - Phase 3: URL Remix uses RecipeResultsLayout in read-only mode
 - Phases 4-6: Complete (integrated with Phase 3 implementation)
+- **Visual Alignment Fix**: RecipeResultsLayout now matches fridge-result styling exactly:
+  - Title: `text-2xl font-serif font-medium` (matching fridge-result)
+  - Ingredient rows: `py-3 border-b`, name left, amount right (matching fridge-result)
+  - Container: `max-w-lg` with `px-4 py-6` inner spacing (matching fridge-result)
+  - No Card wrapper around main content (matching fridge-result structure)
+  - Read-only mode only removes chevrons/click handlers, keeps identical visual treatment
 
 ## Goal
 Present URL Remix results in a **calm, editorial, read-only layout** inspired by Fridge Cleanout and the provided reference design.
