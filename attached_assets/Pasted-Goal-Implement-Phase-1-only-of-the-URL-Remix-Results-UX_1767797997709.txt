@@ -1,0 +1,55 @@
+Goal: Implement **Phase 1 only** of the URL Remix Results UX refactor, as defined in  
+`docs/agent_memory/imp_plans/remix_result_layout.md`.
+
+Phase 1 focuses on **backend response shaping only** to ensure the frontend has the data required to render the Fridge Cleanout–style results layout. No UI changes should occur in this phase.
+
+---
+
+Do:
+1) Read and understand the implementation plan at:
+   - `docs/agent_memory/imp_plans/remix_result_layout.md`
+   Focus specifically on:
+   - “Phase 1 — Backend Response Shaping (No Visual Impact)”
+   - The requirement that the URL Remix results screen can render:
+     - Recipe title
+     - Original ingredient list
+     - Remix cards
+
+2) Update the **URL Remix V2 backend response** (only the V2 path) to include the original ingredient lines:
+   - Ensure the response includes:
+     - `extractedRecipe.title: string`
+     - `extractedRecipe.ingredients: string[]`
+   - Ingredients should be returned as **raw strings** (no parsing, no normalization, no swapping metadata).
+
+3) Preserve all existing behavior and contracts:
+   - Do NOT add a description field.
+   - Do NOT modify `alternatives[]` structure or ordering.
+   - Do NOT change validation, retry, or fallback logic.
+   - Do NOT affect Fridge Cleanout or V1 remix flows.
+
+4) Keep failure behavior unchanged:
+   - Extraction failure → 422
+   - Generation/parse failure → existing handling (including V1 fallback if applicable)
+
+5) Add minimal safety checks:
+   - If extracted ingredients are unexpectedly missing or empty, return them as an empty array rather than throwing.
+   - Do not introduce new error states in this phase.
+
+Out of Scope for Phase 1:
+- Any frontend or layout work
+- Any component extraction
+- Any ingredient parsing or `{name, amount}` shaping
+- Any description generation
+- Any UX or styling changes
+
+---
+
+Proof:
+- With a valid recipe URL and `ALT_RECIPES_V2=on`, the API response includes:
+  - `extractedRecipe.title`
+  - `extractedRecipe.ingredients` as an array of strings
+- Existing consumers (including Fridge Cleanout) are unaffected.
+- UI renders exactly the same as before this phase.
+- Phase 1 strictly enables future UI work; it does not change UX.
+
+This phase should be small, safe, and reviewable in isolation.
