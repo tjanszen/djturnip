@@ -6,43 +6,55 @@
  * 
  * PURPOSE:
  * Provides a calm, editorial, vertical reading layout for recipe results.
- * Designed to replace swipe-based UX with a static, read-first results page.
- * Used by both Fridge Cleanout (interactive mode) and URL Remix (read-only mode).
+ * Matches the fridge-result layout exactly, with mode-based interactivity.
  * 
- * DESIGN PRINCIPLES (from Phase 0):
+ * DESIGN PRINCIPLES:
  * - Single-column, vertical reading flow
+ * - Matches fridge-result styling: serif title, name+amount ingredient rows
  * - Hierarchy driven by spacing and typography, not affordances
- * - Consistent section headers and visual rhythm
  * - All content visible at once (no pagination/carousel)
  * 
  * MODES:
- * - interactive: Full Fridge Cleanout behavior (badges, used ingredients, steps)
- * - readOnly: URL Remix display (title + ingredients + remix cards, no interaction)
+ * - interactive: Full Fridge Cleanout behavior (chevrons, click handlers)
+ * - readOnly: URL Remix display (same styling, no interaction)
  * 
- * MIGRATION NOTES:
- * - Phase 2: Component created and ready for use
- * - Phase 3: Wire URL Remix to use this component in readOnly mode
- * - Future: Fridge Cleanout can migrate from swipe UI to use this component
- * 
- * The current swipe-based UX in home.tsx remains unchanged until the full
- * migration to vertical editorial layout is completed.
+ * VISUAL MATCH:
+ * Both modes render IDENTICAL visual structure:
+ * - Title: text-2xl font-serif font-medium
+ * - Ingredient rows: py-3 border-b, name left, amount right
+ * - Only difference: readOnly removes chevrons and click handlers
  * ==========================================================================
  */
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Utensils, Clock } from "lucide-react";
-import type { FridgeRecipe, RecipeAlternative } from "@shared/routes";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChevronRight } from "lucide-react";
+import type { RecipeAlternative } from "@shared/routes";
+
+interface IngredientItem {
+  id: string;
+  name: string;
+  amount: string;
+  hasSubstitutes?: boolean;
+}
 
 export interface RecipeResultsLayoutProps {
   mode: "interactive" | "readOnly";
   
+  // Recipe title
   title: string;
-  ingredients: string[];
   
-  fridgeRecipe?: FridgeRecipe;
+  // Description (optional)
+  description?: string;
   
+  // Ingredients - can be simple strings or structured objects
+  ingredients: string[] | IngredientItem[];
+  
+  // Remix cards (for URL Remix read-only mode)
   remixCards?: RecipeAlternative[];
+  
+  // Click handler for ingredient rows (interactive mode only)
+  onIngredientClick?: (ingredient: IngredientItem, index: number) => void;
   
   testIdPrefix?: string;
 }
@@ -50,114 +62,73 @@ export interface RecipeResultsLayoutProps {
 export function RecipeResultsLayout({
   mode,
   title,
+  description,
   ingredients,
-  fridgeRecipe,
   remixCards,
+  onIngredientClick,
   testIdPrefix = "recipe-results",
 }: RecipeResultsLayoutProps) {
   const isInteractive = mode === "interactive";
 
+  // Normalize ingredients to structured format
+  const normalizedIngredients: IngredientItem[] = ingredients.map((ing, i) => {
+    if (typeof ing === "string") {
+      return { id: `ing-${i}`, name: ing, amount: "", hasSubstitutes: false };
+    }
+    return ing;
+  });
+
   return (
     <div className="w-full space-y-6" data-testid={`${testIdPrefix}-layout`}>
-      <Card className="w-full" data-testid={`${testIdPrefix}-card`}>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <Utensils className="w-5 h-5 text-primary shrink-0" />
-              <CardTitle className="text-xl font-medium leading-tight" data-testid={`${testIdPrefix}-title`}>
-                {title}
-              </CardTitle>
-            </div>
-            {isInteractive && fridgeRecipe && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="secondary" className="capitalize text-xs">
-                  {fridgeRecipe.category}
-                </Badge>
-                <Badge variant="outline" className="capitalize text-xs">
-                  {fridgeRecipe.difficulty}
-                </Badge>
-              </div>
-            )}
-          </div>
-          
-          {isInteractive && fridgeRecipe && (
-            <>
-              <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  <span>{fridgeRecipe.estimated_time_minutes} min</span>
+      {/* Title and Description - matches fridge-result styling */}
+      <div>
+        <h2 
+          className="text-2xl font-serif font-medium text-foreground" 
+          data-testid={`${testIdPrefix}-title`}
+        >
+          {title}
+        </h2>
+        {description && (
+          <p className="text-muted-foreground mt-2" data-testid={`${testIdPrefix}-description`}>
+            {description}
+          </p>
+        )}
+      </div>
+
+      {/* Ingredients section - matches fridge-result row styling exactly */}
+      <div className="space-y-3">
+        <h3 className="text-lg font-medium text-foreground">Ingredients</h3>
+        <div className="space-y-0" data-testid={`${testIdPrefix}-ingredients`}>
+          {normalizedIngredients.map((ing, i) => {
+            const isTappable = isInteractive && ing.hasSubstitutes;
+            
+            return (
+              <div 
+                key={ing.id} 
+                className={`flex items-center justify-between py-3 border-b border-border last:border-b-0 ${isTappable ? 'cursor-pointer hover-elevate active-elevate-2' : ''}`}
+                onClick={isTappable && onIngredientClick ? () => onIngredientClick(ing, i) : undefined}
+                data-testid={`${testIdPrefix}-ingredient-row-${i}`}
+              >
+                <span className="text-sm text-foreground flex-1" data-testid={`${testIdPrefix}-ingredient-name-${i}`}>
+                  {ing.name}
+                </span>
+                <div className="flex items-center gap-2">
+                  {ing.amount && (
+                    <span className="text-sm text-muted-foreground text-right" data-testid={`${testIdPrefix}-ingredient-amount-${i}`}>
+                      {ing.amount}
+                    </span>
+                  )}
+                  {isTappable && (
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" data-testid={`${testIdPrefix}-chevron-${i}`} />
+                  )}
                 </div>
               </div>
-              {fridgeRecipe.summary && (
-                <p className="text-sm text-muted-foreground mt-2">{fridgeRecipe.summary}</p>
-              )}
-            </>
-          )}
-        </CardHeader>
+            );
+          })}
+        </div>
+      </div>
 
-        <CardContent className="space-y-4">
-          {isInteractive && fridgeRecipe?.used_ingredients && fridgeRecipe.used_ingredients.length > 0 && (
-            <div>
-              <p className="text-sm font-medium text-foreground mb-2">Using your ingredients</p>
-              <div className="flex flex-wrap gap-1">
-                {fridgeRecipe.used_ingredients.map((ing, i) => (
-                  <Badge key={i} variant="secondary" className="text-xs">{ing}</Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {isInteractive && fridgeRecipe?.skipped_ingredients && fridgeRecipe.skipped_ingredients.length > 0 && (
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">Skipped</p>
-              <ul className="text-xs text-muted-foreground space-y-0.5">
-                {fridgeRecipe.skipped_ingredients.map((skip, i) => (
-                  <li key={i}>{skip.ingredient}: {skip.reason}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <div>
-            <p className="text-sm font-medium text-foreground mb-2">Ingredients</p>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              {ingredients.map((ingredient, i) => (
-                <li 
-                  key={i} 
-                  className="pl-3 border-l-2 border-border"
-                  data-testid={`${testIdPrefix}-ingredient-${i}`}
-                >
-                  {ingredient}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {isInteractive && fridgeRecipe?.steps && fridgeRecipe.steps.length > 0 && (
-            <div>
-              <p className="text-sm font-medium text-foreground mb-2">Steps</p>
-              <ol className="text-sm text-muted-foreground space-y-2">
-                {fridgeRecipe.steps.map((step, i) => (
-                  <li key={i} className="pl-3 border-l-2 border-primary/30">
-                    <span className="font-medium text-foreground">{i + 1}.</span> {step}
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
-
-          {isInteractive && fridgeRecipe?.adjustment_tags && fridgeRecipe.adjustment_tags.length > 0 && (
-            <div className="pt-2 border-t border-border">
-              <div className="flex flex-wrap gap-1">
-                {fridgeRecipe.adjustment_tags.map((tag, i) => (
-                  <Badge key={i} variant="outline" className="text-xs">{tag}</Badge>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
+      {/* Remix cards - read-only mode only */}
       {!isInteractive && remixCards && remixCards.length > 0 && (
         <div className="space-y-4" data-testid={`${testIdPrefix}-remix-section`}>
           <h3 className="text-lg font-medium text-foreground">Recipe Variations</h3>

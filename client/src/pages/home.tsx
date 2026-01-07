@@ -2124,7 +2124,7 @@ export default function Home() {
           ==========================================================================
         */}
         
-        {/* URL Remix Results - Read-only editorial layout */}
+        {/* URL Remix Results - Read-only editorial layout (matches fridge-result) */}
         {viewState === "swiping" && recipeMode === "remix" && (
           <motion.div
             key="remix-results"
@@ -2132,9 +2132,10 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.4 }}
-            className="w-full max-w-2xl mt-8"
+            className="w-full max-w-lg"
           >
-            <div className="flex items-center mb-6">
+            {/* Back button - matches fridge-result positioning */}
+            <div className="mb-6">
               <Button
                 variant="ghost"
                 size="icon"
@@ -2143,16 +2144,18 @@ export default function Home() {
               >
                 <ArrowLeft className="w-5 h-5" />
               </Button>
-              <span className="text-sm text-muted-foreground ml-2">New Recipe</span>
             </div>
 
-            <RecipeResultsLayout
-              mode="readOnly"
-              title={extractedTitle || "Recipe Remix"}
-              ingredients={extractedIngredients}
-              remixCards={alternatives}
-              testIdPrefix="remix-results"
-            />
+            {/* px-4 py-6 matches fridge-result inner spacing */}
+            <div className="px-4 py-6">
+              <RecipeResultsLayout
+                mode="readOnly"
+                title={extractedTitle || "Recipe Remix"}
+                ingredients={extractedIngredients}
+                remixCards={alternatives}
+                testIdPrefix="remix-results"
+              />
+            </div>
           </motion.div>
         )}
 
