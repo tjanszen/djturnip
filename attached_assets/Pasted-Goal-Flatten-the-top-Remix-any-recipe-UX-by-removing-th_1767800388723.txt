@@ -1,0 +1,36 @@
+Goal: Flatten the top “Remix any recipe” UX by removing the enclosing card/box and extra vertical space, removing the chef-hat logo, and moving the “Remix any recipe” heading closer to the top—while keeping the “Recipe Link” label, URL input, and Remix CTA unchanged.
+
+Do:
+1) Locate the screen/component that renders the “Remix any recipe” header area (the top section containing:
+   - chef-hat icon/logo
+   - “Remix any recipe” heading
+   - “RECIPE LINK” label
+   - URL input
+   - Remix button/CTA
+   ).
+2) Remove the outer container styling that makes this section look like it is inside a card/box:
+   - Remove the wrapper’s background, border, shadow, and large padding/margins.
+   - Preserve horizontal alignment/width so the URL input + CTA layout stays the same.
+   - If the wrapper is a shared Card component, replace it with a simple `div` container using the page’s standard padding (e.g., the same padding used elsewhere in the screen).
+3) Remove the chef-hat logo entirely:
+   - Delete the logo element/component (do not leave empty space).
+   - Ensure no leftover margin/padding from the logo wrapper remains.
+4) Tighten vertical spacing above and around the heading:
+   - Move “Remix any recipe” closer to the top of the screen.
+   - Reduce top padding/margin in the header block.
+   - Keep typography (font/size) the same unless it must change to achieve spacing consistency.
+5) Keep the form controls exactly as they are:
+   - “RECIPE LINK” label stays
+   - URL input styling stays
+   - Remix CTA button styling stays
+   - Input + button alignment stays (same grid/row behavior)
+6) Verify that the “Try a quick remix” content below does not shift awkwardly:
+   - Reduce the gap between the top header area and the section below if it’s currently too large.
+   - Do not redesign the “Try a quick remix” cards in this task.
+
+Proof:
+- The “Remix any recipe” heading is no longer inside a card/box.
+- The chef-hat logo is removed.
+- The heading sits closer to the top with less vertical whitespace.
+- The “RECIPE LINK” label, URL input, and Remix button look and behave exactly the same as before.
+- No empty space remains where the logo/card padding used to be.
