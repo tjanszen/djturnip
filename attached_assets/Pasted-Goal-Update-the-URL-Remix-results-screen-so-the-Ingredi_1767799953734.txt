@@ -1,0 +1,37 @@
+Goal: Update the URL Remix results screen so the **Ingredients section is collapsed by default**, and the user can expand/collapse it via a chevron (accordion-style). This should reduce scroll length while preserving the Fridge Cleanout–style layout.
+
+Do:
+1) Locate the shared results layout used by URL Remix (e.g., `RecipeResultsLayout`) and the “Ingredients” section rendering within it (or the URL Remix wrapper if Ingredients are rendered there).
+2) Implement a simple expand/collapse control for the Ingredients section:
+   - Default state: **collapsed**
+   - Header row shows:
+     - “Ingredients”
+     - A chevron icon indicating collapsed/expanded state
+   - Tap/click target: the header row (or chevron) toggles expansion
+3) When collapsed:
+   - Do NOT render the ingredient rows (or render none / hidden)
+   - Optionally show a subtle one-line summary like “9 ingredients” (if ingredient count is already available); otherwise omit.
+4) When expanded:
+   - Render the full ingredient list exactly as it appears today (read-only list styling preserved)
+   - No dropdowns/swaps (keep read-only behavior)
+5) Keep the Remix cards section unchanged (still visible below Ingredients; Ingredients collapse should not affect ordering or card rendering).
+6) Make this behavior apply ONLY to the URL Remix results screen for now:
+   - If `RecipeResultsLayout` is shared with Fridge Cleanout, add a prop like:
+     - `ingredientsDefaultCollapsed?: boolean`
+     - `collapsibleIngredients?: boolean`
+   - For Fridge Cleanout, keep current behavior (do not change unless explicitly requested).
+7) Accessibility + UX details:
+   - Ensure the header is keyboard-focusable if applicable (button semantics)
+   - Add `aria-expanded` and appropriate labels if using a button
+   - Animate is optional; if easy, use a short height/opacity transition, but do not over-invest
+8) Persisting state is NOT required:
+   - If user navigates away/back or regenerates, it can reset to collapsed.
+
+Gate via feature flag: No new flags required. Keep ALT_RECIPES_V2 gating unchanged.
+
+Proof:
+- On URL Remix results, Ingredients starts collapsed.
+- Tapping the Ingredients header/chevron expands to show the ingredient rows.
+- Tapping again collapses it.
+- Remix cards remain visible and unchanged.
+- Fridge Cleanout results behavior is unchanged (Ingredients not collapsed by default unless explicitly enabled via prop).

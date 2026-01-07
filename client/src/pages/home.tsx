@@ -2149,6 +2149,8 @@ export default function Home() {
                 title={extractedTitle || "Recipe Remix"}
                 ingredients={extractedIngredients}
                 remixCards={alternatives}
+                collapsibleIngredients={true}
+                ingredientsDefaultCollapsed={true}
                 testIdPrefix="remix-results"
               />
             </div>

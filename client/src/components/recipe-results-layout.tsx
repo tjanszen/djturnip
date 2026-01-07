@@ -18,17 +18,16 @@
  * - interactive: Full Fridge Cleanout behavior (chevrons, click handlers)
  * - readOnly: URL Remix display (same styling, no interaction)
  * 
- * VISUAL MATCH:
- * Both modes render IDENTICAL visual structure:
- * - Title: text-2xl font-serif font-medium
- * - Ingredient rows: py-3 border-b, name left, amount right
- * - Only difference: readOnly removes chevrons and click handlers
+ * COLLAPSIBLE INGREDIENTS:
+ * - collapsibleIngredients: enables accordion-style collapse
+ * - ingredientsDefaultCollapsed: starts collapsed (URL Remix uses this)
  * ==========================================================================
  */
 
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ChevronDown } from "lucide-react";
 import type { RecipeAlternative } from "@shared/routes";
 
 interface IngredientItem {
@@ -56,6 +55,10 @@ export interface RecipeResultsLayoutProps {
   // Click handler for ingredient rows (interactive mode only)
   onIngredientClick?: (ingredient: IngredientItem, index: number) => void;
   
+  // Collapsible ingredients behavior
+  collapsibleIngredients?: boolean;
+  ingredientsDefaultCollapsed?: boolean;
+  
   testIdPrefix?: string;
 }
 
@@ -66,9 +69,12 @@ export function RecipeResultsLayout({
   ingredients,
   remixCards,
   onIngredientClick,
+  collapsibleIngredients = false,
+  ingredientsDefaultCollapsed = false,
   testIdPrefix = "recipe-results",
 }: RecipeResultsLayoutProps) {
   const isInteractive = mode === "interactive";
+  const [ingredientsExpanded, setIngredientsExpanded] = useState(!ingredientsDefaultCollapsed);
 
   // Normalize ingredients to structured format
   const normalizedIngredients: IngredientItem[] = ingredients.map((ing, i) => {
@@ -77,6 +83,8 @@ export function RecipeResultsLayout({
     }
     return ing;
   });
+
+  const ingredientCount = normalizedIngredients.length;
 
   return (
     <div className="w-full space-y-6" data-testid={`${testIdPrefix}-layout`}>
@@ -97,35 +105,62 @@ export function RecipeResultsLayout({
 
       {/* Ingredients section - matches fridge-result row styling exactly */}
       <div className="space-y-3">
-        <h3 className="text-lg font-medium text-foreground">Ingredients</h3>
-        <div className="space-y-0" data-testid={`${testIdPrefix}-ingredients`}>
-          {normalizedIngredients.map((ing, i) => {
-            const isTappable = isInteractive && ing.hasSubstitutes;
-            
-            return (
-              <div 
-                key={ing.id} 
-                className={`flex items-center justify-between py-3 border-b border-border last:border-b-0 ${isTappable ? 'cursor-pointer hover-elevate active-elevate-2' : ''}`}
-                onClick={isTappable && onIngredientClick ? () => onIngredientClick(ing, i) : undefined}
-                data-testid={`${testIdPrefix}-ingredient-row-${i}`}
-              >
-                <span className="text-sm text-foreground flex-1" data-testid={`${testIdPrefix}-ingredient-name-${i}`}>
-                  {ing.name}
+        {collapsibleIngredients ? (
+          <button
+            type="button"
+            onClick={() => setIngredientsExpanded(!ingredientsExpanded)}
+            className="flex items-center justify-between w-full text-left hover-elevate active-elevate-2 py-1 -my-1 rounded-md"
+            aria-expanded={ingredientsExpanded}
+            data-testid={`${testIdPrefix}-ingredients-toggle`}
+          >
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-medium text-foreground">Ingredients</h3>
+              {!ingredientsExpanded && (
+                <span className="text-sm text-muted-foreground">
+                  ({ingredientCount})
                 </span>
-                <div className="flex items-center gap-2">
-                  {ing.amount && (
-                    <span className="text-sm text-muted-foreground text-right" data-testid={`${testIdPrefix}-ingredient-amount-${i}`}>
-                      {ing.amount}
-                    </span>
-                  )}
-                  {isTappable && (
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" data-testid={`${testIdPrefix}-chevron-${i}`} />
-                  )}
+              )}
+            </div>
+            {ingredientsExpanded ? (
+              <ChevronDown className="w-5 h-5 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            )}
+          </button>
+        ) : (
+          <h3 className="text-lg font-medium text-foreground">Ingredients</h3>
+        )}
+        
+        {(!collapsibleIngredients || ingredientsExpanded) && (
+          <div className="space-y-0" data-testid={`${testIdPrefix}-ingredients`}>
+            {normalizedIngredients.map((ing, i) => {
+              const isTappable = isInteractive && ing.hasSubstitutes;
+              
+              return (
+                <div 
+                  key={ing.id} 
+                  className={`flex items-center justify-between py-3 border-b border-border last:border-b-0 ${isTappable ? 'cursor-pointer hover-elevate active-elevate-2' : ''}`}
+                  onClick={isTappable && onIngredientClick ? () => onIngredientClick(ing, i) : undefined}
+                  data-testid={`${testIdPrefix}-ingredient-row-${i}`}
+                >
+                  <span className="text-sm text-foreground flex-1" data-testid={`${testIdPrefix}-ingredient-name-${i}`}>
+                    {ing.name}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {ing.amount && (
+                      <span className="text-sm text-muted-foreground text-right" data-testid={`${testIdPrefix}-ingredient-amount-${i}`}>
+                        {ing.amount}
+                      </span>
+                    )}
+                    {isTappable && (
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" data-testid={`${testIdPrefix}-chevron-${i}`} />
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Remix cards - read-only mode only */}
