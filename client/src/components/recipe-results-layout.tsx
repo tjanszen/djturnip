@@ -6,18 +6,26 @@
  * 
  * PURPOSE:
  * Provides a calm, editorial, vertical reading layout for recipe results.
+ * Designed to replace swipe-based UX with a static, read-first results page.
  * Used by both Fridge Cleanout (interactive mode) and URL Remix (read-only mode).
  * 
  * DESIGN PRINCIPLES (from Phase 0):
  * - Single-column, vertical reading flow
  * - Hierarchy driven by spacing and typography, not affordances
  * - Consistent section headers and visual rhythm
+ * - All content visible at once (no pagination/carousel)
  * 
  * MODES:
  * - interactive: Full Fridge Cleanout behavior (badges, used ingredients, steps)
  * - readOnly: URL Remix display (title + ingredients + remix cards, no interaction)
  * 
- * Phase 3 will wire URL Remix to use this component in readOnly mode.
+ * MIGRATION NOTES:
+ * - Phase 2: Component created and ready for use
+ * - Phase 3: Wire URL Remix to use this component in readOnly mode
+ * - Future: Fridge Cleanout can migrate from swipe UI to use this component
+ * 
+ * The current swipe-based UX in home.tsx remains unchanged until the full
+ * migration to vertical editorial layout is completed.
  * ==========================================================================
  */
 
