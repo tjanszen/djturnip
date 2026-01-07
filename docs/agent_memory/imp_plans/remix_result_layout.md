@@ -1,5 +1,12 @@
 # Phased Implementation Plan — URL Remix UX (Fridge Cleanout–Style, Read-Only)
 
+## Status: Phase 3 Complete ✓
+- Phase 0: UX Guardrails added (comments in home.tsx)
+- Phase 1: Backend already returns title + ingredients
+- Phase 2: RecipeResultsLayout created at `client/src/components/recipe-results-layout.tsx`
+- Phase 3: URL Remix uses RecipeResultsLayout in read-only mode
+- Phases 4-6: Complete (integrated with Phase 3 implementation)
+
 ## Goal
 Present URL Remix results in a **calm, editorial, read-only layout** inspired by Fridge Cleanout and the provided reference design.
 
