@@ -2103,6 +2103,32 @@ export default function Home() {
           </motion.div>
         )}
 
+        {/* 
+          ==========================================================================
+          URL REMIX RESULTS — UX GUARDRAILS (Phase 0)
+          See: docs/agent_memory/imp_plans/remix_result_layout.md
+          ==========================================================================
+          
+          DESIGN INTENT:
+          - Calm, editorial, read-only results presentation
+          - Single-column, vertical reading flow
+          - Hierarchy driven by spacing and typography, not affordances
+          
+          CONSTRAINTS (Locked):
+          - No primary actions on the results screen
+          - Remix cards are informational only, not selectable
+          - Ingredients list is read-only (reference, not configuration UI)
+          - No swipe interactions in final design (Phase 2+ will remove)
+          - No "Let's Cook!" or "Generate Again" CTAs in final design
+          - All remix cards visible at once (no pagination/carousel)
+          - No hover affordances implying selection on cards
+          
+          TODO: Phase 1+ will implement layout changes per remix_result_layout.md
+          - Replace swipe UI with Fridge Cleanout-style vertical card list
+          - Extract shared RecipeResultsLayout component
+          - Remove interactive affordances from cards and ingredients
+          ==========================================================================
+        */}
         {viewState === "swiping" && (
           <motion.div
             key="swiping"
@@ -2308,6 +2334,12 @@ export default function Home() {
               Skip or save this recipe
             </p>
 
+            {/* 
+              Original Ingredients List — READ-ONLY per remix_result_layout.md
+              - Reference list only, not configuration UI
+              - No chevrons, dropdowns, or tap handlers
+              - Phase 2+ will move this above remix cards in vertical layout
+            */}
             {recipeMode === "remix" && extractedIngredients.length > 0 && (
               <div className="w-full mt-8">
                 <h3 className="text-lg font-medium text-foreground mb-3">Original Ingredients</h3>
