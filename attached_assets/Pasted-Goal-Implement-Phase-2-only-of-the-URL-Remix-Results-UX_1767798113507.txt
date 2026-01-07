@@ -1,0 +1,56 @@
+Goal: Implement **Phase 2 only** of the URL Remix Results UX refactor, as defined in  
+`docs/agent_memory/imp_plans/remix_result_layout.md`.
+
+Phase 2 is the **shared layout extraction** step: extract the Fridge Cleanout results layout into a reusable component (editorial structure), without changing URL Remix UX yet beyond wiring the shared component where appropriate. The goal is to avoid duplicating UI and to support a future read-only URL Remix results view.
+
+---
+
+Do:
+1) Read and understand the implementation plan at:
+   - `docs/agent_memory/imp_plans/remix_result_layout.md`
+   Focus specifically on:
+   - “Phase 2 — Shared Layout Component (Editorial Structure)”
+   - The UX principles from Phase 0 (calm, read-first, spacing/typography-driven hierarchy)
+
+2) Identify the Fridge Cleanout “results” screen/component(s) that currently render:
+   - Recipe title section
+   - Ingredients section
+   - Remix section (cards)
+
+3) Extract that structure into a shared component, e.g. `RecipeResultsLayout`:
+   - Props should be minimal and explicit:
+     - `title: string`
+     - `ingredients: string[]` (or whatever the Fridge Cleanout currently uses)
+     - `remixCards: Alternative[]` (title + changes[])
+     - `mode: "interactive" | "readOnly"` (or equivalent boolean flags) BUT you do not need to fully implement readOnly behavior yet—just define the interface cleanly.
+   - Keep the component focused on **layout + hierarchy**, not business logic.
+   - The shared component should render consistent section headers (“Ingredients”, “Remix”) and maintain the existing Fridge Cleanout visual rhythm.
+
+4) Update Fridge Cleanout to use `RecipeResultsLayout` with **no behavior or visual regressions**:
+   - Ingredient swaps, chevrons, and any Fridge Cleanout interactions should continue to work exactly as before when `mode="interactive"`.
+   - Ensure props passed in preserve current content and ordering.
+
+5) Do NOT implement the URL Remix read-only results view yet (that comes in Phase 3):
+   - It’s fine to add the shared component and leave URL Remix untouched for now, unless wiring it is trivial and does not alter user-visible behavior.
+
+6) Add lightweight developer documentation:
+   - A short comment at the shared component definition referencing:
+     - `docs/agent_memory/imp_plans/remix_result_layout.md`
+   - Briefly state that URL Remix will use this component in read-only mode in Phase 3.
+
+Out of Scope for Phase 2:
+- Changing URL Remix UI/UX behavior (beyond internal refactor if needed)
+- Adding/removing CTAs
+- Implementing read-only ingredient behavior (no chevrons/dropdowns) — that is Phase 3
+- Backend changes
+- Telemetry changes
+
+---
+
+Gate via feature flag: No new flags required. Keep existing behavior unchanged.
+
+Proof:
+- Fridge Cleanout results screen renders identically (visual + interaction parity) after the refactor.
+- A shared `RecipeResultsLayout` (or equivalent) exists and is used by Fridge Cleanout.
+- The shared component is layout-focused with clean props and includes a reference comment to `docs/agent_memory/imp_plans/remix_result_layout.md`.
+- URL Remix user-facing experience is unchanged after Phase 2.
