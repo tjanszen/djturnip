@@ -1,0 +1,61 @@
+Goal: Investigate why the URL Remix “results” layout does NOT visually match the Fridge Cleanout results layout, and implement the smallest fix to make them match.
+
+Context:
+- We extracted/shared layout work per `docs/agent_memory/imp_plans/remix_result_layout.md`.
+- The URL Remix results screen should reuse the same Fridge Cleanout layout and styling (editorial title, section headers, ingredient rows, remix cards).
+- However, the current URL Remix results view looks different (spacing/typography/row affordances/cards).
+
+Do:
+1) Identify the exact components used in each flow
+   - Find the Fridge Cleanout results screen component tree (the screen that shows title + ingredients + remix cards).
+   - Find the URL Remix results screen component tree.
+   - Confirm whether both screens actually render the SAME shared component (e.g., `RecipeResultsLayout`) and the same child components (ingredient rows, remix cards).
+   - Output a short diff list:
+     - “Fridge uses: <component A/B/C>”
+     - “URL Remix uses: <component X/Y/Z>”
+     - “Mismatch: <where it diverges>”
+
+2) Verify shared layout is truly shared (common failure modes)
+   Check for these common reasons they don’t match:
+   - URL Remix is using a “similar” layout component, not the exact Fridge Cleanout one
+   - Different wrapper containers (padding/maxWidth/background) around the shared layout
+   - Different typography tokens/classes applied to title/headers
+   - Ingredient list is using a simplified list (missing the Fridge row component styles)
+   - Remix cards are using a different Card component or different variant props
+   - A “readOnly” mode unintentionally swaps to different subcomponents/styles instead of disabling interactions only
+
+3) Proposed fix (smallest change)
+   Implement the smallest fix that ensures:
+   - URL Remix results renders the exact same:
+     - layout wrapper (container/padding)
+     - title typography
+     - section header typography
+     - ingredient row component styling
+     - remix card component styling
+   - Read-only mode should ONLY remove interactivity:
+     - remove chevrons / dropdowns / click handlers
+     - remove hover/active styles if they imply tap
+     - but KEEP the exact same spacing, fonts, borders, and dividers as Fridge Cleanout
+
+   Concretely:
+   - If URL Remix is not using the same shared component, change it to use the exact Fridge component tree.
+   - If `mode="readOnly"` is branching to different visual components, refactor so it renders the SAME components and only toggles:
+     - `onClick` handlers
+     - `showChevron` / `enableSwap` booleans
+     - `interactive` CSS classes
+
+4) Add a side-by-side dev verification
+   - Add a quick dev-only route or Storybook-style render (whatever your setup supports) that renders:
+     - Fridge Cleanout results with a fixture payload
+     - URL Remix results with a fixture payload
+     - both inside the same parent container
+   - This is only to visually confirm they match; do not ship a new UX feature.
+   - If you can’t add a route, at minimum add screenshots to the PR description.
+
+Gate via feature flag:
+- Do not change any feature flag defaults. Keep current gating as-is.
+
+Proof:
+- With the same fixture data (title, ingredients, 9 remix cards), Fridge Cleanout results and URL Remix results are visually indistinguishable except for the intended read-only differences (no chevrons, no dropdowns, no tap affordances).
+- Container padding, typography scale, section spacing, and card styling match 1:1.
+- No regressions to Fridge Cleanout interactions.
