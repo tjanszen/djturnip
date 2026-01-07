@@ -1,0 +1,44 @@
+Goal: Remove the “Recipe Processed” success toast from the URL Remix UX so the transition to results feels calm and uninterrupted.
+
+Context:
+- After a successful URL Remix request, the UI currently shows a toast:
+  - Title: “Recipe Processed”
+  - Message: “Recipe URL processed with V2 alternatives.”
+- This toast appears on top of the results screen and competes visually with the recipe title.
+- Per the UX direction in `docs/agent_memory/imp_plans/remix_result_layout.md`, the URL Remix results experience should feel editorial, quiet, and read-first, with no celebratory or system-level success messaging.
+
+Do:
+1) Locate where the success toast is triggered after URL Remix completes:
+   - This may be:
+     - A generic success handler for `/api/recipes/process`
+     - A shared toast utility invoked on 200 responses
+     - A side effect in the URL Remix submit handler
+2) Confirm whether this toast is:
+   - Specific to the URL Remix flow, or
+   - A generic “success” toast reused elsewhere
+3) Remove or suppress the toast **only for the URL Remix success path**:
+   - Do NOT remove error toasts or inline error messaging
+   - Do NOT affect other flows (e.g., Fridge Cleanout, saves, failures)
+   - If the toast utility supports conditional flags (e.g., `showSuccessToast`), use that
+   - Otherwise, guard the toast trigger with a check like:
+     - “if this is URL Remix success → do not show toast”
+4) Ensure no replacement success UI is added:
+   - No banners
+   - No alerts
+   - No confirmation messages
+   - Success should be communicated implicitly by rendering the results screen
+
+Out of Scope:
+- Changing loading or error behavior
+- Adding new UX affordances
+- Modifying backend responses
+- Removing toasts globally across the app
+
+Proof:
+- On successful URL Remix:
+  - No “Recipe Processed” (or similar) toast appears
+  - The results screen renders directly with title, ingredients, and remix cards
+- Error cases still surface errors appropriately (inline or toast, unchanged)
+- Other parts of the app that rely on success toasts remain unaffected
+
+This change should make the transition from input → results feel intentional and distraction-free, consistent with the editorial layout defined in `remix_result_layout.md`.

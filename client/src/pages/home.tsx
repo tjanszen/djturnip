@@ -571,10 +571,8 @@ export default function Home() {
 
     processRecipe({ url: recipeUrl, style: "creative" }, {
       onSuccess: (data) => {
-        toast({
-          title: "Recipe Processed",
-          description: data.message,
-        });
+        // No success toast - results screen communicates success implicitly
+        // (see docs/agent_memory/imp_plans/remix_result_layout.md)
         
         if (data.alternatives && data.alternatives.length > 0) {
           setAlternatives(data.alternatives);
@@ -620,10 +618,8 @@ export default function Home() {
 
     processRecipe({ url, style }, {
       onSuccess: (data) => {
-        toast({
-          title: "Recipe Processed",
-          description: data.message,
-        });
+        // No success toast - results screen communicates success implicitly
+        // (see docs/agent_memory/imp_plans/remix_result_layout.md)
         
         if (data.alternatives && data.alternatives.length > 0) {
           setAlternatives(data.alternatives);
