@@ -1,0 +1,68 @@
+Goal: Implement **Phase 1 only** of the Remix Page Structure VNext, as defined in  
+`docs/agent_memory/imp_plans/remix_page_1_10_26.md`.
+
+Phase 1 is **backend contract extension + strict validation updates** for URL Remix **V2 only**. No frontend/layout changes in this phase.
+
+---
+
+Do:
+1) Read and understand the implementation plan at:
+   - `docs/agent_memory/imp_plans/remix_page_1_10_26.md`
+   Focus specifically on:
+   - “Phase 1 — Backend Contract Extension (V2 Only, Strict)”
+   - The required new fields and the “no partial render” error-handling policy
+
+2) Extend the **V2 response payload** (ALT_RECIPES_V2 path only) to include new top-level fields:
+   - `what_is_this: string` (required; 1–2 sentences target)
+   - `why_this_works: string` (required; 1–2 sentences target)
+
+3) Extend each V2 alternative object to include:
+   - `why_this_works: string` (required; **one sentence max**, mechanism-based)
+   Notes:
+   - Keep existing fields unchanged (`kind`, `title`, `changes[]`)
+   - Do not reorder fields yet unless it’s required for types—ordering guidance is Phase 2a prompt work.
+
+4) Update strict validation (Zod) in:
+   - `server/validation/urlRemixV2.zod.ts`
+   to enforce:
+   - `what_is_this` is present and non-empty
+   - `why_this_works` is present and non-empty
+   - each alternative includes `why_this_works` present and non-empty
+   - keep all existing validations:
+     - exactly 9 alternatives
+     - 5 basic + 4 delight
+     - unique titles
+     - `changes.length` in {2,3}
+     - specificity guardrail regex for `details`
+     - max 1 retry + fallback to V1 on persistent failure
+
+5) Error handling policy (important)
+   - Ensure Phase 1 changes do NOT allow partial success:
+     - If the new fields fail validation, treat it as a V2 validation failure:
+       - trigger the existing retry flow
+       - if still invalid, trigger the existing V1 fallback
+   - Do not return a response missing the new fields on the V2 success path.
+
+6) Telemetry/logging updates (minimal)
+   - Ensure existing V2 validation telemetry captures failures related to the new fields.
+   - If you have structured issue logging (first 5 issues), confirm missing/empty `what_is_this` and `why_this_works` show up clearly.
+   - Do not add new event families unless needed.
+
+Out of Scope for Phase 1:
+- No prompt changes (Phase 2a)
+- No UI/layout changes (Phase 2b+)
+- No viewState rename
+- No ingredients collapse UX changes
+- No CTA/FAQ rendering changes
+
+---
+
+Proof:
+- With `ALT_RECIPES_V2=on`, a successful response includes:
+  - `what_is_this`
+  - `why_this_works`
+  - each alternative includes `why_this_works`
+- If the model output omits any of these fields:
+  - it triggers validation failure → retry once → fallback to V1 if still invalid
+- V1 behavior remains unchanged.
+- No frontend behavior changes in this phase.
