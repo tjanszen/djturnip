@@ -21,6 +21,8 @@ export const recipeChangeSchema = z.object({
 
 export const recipeAlternativeSchema = z.object({
   title: z.string(),
+  kind: z.enum(['basic', 'delight']).optional(),
+  why_this_works: z.string().optional(),
   changes: z.array(recipeChangeSchema),
 });
 
@@ -81,6 +83,8 @@ export const api = {
             instructionCount: z.number(),
             method: z.string().optional(),
           }).optional(),
+          what_is_this: z.string().optional(),
+          why_this_works: z.string().optional(),
           alternatives: z.array(recipeAlternativeSchema).optional(),
         }),
         400: errorSchemas.validation,

@@ -22,10 +22,13 @@ const changeSchema = z.object({
 const alternativeSchema = z.object({
   kind: z.enum(["basic", "delight"]),
   title: z.string().min(1, "title cannot be empty"),
+  why_this_works: z.string().min(1, "why_this_works cannot be empty"),
   changes: z.array(changeSchema).min(2).max(3),
 });
 
 export const v2ResponseSchema = z.object({
+  what_is_this: z.string().min(1, "what_is_this cannot be empty"),
+  why_this_works: z.string().min(1, "why_this_works cannot be empty"),
   alternatives: z.array(alternativeSchema).length(9),
 }).superRefine((data, ctx) => {
   const basicCount = data.alternatives.filter(a => a.kind === "basic").length;
