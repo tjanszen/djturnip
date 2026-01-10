@@ -2112,15 +2112,30 @@ export default function Home() {
 
         {/* 
           ==========================================================================
-          URL REMIX RESULTS — Phase 3 Complete
-          See: docs/agent_memory/imp_plans/remix_result_layout.md
+          URL REMIX RESULTS — PHASE 0 GUARDRAILS
+          See: docs/agent_memory/imp_plans/remix_page_1_10_26.md
           ==========================================================================
           
-          IMPLEMENTATION (Phase 3):
-          - URL Remix now uses RecipeResultsLayout in read-only mode
-          - Single-column, vertical reading flow with all cards visible
-          - No swipe, no Skip/Save, no Generate Again, no Let's Cook
-          - Fridge Cleanout still uses legacy swipe UI (unchanged)
+          CURRENT STATE (Phase 0):
+          - URL Remix uses: viewState === "swiping" && recipeMode === "remix"
+          - Fridge Cleanout uses: viewState === "swiping" && recipeMode === "fridge"
+          - Both flows share viewState="swiping", differentiated by recipeMode
+          
+          PLANNED CHANGES (Phase 2b):
+          - URL Remix will move to: viewState === "remix-result"
+          - Fridge Cleanout will REMAIN UNCHANGED (still uses "swiping")
+          - Do NOT globally rename "swiping" — it would break Fridge Cleanout
+          
+          WHY WE CAN'T JUST RENAME:
+          - viewState="swiping" is shared infrastructure
+          - Only URL Remix results should move to new state
+          - Fridge Cleanout legacy swipe UI depends on current naming
+          
+          TODO (Phase 1+):
+          - Phase 1: Extend V2 response contract (what_is_this, why_this_works)
+          - Phase 2a: Update prompts to generate new fields
+          - Phase 2b: Introduce viewState="remix-result" for URL Remix
+          - Phase 3: Cleanup legacy elements
           ==========================================================================
         */}
         
@@ -2161,7 +2176,15 @@ export default function Home() {
           </motion.div>
         )}
 
-        {/* Fridge Cleanout - Legacy swipe UI (unchanged) */}
+        {/* 
+          FRIDGE CLEANOUT - Legacy swipe UI (MUST REMAIN UNCHANGED)
+          See: docs/agent_memory/imp_plans/remix_page_1_10_26.md
+          
+          PHASE 0 GUARDRAIL:
+          - This branch uses: viewState === "swiping" && recipeMode === "fridge"
+          - This will NOT change when URL Remix moves to viewState="remix-result"
+          - Fridge Cleanout behavior must be preserved exactly as-is
+        */}
         {viewState === "swiping" && recipeMode === "fridge" && (
           <motion.div
             key="swiping-fridge"
