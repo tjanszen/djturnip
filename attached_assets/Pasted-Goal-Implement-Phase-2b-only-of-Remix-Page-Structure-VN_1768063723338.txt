@@ -1,0 +1,87 @@
+Goal: Implement **Phase 2b only** of Remix Page Structure VNext, per  
+`docs/agent_memory/imp_plans/remix_page_1_10_26.md`.
+
+Phase 2b updates the **frontend results layout** for URL Remix V2 to the new section structure and introduces `viewState="remix-result"` for URL Remix only, while ensuring Fridge Cleanout remains unaffected (it may still use `viewState="swiping"` with recipeMode gating).
+
+Do:
+1) Read and follow:
+   - `docs/agent_memory/imp_plans/remix_page_1_10_26.md`
+   Focus on:
+   - Phase 2b (frontend layout + section rendering)
+   - The warning that `viewState === "swiping"` is shared across URL Remix and Fridge Cleanout
+
+2) Update state transitions carefully (avoid breaking Fridge Cleanout):
+   - Introduce `viewState = "remix-result"` for the URL Remix success path only.
+   - Do NOT globally rename `"swiping"` if Fridge Cleanout depends on it.
+   - Confirm Fridge Cleanout result rendering continues to work as-is (likely still using `"swiping"` + recipeMode).
+   - Ensure browser/app Back returns to the input view (current behavior).
+
+3) Render the new Remix Result page structure (URL Remix V2 only)
+   When `viewState === "remix-result"` and V2 response data is present, render sections in this exact order:
+
+   A) Title
+      - Compose in frontend: "{recipeTitle} + {alternatives.length} Chef tips to make it better"
+      - Always use "Chef tips" (no pluralization logic).
+
+   B) What is this
+      - Render `what_is_this` (1–2 sentences)
+
+   C) Why this works
+      - Render `why_this_works` (1–2 sentences)
+
+   D) Ingredients (collapsed by default)
+      - Accordion header row labeled "Ingredients" with a chevron
+      - Default collapsed
+      - Expand shows extractedRecipe.ingredients (read-only list)
+      - Keep Fridge Cleanout styling for ingredient rows, but no swap UI.
+
+   E) Creative Variations
+      - Render all 9 alternatives in the existing card style (non-interactive)
+      - Each card shows:
+        - title
+        - per-variation `why_this_works` (1 sentence) ABOVE the changes list
+        - changes list (action + details)
+
+   F) CTA: "Remix your own recipes"
+      - Placeholder button, no-op (no navigation, no handler side effects)
+
+   G) FAQ
+      - Placeholder accordion UI but disabled (no answers, no expansion behavior)
+      - Display the 4 questions:
+        - Can I swap ingredient x?
+        - Can I reduce fat?
+        - Can I increase protein?
+        - Can I make this vegan?
+
+   H) You might also like
+      - Render header + subsection headers only:
+        - Similar dishes
+        - Similar problems
+        - Similar transitions
+      - No items required.
+
+4) Keep error + loading behavior consistent with current approach
+   - Preserve current submit loading (spinner/disabled button) behavior.
+   - On request failure (422/502/etc.), stay on input view and show inline error.
+   - Do NOT render partial results: only show remix-result if the API call returned a valid V2 payload.
+
+5) Ensure existing URL Remix UI elements do not appear on remix-result
+   - Do not show swipe UI / skip-save controls / success toast in remix-result.
+   - (If a success toast exists, do not address it here unless it blocks UX; it can be handled in a dedicated cleanup phase.)
+
+Out of Scope:
+- No backend changes
+- No prompt changes
+- No schema changes
+- No deep-linking / new routes (keep SPA viewState model)
+- No making CTA functional
+- No adding content to “You might also like”
+
+Proof:
+- With ALT_RECIPES_V2=on and a valid URL:
+  - The app transitions to viewState="remix-result"
+  - The page renders the new section order and uses new V2 fields
+  - Ingredients are collapsed by default and expandable
+  - Each variation card shows per-variation why_this_works above changes[]
+  - Back returns to the URL input view
+- Fridge Cleanout results still work exactly as before.
