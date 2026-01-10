@@ -668,6 +668,8 @@ Requirements:
                   instructionCount: recipe.instructions.length,
                   method: extractionResult.method,
                 },
+                what_is_this: validation.data.what_is_this,
+                why_this_works: validation.data.why_this_works,
                 alternatives: validation.data.alternatives,
               });
             }
