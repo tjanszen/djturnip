@@ -1,0 +1,72 @@
+Goal: Implement **Phase 2a only** of Remix Page Structure VNext, per  
+`docs/agent_memory/imp_plans/remix_page_1_10_26.md`.
+
+Phase 2a updates the **URL Remix V2 prompt generation** so the model outputs the newly-required fields added in Phase 1:
+- top-level `what_is_this`
+- top-level `why_this_works`
+- per-alternative `why_this_works` (1 sentence max, mechanism-based)
+
+This phase should be testable via the API (`POST /api/recipes/process`) and should not include frontend/layout changes.
+
+Do:
+1) Read the implementation plan:
+   - `docs/agent_memory/imp_plans/remix_page_1_10_26.md`
+   Focus on:
+   - Phase 2a prompt updates
+   - Requirement: per-variation `why_this_works` should be written BEFORE `changes[]` in the JSON schema description.
+
+2) Update the V2 prompt template to generate the new fields in the same single LLM call.
+   - File: `server/prompts/urlRemixV2.ts` (or the current V2 prompt module)
+   - Update the SYSTEM prompt to require EXACT JSON with:
+     - `what_is_this`: 1–2 sentences max, spark-notes definition of the dish (answer “what is this / am I in the right place?”)
+     - `why_this_works`: 1–2 sentences max, base mechanism explanation (balance, browning, acid, spice, fat, texture, etc.)
+     - `alternatives`: EXACTLY 9 items total (5 basic + 4 delight)
+       Each alternative MUST include these fields in this order:
+         - `kind`: "basic" | "delight"
+         - `title`: short (4–7 words)
+         - `why_this_works`: EXACTLY 1 sentence max, must reference a concrete mechanism (e.g., acid cuts richness; browning builds umami; herbs lift heavy mayo; sweetness balances heat; crunchy contrast improves texture)
+         - `changes`: EXACTLY 2 or 3 items, each with:
+           - `action`: 2–5 words
+           - `details`: MUST be specific and pass the existing specificity guardrail (include a number/unit/time/temp)
+
+   - IMPORTANT: Make it explicit that the model should not invent that the base recipe contains ingredients it doesn’t list; it should be grounded in the extracted ingredients + instructions provided.
+
+3) Update the V2 USER message template to include extracted recipe content as grounding input (keep as you do today):
+   - title
+   - ingredients list
+   - instructions list
+   - Do NOT include style focus (style is currently unused).
+
+4) Keep existing strictness constraints so Phase 1 validation passes:
+   - Return only valid JSON
+   - No duplicate titles
+   - Keep dish identity recognizable
+   - Ensure `details` strings include at least one of:
+     - number token (e.g., 1, 2, 1/2, ¼) OR
+     - units (tsp/tbsp/cup/oz/g) OR
+     - time/temp (minute/min/°F/°C)
+   - Maintain 5 basic + 4 delight.
+
+5) Update any TypeScript types used by the prompt response parser (if needed) so it expects:
+   - `what_is_this`
+   - `why_this_works`
+   - `alternative.why_this_works`
+
+6) Verify via API:
+   - With `ALT_RECIPES_V2=on`, call `/api/recipes/process` with 2 known recipe URLs (e.g., AllRecipes cookies, Serious Eats bolognese).
+   - Confirm V2 returns 200 without falling back to V1.
+   - Confirm payload includes the new required fields and passes Zod validation.
+   - Confirm per-alternative `why_this_works` appears before `changes[]` in the JSON output (field ordering).
+
+Out of Scope:
+- No frontend work
+- No viewState changes
+- No layout changes
+- No additional schema changes (Phase 1 already done)
+- No persistence / routing changes
+
+Proof:
+- Logs show V2 path succeeds without fallback for known URLs.
+- Response includes non-empty `what_is_this` and `why_this_works`.
+- Each of the 9 alternatives includes `why_this_works` (1 sentence max) AND `changes[]` (2–3) with specific details.
+- Zod validation passes on attempt 1 for most runs (retry rate remains low).
