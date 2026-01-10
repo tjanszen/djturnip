@@ -580,6 +580,10 @@ export default function Home() {
           setExtractedTitle(data.extractedRecipe?.title || "");
           setCurrentIndex(0);
           setSavedRemixes([]);
+          // PHASE 0 GUARDRAIL (see docs/agent_memory/imp_plans/remix_page_1_10_26.md)
+          // URL Remix currently uses viewState="swiping" + recipeMode="remix"
+          // Phase 2b will change this to viewState="remix-result" for URL Remix only
+          // Fridge Cleanout will continue using viewState="swiping"
           setViewState("swiping");
         } else {
           setAlternatives([]);
@@ -627,6 +631,10 @@ export default function Home() {
           setExtractedTitle(data.extractedRecipe?.title || "");
           setCurrentIndex(0);
           setSavedRemixes([]);
+          // PHASE 0 GUARDRAIL (see docs/agent_memory/imp_plans/remix_page_1_10_26.md)
+          // URL Remix currently uses viewState="swiping" + recipeMode="remix"
+          // Phase 2b will change this to viewState="remix-result" for URL Remix only
+          // Fridge Cleanout will continue using viewState="swiping"
           setViewState("swiping");
         } else {
           setAlternatives([]);
@@ -705,6 +713,9 @@ export default function Home() {
           setFridgeRecipes(data.recipes);
           setCurrentIndex(0);
           setSavedFridgeRecipes([]);
+          // PHASE 0 GUARDRAIL (see docs/agent_memory/imp_plans/remix_page_1_10_26.md)
+          // Fridge Cleanout (legacy path) uses viewState="swiping" + recipeMode="fridge"
+          // This will NOT change - only URL Remix will move to viewState="remix-result"
           setViewState("swiping");
         } else {
           setFridgeRecipes([]);

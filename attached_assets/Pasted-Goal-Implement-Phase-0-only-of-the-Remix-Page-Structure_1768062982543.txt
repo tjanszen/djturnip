@@ -1,0 +1,59 @@
+Goal: Implement **Phase 0 only** of the Remix Page Structure VNext, as defined in  
+`docs/agent_memory/imp_plans/remix_page_1_10_26.md`.
+
+Phase 0 is a **non-functional alignment phase**. The purpose is to lock down state strategy, naming, and guardrails before any backend or UI changes occur. No user-visible behavior should change in this phase.
+
+---
+
+Do:
+1) Read and understand the implementation plan at:
+   - `docs/agent_memory/imp_plans/remix_page_1_10_26.md`
+   Focus specifically on:
+   - The “Phase 0 — Response Model + State Strategy” section
+   - The notes about carefully renaming `viewState` due to shared usage with Fridge Cleanout
+
+2) Audit current routing and state usage related to remix results:
+   - Identify all places where `viewState === "swiping"` is used.
+   - Confirm which branches correspond to:
+     - URL Remix results
+     - Fridge Cleanout results
+   - Document (in code comments) how `recipeMode` or equivalent flags currently differentiate these flows.
+
+3) Prepare for the new state without breaking Fridge Cleanout:
+   - Introduce awareness (comments and/or TODOs) that:
+     - URL Remix results will move to `viewState === "remix-result"`
+     - Fridge Cleanout will continue using its existing state (`"swiping"` or equivalent)
+   - Do NOT rename or change behavior yet.
+   - Do NOT update conditional rendering logic yet.
+
+4) Add explicit guardrail comments in the Home/results rendering logic:
+   - Reference `docs/agent_memory/imp_plans/remix_page_1_10_26.md`
+   - Clearly state:
+     - Why `swiping` cannot be globally renamed
+     - That Phase 1+ will introduce `remix-result` for URL Remix only
+     - That Fridge Cleanout behavior must remain untouched
+
+5) Optional (recommended):
+   - Add a short TODO block noting:
+     - “Phase 1 will extend the V2 response contract”
+     - “Phase 2 will update prompts and UI”
+   - This is for reviewer clarity only.
+
+Out of Scope for Phase 0:
+- No backend changes
+- No prompt changes
+- No schema/Zod changes
+- No UI or layout changes
+- No renaming of `viewState` values
+- No feature flag changes
+
+---
+
+Proof:
+- Code contains clear comments documenting:
+  - Shared use of `viewState === "swiping"`
+  - Planned introduction of `viewState === "remix-result"` for URL Remix only
+- Comments explicitly reference:
+  - `docs/agent_memory/imp_plans/remix_page_1_10_26.md`
+- Application behavior is identical before and after Phase 0.
+- Phase 0 creates shared understanding and prevents accidental regressions.

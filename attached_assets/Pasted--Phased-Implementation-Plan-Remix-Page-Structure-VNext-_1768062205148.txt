@@ -1,0 +1,196 @@
+# Phased Implementation Plan — Remix Page Structure VNext (URL Remix V2 Only)
+
+## Snapshot of Decisions (from your answers)
+- **One LLM call** generates: `what_is_this`, `why_this_works`, and **9 variations**.
+- “What is this” + “Why this works” are **AI-inferred from the URL recipe** (using extracted recipe data as the grounding input), not derived from remix output.
+- Applies to **V2 only** (`ALT_RECIPES_V2` path).
+- Each variation gets a new field: **`why_this_works`** (1 sentence max) and should cite a **specific mechanism**.
+- Page title composed on **frontend**: `[Recipe Name] + {variation_count} + Chef tips to make it better`
+- Use viewState **`"remix-result"`** (rename from `"swiping"`).
+- Ingredients **collapsed by default** (expand via chevron).
+- CTA “Remix your own recipes” exists but **does nothing** for now.
+- FAQ shown as **accordion UI but disabled** (no answers yet).
+- “You might also like” shows **headers only** for subsections.
+- No recipe_key, canonicalUrl, sourceDomain (not needed now).
+
+---
+
+## Quick answers to your remaining questions
+
+### Q: “Single response payload” — pros & cons?
+**Recommendation: Yes, single payload** for this screen.
+
+**Pros**
+- One network call = simpler UI state management (render everything from one response).
+- Fewer race conditions / partial renders.
+- Easier future “save/share” because you store one canonical object.
+
+**Cons**
+- Bigger payload and stricter contract means prompt/schema changes require more coordination.
+- If only one section fails validation, you might need to retry the whole generation (but you already have retry + fallback).
+
+Given you already have strict validation + retry and want an editorial page structure, **single payload is the cleanest**.
+
+### Q: “Strict validation (Zod)” — what does this mean?
+You already validate `alternatives[]` strictly with Zod. “Strict validation” here means:
+- Extend the Zod schema to also require:
+  - `what_is_this` exists and is 1–2 sentences
+  - `why_this_works` exists and is 1–2 sentences
+  - each variation has `why_this_works` (1 sentence)
+- If the model output doesn’t match, you retry once; if still invalid, fallback.
+
+This prevents half-baked pages (missing sections) from reaching the UI.
+
+---
+
+## Phase 0 — Update the V2 Response Contract (Backend Types + Zod)
+**Goal:** Define the new V2 response shape for the Remix Result page and enforce it.
+
+### Backend contract changes (V2 only)
+Extend V2 JSON response to include:
+- `extractedRecipe.title` (already)
+- `extractedRecipe.ingredients` (already)
+- NEW: `what_is_this` (string, 1–2 sentences)
+- NEW: `why_this_works` (string, 1–2 sentences)
+- `alternatives[]` (still exactly 9, 5 basic + 4 delight)
+  - NEW per alternative: `why_this_works` (string, **1 sentence max**)
+
+### Validation (Zod)
+- Update `server/validation/urlRemixV2.zod.ts` to include the new fields:
+  - `what_is_this`: required non-empty string, enforce max length (or simple sentence-count heuristic)
+  - `why_this_works`: required non-empty string
+  - for each alternative:
+    - `why_this_works`: required non-empty string
+- Keep existing validation:
+  - exact 9 alternatives
+  - 5 basic + 4 delight
+  - unique titles
+  - changes length 2–3
+  - specificity guardrail (existing)
+
+**Acceptance criteria**
+- Existing test URLs still pass.
+- A missing `what_is_this` or per-variation `why_this_works` causes retry + fallback as expected.
+
+---
+
+## Phase 1 — Update the V2 Prompt (Single Call Generates New Sections + Variation Why)
+**Goal:** Modify `server/prompts/urlRemixV2.ts` so one call returns the new page sections plus updated variations.
+
+### Prompt requirements
+- Use extracted recipe content as grounding input:
+  - title
+  - ingredients
+  - instructions
+- Generate:
+  - `what_is_this`: 1–2 sentences, general “am I in the right place?”
+  - `why_this_works`: 1–2 sentences, base mechanism (balance, browning, acid, spice, etc.)
+  - `alternatives`: exactly 9 items; each includes:
+    - `title`
+    - `kind`
+    - `changes[]` (2–3)
+    - `why_this_works`: 1 sentence, mechanism-based
+
+### Note on your “AI-inferred from URL recipe”
+The best practical way to achieve this without hallucination is:
+- Use the extracted recipe as the **source of truth** input to the model, and instruct it to write “What is this” / “Why this works” **as a general culinary description of the dish category**, grounded by the ingredients/steps, not by remix outputs.
+
+**Acceptance criteria**
+- For 2–3 known URLs, response includes:
+  - non-empty `what_is_this`, `why_this_works`
+  - 9 alternatives each with `why_this_works`
+- Validation passes on attempt 1 for most runs.
+
+---
+
+## Phase 2 — Frontend: New Page Structure (Remix Result Layout)
+**Goal:** Implement the new section ordering and structure on the Remix results view.
+
+### Routing/state updates
+- Rename viewState:
+  - `"swiping"` → `"remix-result"`
+- Ensure transitions:
+  - URL input → submit → on success `setViewState("remix-result")`
+
+### UI structure (in order)
+1. **Title**
+   - Format (frontend): `{recipeTitle} + {alternatives.length} Chef tips to make it better`
+   - Always “Chef tips” (no plural logic).
+
+2. **What is this**
+   - Render `what_is_this` (1–2 sentences)
+
+3. **Why this works**
+   - Render `why_this_works` (1–2 sentences)
+
+4. **Ingredients**
+   - Collapsed by default with chevron
+   - Expands to show read-only ingredient list (no swaps)
+   - Use existing Fridge Cleanout styles
+
+5. **Creative Variations**
+   - Render all 9 remix cards (non-interactive)
+   - Each card shows:
+     - title
+     - “What changes” (existing changes list)
+     - NEW: “Why this works” (one sentence)
+
+6. **CTA: Remix your own recipes**
+   - Placeholder button (does nothing)
+   - Looks like a CTA but no handler (or handler is `() => {}`)
+
+7. **FAQ**
+   - Accordion UI shell, disabled
+   - Shows questions only; no answers and no expand interaction
+
+8. **You might also like**
+   - Header + three subsection headers only:
+     - Similar dishes
+     - Similar problems
+     - Similar transitions
+   - No items beneath them.
+
+**Acceptance criteria**
+- Screen renders all sections without interaction bugs.
+- Ingredients collapses/expands.
+- Variation cards show the new “Why this works” line.
+
+---
+
+## Phase 3 — Remove Legacy Elements + Polish (Non-functional Cleanup)
+**Goal:** Eliminate UI artifacts that conflict with the new structure.
+
+### Remove/suppress
+- Success toast (“Recipe Processed”)
+- Any leftover swipe/skip-save UI
+- Any “Generate again” UI in this flow (unless you explicitly want it back later)
+
+### Keep
+- Existing minimal submit loading state (disable button/spinner) per your earlier decisions.
+
+**Acceptance criteria**
+- No toast on success.
+- Page feels editorial and content-first.
+
+---
+
+## Phase 4 — QA + Contract Hardening
+**Goal:** Confirm this works across sites and failure modes.
+
+### Test matrix (minimum)
+- 3 recipe sites (AllRecipes, Serious Eats, Bon Appetit)
+- 1 non-recipe URL (should show inline error)
+
+### Checks
+- Zod validation consistently passes or retries once then falls back.
+- `what_is_this` and `why_this_works` appear and are short.
+- Each variation has `why_this_works` and it mentions a mechanism (acid/heat/browning/fat balance/etc.)
+- Ingredients default collapsed.
+
+---
+
+## Implementation Notes (to reduce risk)
+- Keep everything behind `ALT_RECIPES_V2` as the source of truth (V1 unchanged).
+- Prefer adding fields to the existing V2 payload rather than inventing new endpoints.
+- Reuse Fridge Cleanout layout components wherever possible; this is mostly “new sections + new text blocks.”
+
