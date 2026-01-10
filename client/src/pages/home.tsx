@@ -185,7 +185,7 @@ const featuredRecipes = [
   },
 ];
 
-type ViewState = "search" | "swiping" | "saved" | "fridge-processing" | "fridge-prefs" | "fridge-confirm" | "fridge-generating" | "fridge-result" | "fridge-error" | "fridge-single" | "cook-mode";
+type ViewState = "search" | "swiping" | "saved" | "fridge-processing" | "fridge-prefs" | "fridge-confirm" | "fridge-generating" | "fridge-result" | "fridge-error" | "fridge-single" | "cook-mode" | "remix-result";
 type RecipeMode = "remix" | "fridge";
 
 // Generated recipe shape (structured V2 format)
@@ -212,6 +212,8 @@ export default function Home() {
   const [alternatives, setAlternatives] = useState<RecipeAlternative[]>([]);
   const [extractedIngredients, setExtractedIngredients] = useState<string[]>([]);
   const [extractedTitle, setExtractedTitle] = useState<string>("");
+  const [remixWhatIsThis, setRemixWhatIsThis] = useState<string>("");
+  const [remixWhyThisWorks, setRemixWhyThisWorks] = useState<string>("");
   const [fridgeRecipes, setFridgeRecipes] = useState<FridgeRecipe[]>([]);
   const [activeStyle, setActiveStyle] = useState<RecipeStyle | null>(null);
   const [viewState, setViewState] = useState<ViewState>("search");
@@ -578,17 +580,19 @@ export default function Home() {
           setAlternatives(data.alternatives);
           setExtractedIngredients(data.extractedRecipe?.ingredients || []);
           setExtractedTitle(data.extractedRecipe?.title || "");
+          setRemixWhatIsThis(data.what_is_this || "");
+          setRemixWhyThisWorks(data.why_this_works || "");
           setCurrentIndex(0);
           setSavedRemixes([]);
-          // PHASE 0 GUARDRAIL (see docs/agent_memory/imp_plans/remix_page_1_10_26.md)
-          // URL Remix currently uses viewState="swiping" + recipeMode="remix"
-          // Phase 2b will change this to viewState="remix-result" for URL Remix only
-          // Fridge Cleanout will continue using viewState="swiping"
-          setViewState("swiping");
+          // Phase 2b: URL Remix uses viewState="remix-result" for V2 editorial layout
+          // Fridge Cleanout continues using viewState="swiping"
+          setViewState("remix-result");
         } else {
           setAlternatives([]);
           setExtractedIngredients([]);
           setExtractedTitle("");
+          setRemixWhatIsThis("");
+          setRemixWhyThisWorks("");
         }
         
         setActiveQuickRemix(null);
@@ -629,17 +633,19 @@ export default function Home() {
           setAlternatives(data.alternatives);
           setExtractedIngredients(data.extractedRecipe?.ingredients || []);
           setExtractedTitle(data.extractedRecipe?.title || "");
+          setRemixWhatIsThis(data.what_is_this || "");
+          setRemixWhyThisWorks(data.why_this_works || "");
           setCurrentIndex(0);
           setSavedRemixes([]);
-          // PHASE 0 GUARDRAIL (see docs/agent_memory/imp_plans/remix_page_1_10_26.md)
-          // URL Remix currently uses viewState="swiping" + recipeMode="remix"
-          // Phase 2b will change this to viewState="remix-result" for URL Remix only
-          // Fridge Cleanout will continue using viewState="swiping"
-          setViewState("swiping");
+          // Phase 2b: URL Remix uses viewState="remix-result" for V2 editorial layout
+          // Fridge Cleanout continues using viewState="swiping"
+          setViewState("remix-result");
         } else {
           setAlternatives([]);
           setExtractedIngredients([]);
           setExtractedTitle("");
+          setRemixWhatIsThis("");
+          setRemixWhyThisWorks("");
         }
         
         setUrl("");
@@ -787,6 +793,8 @@ export default function Home() {
     setAlternatives([]);
     setExtractedIngredients([]);
     setExtractedTitle("");
+    setRemixWhatIsThis("");
+    setRemixWhyThisWorks("");
     setFridgeRecipes([]);
     setCurrentIndex(0);
     setSavedRemixes([]);
@@ -2112,35 +2120,29 @@ export default function Home() {
 
         {/* 
           ==========================================================================
-          URL REMIX RESULTS — PHASE 0 GUARDRAILS
+          URL REMIX RESULTS — PHASE 2b IMPLEMENTATION
           See: docs/agent_memory/imp_plans/remix_page_1_10_26.md
           ==========================================================================
           
-          CURRENT STATE (Phase 0):
-          - URL Remix uses: viewState === "swiping" && recipeMode === "remix"
+          CURRENT STATE (Phase 2b complete):
+          - URL Remix uses: viewState === "remix-result" (V2 editorial layout)
           - Fridge Cleanout uses: viewState === "swiping" && recipeMode === "fridge"
-          - Both flows share viewState="swiping", differentiated by recipeMode
+          - Separation complete — each flow has its own viewState
           
-          PLANNED CHANGES (Phase 2b):
-          - URL Remix will move to: viewState === "remix-result"
-          - Fridge Cleanout will REMAIN UNCHANGED (still uses "swiping")
-          - Do NOT globally rename "swiping" — it would break Fridge Cleanout
-          
-          WHY WE CAN'T JUST RENAME:
-          - viewState="swiping" is shared infrastructure
-          - Only URL Remix results should move to new state
-          - Fridge Cleanout legacy swipe UI depends on current naming
-          
-          TODO (Phase 1+):
-          - Phase 1: Extend V2 response contract (what_is_this, why_this_works)
-          - Phase 2a: Update prompts to generate new fields
-          - Phase 2b: Introduce viewState="remix-result" for URL Remix
-          - Phase 3: Cleanup legacy elements
+          PAGE STRUCTURE (in order):
+          A) Title: "{recipeTitle} + {count} Chef tips to make it better"
+          B) What is this: remixWhatIsThis (1-2 sentences)
+          C) Why this works: remixWhyThisWorks (1-2 sentences)
+          D) Ingredients: collapsed by default, accordion toggle
+          E) Creative Variations: 9 cards with per-variation why_this_works
+          F) CTA: "Remix your own recipes" (placeholder, no-op)
+          G) FAQ: Placeholder accordion (disabled)
+          H) You might also like: Headers only (no items)
           ==========================================================================
         */}
         
-        {/* URL Remix Results - Read-only editorial layout (matches fridge-result) */}
-        {viewState === "swiping" && recipeMode === "remix" && (
+        {/* URL Remix Results - V2 Editorial Layout */}
+        {viewState === "remix-result" && (
           <motion.div
             key="remix-results"
             initial={{ opacity: 0, y: 20 }}
@@ -2162,16 +2164,73 @@ export default function Home() {
             </div>
 
             {/* px-4 py-6 matches fridge-result inner spacing */}
-            <div className="px-4 py-6">
+            <div className="px-4 py-6 space-y-8">
+              {/* Main recipe content via RecipeResultsLayout */}
               <RecipeResultsLayout
                 mode="readOnly"
-                title={extractedTitle || "Recipe Remix"}
+                title={`${extractedTitle || "Recipe"} + ${alternatives.length} Chef tips to make it better`}
+                whatIsThis={remixWhatIsThis}
+                whyThisWorks={remixWhyThisWorks}
                 ingredients={extractedIngredients}
                 remixCards={alternatives}
                 collapsibleIngredients={true}
                 ingredientsDefaultCollapsed={true}
                 testIdPrefix="remix-results"
               />
+
+              {/* CTA: Remix your own recipes - Placeholder (no-op) */}
+              <div className="pt-4">
+                <Button
+                  variant="outline"
+                  className="w-full py-6"
+                  onClick={() => { /* Placeholder - no-op */ }}
+                  data-testid="button-remix-your-own"
+                >
+                  Remix your own recipes
+                </Button>
+              </div>
+
+              {/* FAQ Section - Placeholder (disabled accordion) */}
+              <div className="space-y-3" data-testid="remix-results-faq-section">
+                <h3 className="text-lg font-medium text-foreground">FAQ</h3>
+                <div className="space-y-2">
+                  {[
+                    "Can I swap ingredient x?",
+                    "Can I reduce fat?",
+                    "Can I increase protein?",
+                    "Can I make this vegan?",
+                  ].map((question, index) => (
+                    <div 
+                      key={index}
+                      className="flex items-center justify-between py-3 px-4 bg-secondary/30 rounded-lg text-sm text-muted-foreground"
+                      data-testid={`remix-results-faq-${index}`}
+                    >
+                      <span>{question}</span>
+                      <ChevronRight className="w-4 h-4 opacity-50" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* You might also like - Headers only (no items) */}
+              <div className="space-y-4" data-testid="remix-results-also-like-section">
+                <h3 className="text-lg font-medium text-foreground">You might also like</h3>
+                <div className="space-y-3">
+                  {[
+                    "Similar dishes",
+                    "Similar problems",
+                    "Similar transitions",
+                  ].map((header, index) => (
+                    <div 
+                      key={index}
+                      className="py-2 text-sm font-medium text-muted-foreground"
+                      data-testid={`remix-results-also-like-header-${index}`}
+                    >
+                      {header}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </motion.div>
         )}

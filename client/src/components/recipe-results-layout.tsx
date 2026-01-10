@@ -46,6 +46,10 @@ export interface RecipeResultsLayoutProps {
   // Description (optional)
   description?: string;
   
+  // V2 editorial fields (URL Remix only)
+  whatIsThis?: string;
+  whyThisWorks?: string;
+  
   // Ingredients - can be simple strings or structured objects
   ingredients: string[] | IngredientItem[];
   
@@ -66,6 +70,8 @@ export function RecipeResultsLayout({
   mode,
   title,
   description,
+  whatIsThis,
+  whyThisWorks,
   ingredients,
   remixCards,
   onIngredientClick,
@@ -102,6 +108,25 @@ export function RecipeResultsLayout({
           </p>
         )}
       </div>
+
+      {/* V2 Editorial Sections - URL Remix only */}
+      {whatIsThis && (
+        <div className="space-y-2" data-testid={`${testIdPrefix}-what-is-this-section`}>
+          <h3 className="text-lg font-medium text-foreground">What is this?</h3>
+          <p className="text-sm text-muted-foreground" data-testid={`${testIdPrefix}-what-is-this`}>
+            {whatIsThis}
+          </p>
+        </div>
+      )}
+
+      {whyThisWorks && (
+        <div className="space-y-2" data-testid={`${testIdPrefix}-why-this-works-section`}>
+          <h3 className="text-lg font-medium text-foreground">Why this works</h3>
+          <p className="text-sm text-muted-foreground" data-testid={`${testIdPrefix}-why-this-works`}>
+            {whyThisWorks}
+          </p>
+        </div>
+      )}
 
       {/* Ingredients section - matches fridge-result row styling exactly */}
       <div className="space-y-3">
@@ -188,18 +213,29 @@ export function RecipeResultsLayout({
                     )}
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0 space-y-2">
+                <CardContent className="pt-0 space-y-3">
+                  {/* Per-alternative why_this_works - rendered above changes */}
+                  {(remix as { why_this_works?: string }).why_this_works && (
+                    <p 
+                      className="text-sm italic text-muted-foreground"
+                      data-testid={`${testIdPrefix}-remix-why-${index}`}
+                    >
+                      {(remix as { why_this_works?: string }).why_this_works}
+                    </p>
+                  )}
                   {remix.changes && remix.changes.length > 0 && (
-                    remix.changes.map((change, changeIndex) => (
-                      <div key={changeIndex} className="space-y-0.5">
-                        <p className="text-sm font-medium text-foreground">
-                          {change.action}
-                        </p>
-                        <p className="text-sm text-muted-foreground pl-3 border-l-2 border-border">
-                          {change.details}
-                        </p>
-                      </div>
-                    ))
+                    <div className="space-y-2">
+                      {remix.changes.map((change, changeIndex) => (
+                        <div key={changeIndex} className="space-y-0.5">
+                          <p className="text-sm font-medium text-foreground">
+                            {change.action}
+                          </p>
+                          <p className="text-sm text-muted-foreground pl-3 border-l-2 border-border">
+                            {change.details}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </CardContent>
               </Card>
