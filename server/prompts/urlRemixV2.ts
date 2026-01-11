@@ -40,7 +40,7 @@ import type { ExtractedRecipe } from "../recipeExtractor";
  * │   - Mentioning "customize" or "tweak" (that's what_is_this territory)       │
  * └─────────────────────────────────────────────────────────────────────────────┘
  *
- * TONE GOALS (for future Phase 1):
+ * TONE GOALS (Phase 1 implemented):
  * - "Smart-simple": readable by anyone, not condescending to foodies
  * - Tweet-length: 1-2 short sentences each
  * - Plain language: avoid jargon (umami, aromatics, legumes, emulsify, acid)
@@ -48,10 +48,11 @@ import type { ExtractedRecipe } from "../recipeExtractor";
  * - Complementary overlap only: if both mention an element, each should add
  *   something the other doesn't
  *
- * TODO (Phase 1): Add explicit tweet-length constraints to prompt text
- * TODO (Phase 1): Add plain-language guardrails (jargon bans + translations)
- * TODO (Phase 1): Add anti-duplication instructions between the two fields
- * TODO (Phase 1): Add "vary phrasing" instruction for customizability language
+ * Phase 1 COMPLETED:
+ * - [x] Tweet-length constraints in prompt text
+ * - [x] Plain-language guardrails (jargon bans + translations)
+ * - [x] Anti-duplication instructions between the two fields
+ * - [x] "Vary phrasing" instruction for customizability language
  * =============================================================================
  */
 
@@ -65,8 +66,8 @@ You will receive:
 Return a JSON object with this EXACT structure:
 
 {
-  "what_is_this": "1–2 sentences describing what this dish is (spark-notes style, answer 'am I in the right place?')",
-  "why_this_works": "1–2 sentences explaining the core mechanism that makes this dish successful (balance, browning, acid, fat, spice, texture, etc.)",
+  "what_is_this": "<see WHAT_IS_THIS rules below>",
+  "why_this_works": "<see WHY_THIS_WORKS rules below>",
   "alternatives": [
     {
       "kind": "basic" or "delight",
@@ -91,6 +92,42 @@ CRITICAL REQUIREMENTS:
 4. Every "details" field MUST include at least one specific measurement (e.g., "1 tsp", "2 tbsp", "1/2 cup", "3 oz", "5 minutes", "350°F").
 5. All 9 titles must be unique—do not repeat the same core idea.
 
+---
+WHAT_IS_THIS RULES (top-level field):
+- Length: 1–2 sentences max (tweet-length, readable at a glance)
+- Tone: friendly, plain language, readable by non-foodies
+- MUST cover:
+  * What kind of dish this is
+  * What it's usually made from (everyday words only: "beans" not "legumes", "tangy" not "acidic")
+  * Why it's easy to change or make your own — but VARY the phrasing by dish type:
+    - "absorbs whatever flavors you add"
+    - "pairs with lots of toppings"
+    - "works with what you have in the fridge"
+    - "changes a lot depending on the sauce or spices"
+    - Do NOT repeat "easy to adapt" or "highly customizable" in every recipe
+- MUST NOT cover:
+  * Why it tastes good (save that for why_this_works)
+  * Texture or flavor payoff
+  * Cooking techniques, steps, or tools
+- Avoid jargon: acid, legume, umami, aromatics, emulsify. If a concept is needed, explain it simply.
+
+---
+WHY_THIS_WORKS RULES (top-level field):
+- Length: 1–2 sentences max (tweet-length)
+- Tone: simple, conversational, not academic
+- MUST cover:
+  * Why the textures and flavors are satisfying (comfort, contrast, balance)
+  * Why people keep making this type of dish (it's familiar, it rewards patience, it hits the spot)
+- MUST NOT cover:
+  * Defining the dish (that's what_is_this)
+  * Listing ingredients
+  * Talking about customization or flexibility (that's what_is_this territory)
+- Focus on: comfort, contrast (soft/crunchy, rich/fresh, sweet/savory), slow payoff, balance, or familiarity
+- Use plain cause-and-effect language, no jargon
+
+---
+ANTI-DUPLICATION: what_is_this and why_this_works must NOT repeat the same idea. If both mention an element, each must add something the other doesn't.
+
 Content Rules:
 - Keep the dish identity recognizable; do not turn it into a different dish category.
 - Basics should be broadly appealing improvements any home cook would appreciate.
@@ -112,8 +149,8 @@ export function buildV2UserPrompt(recipe: ExtractedRecipe): string {
     .join("\n");
 
   return `Analyze the recipe below and return:
-1. A brief "what_is_this" description (1–2 sentences)
-2. A "why_this_works" explanation of the base recipe's mechanism (1–2 sentences)
+1. "what_is_this" — tweet-length (1–2 sentences): what kind of dish + main ingredients + why it's flexible (vary phrasing, no jargon)
+2. "why_this_works" — tweet-length (1–2 sentences): why the flavors/textures satisfy + why people keep making it (no definitions, no ingredients list, no "customize")
 3. Exactly 9 swipe-card alternatives (5 basic + 4 delight)
 
 Recipe title: ${recipe.title}
@@ -125,6 +162,7 @@ Instructions:
 ${instructionsList}
 
 Remember:
+- what_is_this and why_this_works must NOT overlap or repeat the same idea
 - Each alternative needs "why_this_works" (1 sentence, mechanism-based) BEFORE "changes"
 - Each card has 2–3 changes with specific measurements
 - All 9 titles must be unique

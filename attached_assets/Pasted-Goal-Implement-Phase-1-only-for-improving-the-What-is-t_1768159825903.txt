@@ -1,0 +1,110 @@
+Goal: Implement **Phase 1 only** for improving the “What is this?” and “Why this works” copy style, as defined in  
+`docs/agent_memory/imp_plans/updated_what_is_this_011126.md`.
+
+Phase 1 introduces **actual prompt text changes** to the V2 LLM prompt.  
+This phase updates *only* copy-generation behavior. No schema, validation, backend routing, or frontend changes are allowed.
+
+---
+
+Do:
+1) Read the implementation plan at:
+   - `docs/agent_memory/imp_plans/updated_what_is_this_011126.md`
+
+   Pay close attention to:
+   - The semantic split between the two sections
+   - Tone goals: smart-simple, tweet-length, plain language
+   - Anti-duplication intent
+   - “Vary phrasing” guidance for customizability
+
+2) Update the **V2 SYSTEM prompt text** in:
+   - `server/prompts/urlRemixV2.ts`
+
+   Apply the following changes **only to prompt wording**:
+
+---
+
+### Update: `what_is_this`
+
+Replace the existing guidance with instructions that enforce:
+
+- Length: **1–2 sentences max (tweet-length)**
+- Tone: friendly, plain language, readable by non-foodies
+- MUST cover:
+  - What kind of dish this is
+  - What it’s usually made from (everyday words only)
+  - Why it’s easy to change or make your own
+- MUST NOT cover:
+  - Why it tastes good
+  - Texture or flavor payoff
+  - Cooking techniques, steps, or tools
+- Language constraints:
+  - Avoid jargon (acid, legume, umami, aromatics, emulsify)
+  - If a concept is needed, explain it in simple terms
+- Add instruction:
+  - When explaining customization, **vary phrasing by dish type**
+    (e.g., absorbs flavor, pairs with toppings, works with what you have)
+
+---
+
+### Update: top-level `why_this_works`
+
+Replace the existing guidance with instructions that enforce:
+
+- Length: **1–2 sentences max (tweet-length)**
+- Tone: simple, conversational, not academic
+- MUST cover:
+  - Why the textures and flavors are satisfying
+  - Why people keep making this type of dish
+- MUST NOT cover:
+  - Defining the dish
+  - Listing ingredients
+  - Talking about customization or flexibility
+- Focus on:
+  - Comfort
+  - Contrast (soft/crunchy, rich/fresh)
+  - Slow payoff, balance, or familiarity
+- Use plain cause-and-effect language, no jargon
+
+---
+
+3) Preserve all existing V2 constraints and structure:
+   - Single LLM call
+   - Same JSON shape
+   - Same field names
+   - Same validation behavior
+   - Same retry + V1 fallback logic
+   - No changes to per-variation `why_this_works` in this phase
+
+4) Do NOT modify:
+   - Zod schemas
+   - Response contracts
+   - Frontend rendering
+   - Telemetry
+   - Feature flags
+
+---
+
+Verification:
+- Run at least 3 known recipe URLs through `/api/recipes/process` with `ALT_RECIPES_V2=on`
+- Confirm:
+  - `what_is_this` reads like a smart tweet and includes flexibility without jargon
+  - `why_this_works` explains payoff without redefining the dish
+  - The two sections do not repeat the same idea
+  - V2 validation succeeds on first attempt (no fallback)
+
+---
+
+Out of Scope:
+- No UI changes
+- No layout changes
+- No schema or validation changes
+- No analytics updates
+- No new fields
+
+---
+
+Proof:
+- Prompt text reflects the copy contract documented in  
+  `docs/agent_memory/imp_plans/updated_what_is_this_011126.md`
+- Behavior changes are limited strictly to generated copy quality.
+- Application compiles and runs with no structural changes.
