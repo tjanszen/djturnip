@@ -1,0 +1,58 @@
+Goal: Implement **Phase 0 only** for improving the “What is this?” and “Why this works” copy style, as defined in  
+`docs/agent_memory/imp_plans/updated_what_is_this_011126.md`.
+
+Phase 0 is a **semantic alignment + documentation phase only**.  
+No prompt text should be changed yet. No backend, validation, or UI behavior should change in this phase.
+
+---
+
+Do:
+1) Read the implementation plan at:
+   - `docs/agent_memory/imp_plans/updated_what_is_this_011126.md`
+
+   Focus specifically on:
+   - The intended tone (“smart-simple”, tweet-length)
+   - The semantic split between:
+     - “What is this?” (identity + flexibility)
+     - “Why this works” (flavor/texture payoff + why it stuck around)
+   - The requirement to avoid foodie jargon and recipe summaries
+
+2) Audit the current V2 prompt instructions related to:
+   - `what_is_this`
+   - top-level `why_this_works`
+
+   Do NOT change them yet. Instead:
+   - Add clear comments near the prompt definition explaining:
+     - The distinct responsibility of each section
+     - That overlap should be complementary, not duplicative
+     - That these sections are intentionally short, plain-language, and non-technical
+
+3) Add explicit “copy contract” comments in the prompt file (e.g., `server/prompts/urlRemixV2.ts`):
+   - Document that:
+     - “What is this?” answers: *What kind of food is this and why is it flexible?*
+     - “Why this works” answers: *Why do people love this and keep making it?*
+   - Reference the implementation plan file directly in comments:
+     - `docs/agent_memory/imp_plans/updated_what_is_this_011126.md`
+
+4) (Optional but recommended)
+   - Add TODO comments marking where Phase 1 will:
+     - Introduce tweet-length constraints
+     - Add plain-language guardrails
+     - Add anti-duplication instructions
+   - These are notes for future phases only.
+
+Out of Scope for Phase 0:
+- No changes to prompt wording
+- No schema or Zod validation changes
+- No backend response changes
+- No frontend changes
+- No telemetry changes
+
+---
+
+Proof:
+- Code compiles with no behavior changes.
+- Prompt files include clear comments documenting the semantic split and tone goals.
+- Comments explicitly reference:
+  - `docs/agent_memory/imp_plans/updated_what_is_this_011126.md`
+- Phase 0 establishes shared understanding and prevents accidental prompt drift in later phases.

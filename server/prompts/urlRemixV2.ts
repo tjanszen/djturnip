@@ -1,5 +1,60 @@
 import type { ExtractedRecipe } from "../recipeExtractor";
 
+/**
+ * =============================================================================
+ * V2 URL REMIX PROMPT — COPY CONTRACT
+ * =============================================================================
+ * Reference: docs/agent_memory/imp_plans/updated_what_is_this_011126.md
+ *
+ * This prompt generates two top-level editorial fields plus 9 alternatives.
+ * The fields have DISTINCT responsibilities and should NOT overlap:
+ *
+ * ┌─────────────────────────────────────────────────────────────────────────────┐
+ * │ WHAT IS THIS?                                                               │
+ * ├─────────────────────────────────────────────────────────────────────────────┤
+ * │ PURPOSE: Answers "Am I in the right place?"                                 │
+ * │                                                                             │
+ * │ MUST cover:                                                                 │
+ * │   - Dish identity (what kind of food is this?)                              │
+ * │   - Base ingredients in plain words                                         │
+ * │   - Why it's easy to customize / make your own                              │
+ * │                                                                             │
+ * │ MUST NOT cover:                                                             │
+ * │   - Why it tastes good (that's why_this_works)                              │
+ * │   - Texture/flavor reasoning or technique                                   │
+ * │   - Steps, tools, or cooking process                                        │
+ * └─────────────────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─────────────────────────────────────────────────────────────────────────────┐
+ * │ WHY THIS WORKS                                                              │
+ * ├─────────────────────────────────────────────────────────────────────────────┤
+ * │ PURPOSE: Answers "Why do people love this and keep making it?"              │
+ * │                                                                             │
+ * │ MUST cover:                                                                 │
+ * │   - Flavor/texture payoff (why it's satisfying)                             │
+ * │   - Why it endured / comfort factor / contrast that makes it craveable      │
+ * │                                                                             │
+ * │ MUST NOT cover:                                                             │
+ * │   - Defining the dish (that's what_is_this)                                 │
+ * │   - Listing ingredients                                                     │
+ * │   - Mentioning "customize" or "tweak" (that's what_is_this territory)       │
+ * └─────────────────────────────────────────────────────────────────────────────┘
+ *
+ * TONE GOALS (for future Phase 1):
+ * - "Smart-simple": readable by anyone, not condescending to foodies
+ * - Tweet-length: 1-2 short sentences each
+ * - Plain language: avoid jargon (umami, aromatics, legumes, emulsify, acid)
+ *   or translate immediately (e.g., "tangy" instead of "acid")
+ * - Complementary overlap only: if both mention an element, each should add
+ *   something the other doesn't
+ *
+ * TODO (Phase 1): Add explicit tweet-length constraints to prompt text
+ * TODO (Phase 1): Add plain-language guardrails (jargon bans + translations)
+ * TODO (Phase 1): Add anti-duplication instructions between the two fields
+ * TODO (Phase 1): Add "vary phrasing" instruction for customizability language
+ * =============================================================================
+ */
+
 export const V2_SYSTEM_PROMPT = `You are a chef assistant. Your job is to provide context about a recipe and propose swipe-card modifications that elevate it.
 
 You will receive:
