@@ -6,14 +6,16 @@ import { z } from "zod";
  * =============================================================================
  * Reference: docs/agent_memory/imp_plans/variations_10_15_protein_combinable.md
  *
- * CURRENT STATE:
- * - Validates exactly 9 alternatives (5 basic + 4 delight)
- * - No `id` or `combines_with` fields
+ * CURRENT STATE (Phase 1 implemented):
+ * - Accepts 9 alternatives (legacy) OR 10-15 (new mode)
+ * - `id` and `combines_with` are optional with defaults (alt_N, [])
+ * - Legacy mode (9): enforces 5 basic + 4 delight
+ * - New mode (10-15): enforces basic ≥60%, delight ≥3, delight ≤40%
  *
- * PHASE 1 (Schema Updates):
+ * PHASE 1 (Schema Updates): ✅ COMPLETE
  * - Add `id` and `combines_with` as OPTIONAL fields with defaults
- * - Keep 9-count validation temporarily for backward compatibility
- * - Build must pass; existing prompts continue to work
+ * - Accept both 9-count (legacy) and 10-15 (new)
+ * - Transform populates default `id` and `combines_with` if missing
  *
  * PHASE 2 (Prompt Update):
  * - Prompt updated to emit 10–15 alternatives with new fields
@@ -56,30 +58,76 @@ const alternativeSchema = z.object({
   title: z.string().min(1, "title cannot be empty"),
   why_this_works: z.string().min(1, "why_this_works cannot be empty"),
   changes: z.array(changeSchema).min(2).max(3),
+  id: z.string().optional(),
+  combines_with: z.array(z.string()).optional(),
 });
 
-export const v2ResponseSchema = z.object({
+const rawResponseSchema = z.object({
   what_is_this: z.string().min(1, "what_is_this cannot be empty"),
   why_this_works: z.string().min(1, "why_this_works cannot be empty"),
-  alternatives: z.array(alternativeSchema).length(9),
+  alternatives: z.array(alternativeSchema).refine(
+    (alts) => alts.length === 9 || (alts.length >= 10 && alts.length <= 15),
+    (alts) => ({ message: `Expected 9 or 10-15 alternatives, got ${alts.length}` })
+  ),
+});
+
+export const v2ResponseSchema = rawResponseSchema.transform((data) => {
+  const alternativesWithDefaults = data.alternatives.map((alt, index) => ({
+    ...alt,
+    id: alt.id || `alt_${index + 1}`,
+    combines_with: alt.combines_with || [],
+  }));
+  
+  return {
+    ...data,
+    alternatives: alternativesWithDefaults,
+  };
 }).superRefine((data, ctx) => {
+  const isLegacyMode = data.alternatives.length === 9;
   const basicCount = data.alternatives.filter(a => a.kind === "basic").length;
   const delightCount = data.alternatives.filter(a => a.kind === "delight").length;
 
-  if (basicCount !== 5) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: `Expected exactly 5 basic cards, got ${basicCount}`,
-      path: ["alternatives"],
-    });
-  }
+  if (isLegacyMode) {
+    if (basicCount !== 5) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Expected exactly 5 basic cards, got ${basicCount}`,
+        path: ["alternatives"],
+      });
+    }
 
-  if (delightCount !== 4) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: `Expected exactly 4 delight cards, got ${delightCount}`,
-      path: ["alternatives"],
-    });
+    if (delightCount !== 4) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Expected exactly 4 delight cards, got ${delightCount}`,
+        path: ["alternatives"],
+      });
+    }
+  } else {
+    const total = data.alternatives.length;
+    const minBasic = Math.ceil(total * 0.60);
+    if (basicCount < minBasic) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Expected at least ${minBasic} basic cards (60%), got ${basicCount}`,
+        path: ["alternatives"],
+      });
+    }
+    if (delightCount < 3) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Expected at least 3 delight cards, got ${delightCount}`,
+        path: ["alternatives"],
+      });
+    }
+    const maxDelight = Math.floor(total * 0.40);
+    if (delightCount > maxDelight) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Expected at most ${maxDelight} delight cards (40%), got ${delightCount}`,
+        path: ["alternatives"],
+      });
+    }
   }
 
   const titles = data.alternatives.map(a => a.title.toLowerCase().trim());
@@ -92,8 +140,10 @@ export const v2ResponseSchema = z.object({
     });
   }
 
+  const idSet = new Set(data.alternatives.map(a => a.id));
   for (let i = 0; i < data.alternatives.length; i++) {
     const alt = data.alternatives[i];
+    
     for (let j = 0; j < alt.changes.length; j++) {
       const details = alt.changes[j].details;
       if (typeof details === "string" && !hasSpecificDetails(details)) {
@@ -101,6 +151,31 @@ export const v2ResponseSchema = z.object({
           code: z.ZodIssueCode.custom,
           message: `Change details must include a number, unit, or time/temp (card ${i + 1}, change ${j + 1})`,
           path: ["alternatives", i, "changes", j, "details"],
+        });
+      }
+    }
+    
+    if (alt.combines_with.length > 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `combines_with must have 0-2 entries, got ${alt.combines_with.length}`,
+        path: ["alternatives", i, "combines_with"],
+      });
+    }
+    
+    for (const refId of alt.combines_with) {
+      if (refId === alt.id) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `combines_with cannot self-reference (${refId})`,
+          path: ["alternatives", i, "combines_with"],
+        });
+      }
+      if (!idSet.has(refId)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `combines_with references unknown id: ${refId}`,
+          path: ["alternatives", i, "combines_with"],
         });
       }
     }

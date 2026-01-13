@@ -1,0 +1,76 @@
+Goal: Implement **Phase 1 only** of “URL Remix V2 Variations v2 (10–15, Protein Flex, Combinable)” — the **backward-compatible schema + types** phase.
+
+Phase 1 must NOT change the V2 prompt behavior yet. It should be safe to deploy even while the model is still returning the legacy shape (9 alternatives, no ids, no combines_with). The purpose is to prepare the contract so Phase 2 can turn on the new behavior without breaking the app.
+
+Do:
+1) Read the Phase 0 plan doc you created in Phase 0 (under `docs/agent_memory/imp_plans/`, e.g. `variations_10_15_protein_combinable.md`) and follow its sequencing:
+   - Phase 1 = schema/types accept new fields as optional + defaults
+   - Do not enforce 10–15 yet (or accept both 9 and 10–15 temporarily)
+
+2) Update shared response types to accept new optional fields (no prompt changes yet):
+   - File: `shared/routes.ts`
+   - For each alternative object, add OPTIONAL fields:
+     - `id?: string`
+     - `combines_with?: string[]`
+   - Keep existing fields unchanged:
+     - `kind`, `title`, `why_this_works`, `changes[]`
+   - Keep top-level fields unchanged (`what_is_this`, `why_this_works`, etc.)
+
+3) Update backend validation to be backward-compatible (critical):
+   - File: `server/validation/urlRemixV2.zod.ts`
+
+   A) Alternatives count rule (temporary compatibility)
+      Choose ONE of these compatibility strategies (prefer A unless it’s messy):
+      A) Allow either legacy or new counts:
+         - accept `alternatives.length === 9` OR `10 <= length <= 15`
+      B) Keep enforcing 9 for now, but structure Phase 1 so Phase 2 can flip it cleanly
+         - (only if you strongly prefer no temporary dual acceptance)
+
+   B) `id` + `combines_with` handling (optional with defaults)
+      - Accept missing `id` and `combines_with` in Phase 1.
+      - Add a preprocess/defaulting step so validated output always has:
+        - `id` populated deterministically if missing:
+          - `alt_${index+1}` based on array position
+        - `combines_with` defaulted to `[]` if missing
+
+   C) Validate combines_with references only when present
+      - If combines_with is present:
+        - must be an array length 0–2
+        - no self references
+        - referenced ids must exist in the final id set
+      - If combines_with is missing (legacy), default to [] and do not fail.
+
+   D) Do NOT add “contradiction” validation (vegan + sausage conflicts) in Phase 1.
+      - That remains log-only later.
+
+   E) Do NOT enforce new kind distribution thresholds yet if they would break legacy output.
+      - If you implement distribution logic in Phase 1, make it conditional:
+        - only enforce when length is 10–15 (new mode), not when length is 9 (legacy)
+
+4) Ensure the route handler returns the normalized/validated fields from Zod:
+   - File: `server/routes.ts` (or wherever V2 response is constructed)
+   - If Zod preprocess fills `id` and `combines_with`, ensure the response uses the validated object so frontend receives deterministic ids (even before Phase 2).
+
+5) No prompt changes in Phase 1
+   - Do NOT update `server/prompts/urlRemixV2.ts` in this phase.
+
+Verification:
+- With `ALT_RECIPES_V2=on`, run a known URL through `/api/recipes/process` using the CURRENT prompt (still producing 9 alternatives).
+- Confirm:
+  - V2 validation succeeds (no new fallback caused by schema changes)
+  - Response alternatives now include:
+    - `id` fields populated as `alt_1..alt_9` (from preprocess/default)
+    - `combines_with` present as empty arrays
+  - No changes to card content beyond these additive fields
+
+Out of Scope:
+- Changing alternatives count to 10–15 (Phase 2)
+- Protein/diet axis requirements (Phase 2)
+- Strict enforcement of `alt_1..alt_N` and distribution rules (Phase 3)
+- Any frontend UI changes
+- Any telemetry additions beyond existing logs
+
+Proof:
+- Legacy V2 outputs (9 alternatives) still validate and return 200 without increased fallback to V1.
+- API response includes deterministic `id` per alternative and `combines_with: []` by default.
+- App compiles and runs with no visible UX changes.

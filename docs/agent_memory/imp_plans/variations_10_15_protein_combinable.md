@@ -1,6 +1,6 @@
 # URL Remix V2 Variations v2 — 10–15, Protein Flex, Combinable
 
-## Status: Phase 0 Complete (Contract Locked)
+## Status: Phase 1 Complete (Backward-Compatible Schema)
 
 ## Overview
 Update URL Remix V2 generation to produce **10–15 alternatives** (variable based on recipe complexity), support **protein/diet axis** coverage, and include **combinability metadata** for future "pairs well with" UI.
@@ -57,10 +57,13 @@ Update URL Remix V2 generation to produce **10–15 alternatives** (variable bas
 
 ## Phase Roadmap
 
-### Phase 1 — Schema + Type Updates
-- Add `id` and `combines_with` as **optional** fields with defaults
-- Keep existing 9-count validation temporarily
-- Build must pass; existing prompts continue to work
+### Phase 1 — Schema + Type Updates ✅ COMPLETE
+- Added `id` and `combines_with` as **optional** fields with defaults
+- Accepts both 9-count (legacy) and 10-15 (new mode)
+- Transform populates `alt_1`...`alt_N` and `[]` if missing
+- Legacy mode (9): enforces 5 basic + 4 delight
+- New mode (10-15): enforces basic ≥60%, delight ≥3, delight ≤40%
+- Validates `combines_with` references (0-2 entries, no self-ref, valid ids)
 
 ### Phase 2 — Prompt Update
 - Update prompt to emit 10–15 alternatives
