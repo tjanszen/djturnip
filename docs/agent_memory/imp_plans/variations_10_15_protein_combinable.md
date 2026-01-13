@@ -65,12 +65,13 @@ Update URL Remix V2 generation to produce **10–15 alternatives** (variable bas
 - New mode (10-15): enforces basic ≥60%, delight ≥3, delight ≤40%
 - Validates `combines_with` references (0-2 entries, no self-ref, valid ids)
 
-### Phase 2 — Prompt Update
-- Update prompt to emit 10–15 alternatives
-- Add complexity-based count selection instruction
-- Add protein/diet axis requirements with dessert escape hatch
-- Add combinability metadata instructions
-- Make new fields required in prompt output
+### Phase 2 — Prompt Update ✅ COMPLETE
+- Updated prompt to emit 10–15 alternatives
+- Added complexity-based count selection instruction
+- Added protein/diet axis requirements with dessert escape hatch
+- Added combinability metadata instructions
+- Each alternative now includes `id` and `combines_with` in prompt output
+- Tested: Pizza (10 alts), Cookies (10 alts) - both successful
 
 ### Phase 3 — Validation Tightening
 - Update Zod schema to require new fields

@@ -1,0 +1,137 @@
+Goal: Implement **Phase 2 only** of “URL Remix V2 Variations v2 (10–15, Protein Flex, Combinable)” by **updating the V2 LLM prompt** so the model reliably produces richer, more diverse remix output while remaining compatible with the Phase 1 schema and validation.
+
+Phase 2 changes **prompt behavior only**.  
+No schema, Zod, backend routing, frontend UI, or telemetry changes are allowed in this phase.
+
+---
+
+Context (do not change):
+- Phase 1 is complete and live.
+- Validation now supports:
+  - Legacy mode: exactly 9 alternatives
+  - New mode: 10–15 alternatives
+  - Deterministic `id` defaults (`alt_1..alt_N`)
+  - `combines_with` defaulting to `[]`
+- Retry + fallback behavior must remain unchanged.
+
+---
+
+Do:
+1) Read the Phase 0 + Phase 1 plan:
+   - `docs/agent_memory/imp_plans/variations_10_15_protein_combinable.md`
+   - Pay attention to:
+     - protein/diet axis intent
+     - dessert escape hatch
+     - combinability metadata goals
+     - range-based counts (10–15)
+
+2) Update the **V2 SYSTEM prompt** in:
+   - `server/prompts/urlRemixV2.ts`
+
+   Replace ONLY the section that describes how to generate `alternatives`.
+
+---
+
+### REQUIRED OUTPUT SHAPE (RESTATE CLEARLY IN PROMPT)
+
+Each alternative object MUST include fields in this order:
+- `id` — use **exactly** `alt_1` through `alt_N` in order
+- `kind` — `"basic"` or `"delight"`
+- `title` — 4–7 words, unique
+- `why_this_works` — EXACTLY 1 sentence, mechanism-based, plain language
+- `changes` — EXACTLY 2 or 3 items, each with:
+  - `action` (2–5 words)
+  - `details` (must include a measurement or time/temp)
+- `combines_with` — array of **0–2** other alternative ids that pair well
+
+---
+
+### COUNT & DISTRIBUTION RULES
+
+- Return **BETWEEN 10 AND 15 alternatives** (inclusive).
+- Choose the number based on recipe complexity:
+  - Simple dishes → 10–11
+  - Moderate dishes → 12–13
+  - Complex dishes → 14–15
+- Kind distribution:
+  - At least **60%** `basic`
+  - At least **3** `delight`
+  - At most **40%** `delight`
+
+---
+
+### PROTEIN / DIET AXIS (CRITICAL)
+
+Across the full set of alternatives:
+- If the dish is **savory**:
+  - Include **at least 3** alternatives that change protein in a meaningful way:
+    - add a protein
+    - swap the main protein
+    - make the dish vegan OR make a vegan dish non-vegan
+  - At least **1** of these must explicitly address **fat + protein balance**
+    (e.g., thighs vs breast, sausage richness, creamy dairy, etc.)
+- If the dish is **sweet / dessert**:
+  - Protein swaps are OPTIONAL.
+  - Focus instead on:
+    - mix-ins
+    - texture
+    - richness
+    - flavor balance
+  - Do NOT force protein changes.
+
+Keep dish identity recognizable at all times.
+
+---
+
+### COMBINABILITY RULES
+
+- Populate `combines_with` thoughtfully:
+  - Only list ids that genuinely work together.
+  - Avoid obvious conflicts (e.g., “make vegan” + “add sausage”).
+  - Many alternatives may have an empty `combines_with`; that’s fine.
+- Do NOT try to create full bundles — just light pairing hints.
+
+---
+
+### CONTENT RULES (KEEP EXISTING STRICTNESS)
+
+- `why_this_works` must reference a concrete mechanism
+  (e.g., richness, contrast, fat, smoke, sweetness, freshness).
+- Do NOT repeat the same core idea across titles.
+- Use ONLY provided ingredients/instructions as grounding.
+  - New ingredients (including proteins) must logically fit the dish.
+- Assume a standard home kitchen.
+- Pantry staples allowed.
+- Avoid rare equipment.
+
+---
+
+3) Do NOT change anything else:
+- No schema edits
+- No Zod edits
+- No frontend changes
+- No telemetry changes
+- No feature flag changes
+
+---
+
+Verification:
+- With `ALT_RECIPES_V2=on`, test at least:
+  - 1 savory vegan base (e.g., lentil stew)
+  - 1 meat-based savory dish
+  - 1 dessert
+- Confirm:
+  - alternatives.length is between 10 and 15
+  - ids are `alt_1..alt_N` with no gaps
+  - `combines_with` is present and valid
+  - savory dishes include ≥3 protein/diet variations
+  - desserts do NOT force protein changes
+  - V2 validation succeeds on first attempt
+  - fallback rate does not spike
+
+---
+
+Proof:
+- API responses show variable counts (not always the same N).
+- Protein/diet creativity appears where appropriate.
+- No regressions to legacy behavior or UI.
