@@ -54,40 +54,6 @@ import type { ExtractedRecipe } from "../recipeExtractor";
  * - [x] Anti-duplication instructions between the two fields
  * - [x] "Vary phrasing" instruction for customizability language
  * =============================================================================
- *
- * =============================================================================
- * V2 ALTERNATIVES EXPANSION — CONTRACT (Phase 0 Locked)
- * =============================================================================
- * Reference: docs/agent_memory/imp_plans/variations_10_15_protein_combinable.md
- *
- * UPCOMING CHANGES (Phases 1-3):
- * - alternatives count: 10–15 (variable based on recipe complexity)
- *   - Simple dishes: 10–11
- *   - Medium complexity: 12–13
- *   - Complex dishes: 14–15
- *
- * - New fields per alternative:
- *   - `id`: "alt_1", "alt_2", ..., "alt_N" (1-indexed, sequential, no gaps)
- *   - `combines_with`: string[] (0–2 ids of compatible variations)
- *
- * - Kind distribution:
- *   - basic ≥ 60%, delight ≥ 3, delight ≤ 40%
- *
- * - Protein/diet axis (savory dishes only):
- *   - At least 3 alternatives involve protein add/swap or vegan flip
- *   - At least 1 addresses fat+protein balance
- *   - ESCAPE HATCH: desserts/baking skip protein axis entirely
- *
- * - Combinability:
- *   - `combines_with` references must be valid alternative ids
- *   - No self-reference
- *   - Contradiction detection is LOG-ONLY (not hard validation)
- *
- * CURRENT STATE (Phase 2 implemented):
- * - 10–15 alternatives based on recipe complexity
- * - Each alternative includes `id` and `combines_with`
- * - Protein/diet axis for savory dishes, dessert escape hatch active
- * =============================================================================
  */
 
 export const V2_SYSTEM_PROMPT = `You are a chef assistant. Your job is to provide context about a recipe and propose swipe-card modifications that elevate it.
@@ -104,72 +70,27 @@ Return a JSON object with this EXACT structure:
   "why_this_works": "<see WHY_THIS_WORKS rules below>",
   "alternatives": [
     {
-      "id": "alt_1",
       "kind": "basic" or "delight",
       "title": "4–7 word title",
-      "why_this_works": "EXACTLY 1 sentence explaining why this variation improves the dish (must reference a concrete mechanism: richness, contrast, smoke, sweetness, freshness, crunch, etc.)",
+      "why_this_works": "EXACTLY 1 sentence explaining why this variation improves the dish (must reference a concrete mechanism: acid cuts richness, browning builds umami, herbs lift heavy mayo, sweetness balances heat, crunchy contrast improves texture, etc.)",
       "changes": [
         { "action": "2–5 word action", "details": "specific instruction with measurement" },
         { "action": "2–5 word action", "details": "specific instruction with measurement" }
-      ],
-      "combines_with": ["alt_3"]
+      ]
     }
   ]
 }
 
----
-ALTERNATIVES COUNT & DISTRIBUTION:
-- Return BETWEEN 10 AND 15 alternatives (inclusive).
-- Choose the count based on recipe complexity:
-  - Simple dishes (few ingredients, basic technique): 10–11
-  - Moderate dishes: 12–13
-  - Complex dishes (many components, layered flavors): 14–15
-- Kind distribution:
-  - At least 60% must be kind="basic" (universal improvements: flavor, texture, balance)
-  - At least 3 must be kind="delight" (surprising twists that are still plausible)
-  - At most 40% can be kind="delight"
+The "alternatives" array MUST contain EXACTLY 9 items:
+- EXACTLY 5 items with kind="basic" (universal improvements: flavor, texture, balance)
+- EXACTLY 4 items with kind="delight" (surprising twists that are still plausible for home cooks)
 
----
-REQUIRED FIELDS PER ALTERNATIVE (in this order):
-1. "id" — use EXACTLY "alt_1", "alt_2", ..., "alt_N" in order (1-indexed, no gaps)
-2. "kind" — "basic" or "delight"
-3. "title" — 4–7 words, unique across all alternatives
-4. "why_this_works" — EXACTLY 1 sentence, mechanism-based, plain language
-5. "changes" — EXACTLY 2 or 3 items, each with:
-   - "action" (2–5 words)
-   - "details" (MUST include a measurement, time, or temperature)
-6. "combines_with" — array of 0–2 other alternative ids that pair well together
-
----
-PROTEIN / DIET AXIS:
-For SAVORY dishes:
-- Include AT LEAST 3 alternatives that change protein meaningfully:
-  - Add a protein to a meatless dish
-  - Swap the main protein (chicken→pork, beef→lamb, etc.)
-  - Make a meat dish vegan OR make a vegan dish non-vegan
-- At least 1 of these must address fat + protein balance (e.g., thighs vs breast, sausage richness, creamy dairy)
-
-For SWEET / DESSERT dishes:
-- Protein swaps are OPTIONAL. Do NOT force them.
-- Focus instead on: mix-ins, texture, richness, flavor balance
-
-Keep dish identity recognizable at all times.
-
----
-COMBINABILITY RULES:
-- Populate "combines_with" thoughtfully:
-  - Only list ids that genuinely work together
-  - Avoid obvious conflicts (e.g., "make vegan" + "add sausage")
-  - Many alternatives may have an empty combines_with — that's fine
-- Do NOT try to create full bundles — just light pairing hints
-
----
 CRITICAL REQUIREMENTS:
 1. "what_is_this" and "why_this_works" are REQUIRED at the top level.
-2. Each alternative MUST include all 6 fields in the order shown above.
+2. Each alternative MUST include "why_this_works" BEFORE "changes" (field ordering matters).
 3. Every alternative MUST have 2 or 3 changes. Never return just 1 change.
 4. Every "details" field MUST include at least one specific measurement (e.g., "1 tsp", "2 tbsp", "1/2 cup", "3 oz", "5 minutes", "350°F").
-5. All titles must be unique—do not repeat the same core idea.
+5. All 9 titles must be unique—do not repeat the same core idea.
 
 ---
 WHAT_IS_THIS RULES (top-level field):
@@ -230,7 +151,7 @@ export function buildV2UserPrompt(recipe: ExtractedRecipe): string {
   return `Analyze the recipe below and return:
 1. "what_is_this" — tweet-length (1–2 sentences): what kind of dish + main ingredients + why it's flexible (vary phrasing, no jargon)
 2. "why_this_works" — tweet-length (1–2 sentences): why the flavors/textures satisfy + why people keep making it (no definitions, no ingredients list, no "customize")
-3. 10–15 swipe-card alternatives (at least 60% basic, at least 3 delight, at most 40% delight)
+3. Exactly 9 swipe-card alternatives (5 basic + 4 delight)
 
 Recipe title: ${recipe.title}
 
@@ -241,20 +162,15 @@ Instructions:
 ${instructionsList}
 
 Remember:
-- Choose alternative count based on complexity: simple→10-11, moderate→12-13, complex→14-15
 - what_is_this and why_this_works must NOT overlap or repeat the same idea
-- Each alternative needs all 6 fields: id, kind, title, why_this_works, changes, combines_with
-- ids must be alt_1, alt_2, ..., alt_N in order
+- Each alternative needs "why_this_works" (1 sentence, mechanism-based) BEFORE "changes"
 - Each card has 2–3 changes with specific measurements
-- All titles must be unique
-- For savory dishes: include at least 3 protein/diet variations
-- For desserts: skip protein requirements, focus on texture/richness
+- All 9 titles must be unique
 
 Return only valid JSON.`;
 }
 
 export interface V2Alternative {
-  id: string;
   kind: "basic" | "delight";
   title: string;
   why_this_works: string;
@@ -262,7 +178,6 @@ export interface V2Alternative {
     action: string;
     details: string;
   }[];
-  combines_with: string[];
 }
 
 export interface V2Response {
