@@ -1,0 +1,189 @@
+# Implementation Plan — URL Remix V2 Variations v2 (10–15, Protein Flex, Combinable)
+
+## Snapshot
+We will update the URL Remix V2 generation so that:
+- `alternatives.length` is **10–15** (inclusive), with a target of **12** for consistency.
+- Variations can include **protein adds/swaps** and **diet flips** (vegan ↔ non-vegan) while keeping dish identity recognizable.
+- Each variation includes machine-readable **combinability metadata** so the app can later show “pairs well with …” bundles.
+
+This plan preserves:
+- Single-call generation (same OpenAI request)
+- Strict JSON + Zod validation
+- Retry once, then fallback to V1
+- Existing “what_is_this” and “why_this_works” top-level fields
+- Existing per-variation `why_this_works` (mechanism-based) and 2–3 changes requirement
+
+---
+
+## Phase 0 — Contract Decisions & Safety Constraints (Doc + ADR-lite)
+### Goal
+Lock the new contract requirements so prompt/schema/FE are aligned.
+
+### Decisions
+- Count range: **10–15 inclusive**, but prompt will **target 12** unless user request changes.
+- Keep `kind: "basic" | "delight"` for now (backward-compatible UI).
+- Distribution constraints:
+  - **basic ≥ 60%**
+  - **delight ≥ 3**
+  - **delight ≤ 40%**
+- Add per-alternative fields:
+  - `id: "alt_1"...`
+  - `combines_with: string[]` (0–2 ids)
+
+### Acceptance criteria
+- These constraints are written in the V2 prompt spec comments and reflected in Zod validation design notes (no code changes yet).
+
+---
+
+## Phase 1 — Schema + Type Updates (Shared + Validation)
+### Goal
+Extend the response schema/types to support variable counts and combinability metadata.
+
+### Backend/schema changes
+1. **shared/routes.ts**
+   - Update the V2 alternative type to include:
+     - `id: string`
+     - `combines_with: string[]` (optional or required; recommended required with default empty array)
+   - Keep existing fields:
+     - `kind`, `title`, `why_this_works`, `changes[]`
+
+2. **server/validation/urlRemixV2.zod.ts**
+   - Update validation rules:
+     - `alternatives.length` between **10 and 15**
+     - Each alternative:
+       - `id` required, unique, matches `/^alt_\d+$/`
+       - `combines_with` array length **0–2**
+       - all `combines_with` ids must reference valid alternative ids
+       - no self-reference (`alt_3` cannot combine_with `alt_3`)
+     - Enforce kind distribution:
+       - `basicCount >= ceil(total * 0.60)`
+       - `delightCount >= 3`
+       - `delightCount <= floor(total * 0.40)`
+     - Preserve existing validation:
+       - unique titles
+       - `changes.length` 2–3
+       - specificity regex for `details`
+       - retry once then fallback to V1
+
+3. **TypeScript interfaces**
+   - Update `V2Alternative` and `V2Response` interfaces accordingly.
+
+### Acceptance criteria
+- Build passes.
+- V2 validation still works for existing (old) payloads only in dev if needed (optional). In production path, prompt will be updated in Phase 2 to satisfy new schema.
+
+---
+
+## Phase 2 — Prompt Update (Core Behavior Change)
+### Goal
+Update `server/prompts/urlRemixV2.ts` so the model explains and outputs:
+- 10–15 alternatives (target 12)
+- protein/diet axis coverage
+- combinability metadata
+
+### Prompt requirements (to add/modify)
+1. Count constraint:
+   - “Return **between 10 and 15** alternatives; **target 12** unless otherwise specified.”
+
+2. Output shape per alternative (order matters):
+   - `id`
+   - `kind`
+   - `title`
+   - `why_this_works` (1 sentence)
+   - `changes` (2–3)
+   - `combines_with` (0–2 ids)
+
+3. Protein/diet coverage requirements (critical):
+   - Across the full set:
+     - At least **3** alternatives must involve a **protein change**:
+       - add a protein, swap a protein, or vegan/non-vegan flip
+     - At least **1** protein-focused alternative must explicitly be about **fat + protein balance** (e.g., thighs vs breast, sausage richness, etc.)
+   - Still keep dish identity recognizable.
+
+4. Combinability requirements:
+   - For each alternative, include `combines_with` listing 0–2 other ids that pair well.
+   - Avoid contradictions (e.g., vegan + add sausage).
+   - Keep pairings meaningful (e.g., “add vegetables” combines with “boost flavor”).
+
+5. Preserve existing constraints:
+   - “why_this_works BEFORE changes”
+   - `details` must include measurement/time/temp
+   - unique titles
+   - grounding: use extracted recipe as truth; new ingredients must plausibly fit
+
+### Acceptance criteria
+- For 3 test URLs, V2 output passes validation with:
+  - 10–15 alternatives (typically 12)
+  - distribution constraints satisfied
+  - `id` + `combines_with` valid
+  - at least 3 protein/diet changes present
+  - retry rate not significantly worse than before
+
+---
+
+## Phase 3 — Backend Integration & Fallback Behavior
+### Goal
+Ensure new validation and prompt are wired correctly and failure modes are safe.
+
+### Tasks
+- Ensure route handler parses and validates the new fields.
+- On validation failure:
+  - attempt retry once
+  - fallback to V1 afterward (existing behavior)
+- Telemetry/logs:
+  - log counts: total alternatives, basicCount, delightCount
+  - log proteinAxisCount (derived count)
+  - log combines_with average length (optional)
+
+### Acceptance criteria
+- When prompt output is malformed, fallback remains seamless.
+- Logs make it easy to debug why validation failed (missing ids, bad references, wrong counts).
+
+---
+
+## Phase 4 — Frontend: Minimal Compatibility Handling (No UX Change Required)
+### Goal
+Keep existing UI working with variable counts and new fields, without redesign.
+
+### Tasks
+- Ensure the remix card list renders **N cards** (10–15) without assuming 9.
+- Ignore `id` and `combines_with` for now (safe to not display).
+- Ensure title count uses `alternatives.length`.
+
+### Acceptance criteria
+- UI renders 10–15 cards without layout bugs.
+- No interaction changes required.
+
+---
+
+## Phase 5 — QA Suite + Regression Checks
+### Goal
+Validate quality and safety across recipe types.
+
+### Test set
+- Lentil stew (vegan base) → verify non-vegan and vegan flips are plausible
+- Chicken dish → verify protein swaps (thigh/breast/sausage) appear
+- Pasta dish → verify protein adds and sauce variations
+- Dessert → verify protein requirement doesn’t force nonsense (protein changes should be “optional axis”; if dish category doesn’t support protein, allow substitutes like nuts/dairy/eggs as “protein-ish” only if appropriate)
+
+### Pass/Fail criteria
+- alternatives length between 10 and 15
+- distribution constraints met
+- at least 3 protein/diet changes exist where appropriate
+- combines_with references valid and non-contradictory
+- specificity checks pass (measurements/times/temps)
+- fallback rate remains low on known-good sites
+
+---
+
+## Notes / Tradeoffs
+- Range outputs (10–15) are inherently less deterministic than fixed 12. Targeting 12 in the prompt reduces variance while still allowing flexibility.
+- Adding `id` + `combines_with` is the cleanest future-proofing for “stackable remixes” UX without forcing UI work now.
+- Protein changes increase the chance of “dish identity drift”; prompt must explicitly constrain identity.
+
+---
+
+## Ready-to-Review Checklist
+- Inputs ready? (Extractor + V2 prompt + validation already in place) ✅
+- Flags named? (ALT_RECIPES_V2 unchanged) ✅
+- Evidence defined? (count constraints + axis coverage + combines_with validity) ✅

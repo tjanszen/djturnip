@@ -54,6 +54,38 @@ import type { ExtractedRecipe } from "../recipeExtractor";
  * - [x] Anti-duplication instructions between the two fields
  * - [x] "Vary phrasing" instruction for customizability language
  * =============================================================================
+ *
+ * =============================================================================
+ * V2 ALTERNATIVES EXPANSION — CONTRACT (Phase 0 Locked)
+ * =============================================================================
+ * Reference: docs/agent_memory/imp_plans/variations_10_15_protein_combinable.md
+ *
+ * UPCOMING CHANGES (Phases 1-3):
+ * - alternatives count: 10–15 (variable based on recipe complexity)
+ *   - Simple dishes: 10–11
+ *   - Medium complexity: 12–13
+ *   - Complex dishes: 14–15
+ *
+ * - New fields per alternative:
+ *   - `id`: "alt_1", "alt_2", ..., "alt_N" (1-indexed, sequential, no gaps)
+ *   - `combines_with`: string[] (0–2 ids of compatible variations)
+ *
+ * - Kind distribution:
+ *   - basic ≥ 60%, delight ≥ 3, delight ≤ 40%
+ *
+ * - Protein/diet axis (savory dishes only):
+ *   - At least 3 alternatives involve protein add/swap or vegan flip
+ *   - At least 1 addresses fat+protein balance
+ *   - ESCAPE HATCH: desserts/baking skip protein axis entirely
+ *
+ * - Combinability:
+ *   - `combines_with` references must be valid alternative ids
+ *   - No self-reference
+ *   - Contradiction detection is LOG-ONLY (not hard validation)
+ *
+ * CURRENT STATE: 9 fixed alternatives (5 basic + 4 delight)
+ * This contract documents the target state; no code changes yet.
+ * =============================================================================
  */
 
 export const V2_SYSTEM_PROMPT = `You are a chef assistant. Your job is to provide context about a recipe and propose swipe-card modifications that elevate it.

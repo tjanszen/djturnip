@@ -1,5 +1,37 @@
 import { z } from "zod";
 
+/**
+ * =============================================================================
+ * V2 VALIDATION — EXPANSION ROADMAP (Phase 0 Locked)
+ * =============================================================================
+ * Reference: docs/agent_memory/imp_plans/variations_10_15_protein_combinable.md
+ *
+ * CURRENT STATE:
+ * - Validates exactly 9 alternatives (5 basic + 4 delight)
+ * - No `id` or `combines_with` fields
+ *
+ * PHASE 1 (Schema Updates):
+ * - Add `id` and `combines_with` as OPTIONAL fields with defaults
+ * - Keep 9-count validation temporarily for backward compatibility
+ * - Build must pass; existing prompts continue to work
+ *
+ * PHASE 2 (Prompt Update):
+ * - Prompt updated to emit 10–15 alternatives with new fields
+ * - Prompt includes complexity-based count selection
+ * - Prompt includes protein/diet axis requirements (savory) + dessert escape hatch
+ * - Prompt includes combinability metadata instructions
+ *
+ * PHASE 3 (Validation Tightening):
+ * - alternatives.length: 10–15 (no longer fixed 9)
+ * - `id` required, format: /^alt_\d+$/, unique, sequential
+ * - `combines_with` required, 0–2 entries, valid references, no self-ref
+ * - Kind distribution: basic ≥ 60%, delight ≥ 3, delight ≤ 40%
+ * - Contradiction detection for combines_with: LOG-ONLY (not hard fail)
+ *
+ * DO NOT CHANGE validation behavior until Phase 3.
+ * =============================================================================
+ */
+
 const SPECIFICITY_PATTERN = /(\d|½|¼|¾|⅓|⅔|tsp|tbsp|tablespoon|teaspoon|cup|cups|oz|ounce|g\b|gram|kg|ml|liter|litre|pinch|minute|min\b|°F|°C|\bF\b|\bC\b)/i;
 
 function hasSpecificDetails(details: string): boolean {

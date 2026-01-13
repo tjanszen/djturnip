@@ -1,0 +1,43 @@
+Goal: Implement **Phase 0 only** of “URL Remix V2 Variations v2 (10–15, Protein Flex, Combinable)” — the spec/contract lock phase.
+
+Phase 0 is **documentation + alignment only**.  
+Do NOT change prompt text, Zod validation, backend responses, frontend UI, telemetry, or feature flags.
+
+Do:
+1) Create (or update) an implementation plan doc for this work and reference it from the code comments:
+   - Add a new file under `docs/agent_memory/imp_plans/` (pick a clear name like `variations_10_15_protein_combinable.md`)
+   - Include in that doc the locked decisions for:
+     - alternatives count: 10–15 inclusive
+     - count selection rule: choose N based on recipe complexity (simple 10–11, medium 12–13, complex 14–15)
+     - new fields per alternative: `id` + `combines_with`
+     - id format: require exactly `alt_1`..`alt_N` (1-indexed, no gaps, in order)
+     - kind distribution: basic ≥ 60%, delight ≥ 3, delight ≤ 40%
+     - protein/diet axis: required for savory dishes, explicit escape hatch for sweet/dessert
+     - combines_with contradiction detection: log-only (not hard validation)
+
+2) Add “copy contract” style comments (spec contract comments) near the V2 variations prompt section in:
+   - `server/prompts/urlRemixV2.ts`
+   The comments should:
+   - Reference the new imp plan doc path you created
+   - Summarize the new requirements (10–15, protein swaps allowed, combines_with metadata, dessert escape hatch)
+   - Explicitly note that contradiction checks are not hard-validated (log-only later)
+
+3) Add similar alignment comments near V2 validation logic:
+   - `server/validation/urlRemixV2.zod.ts`
+   Comments should state:
+   - Phase 1 will introduce optional fields / backwards-compatible schema changes
+   - Phase 2 will update the prompt to emit new fields and 10–15 count
+   - Phase 3 will tighten validation after prompt stabilizes
+
+Out of Scope (Phase 0):
+- No code behavior changes
+- No schema changes
+- No prompt instruction changes
+- No retries/fallback changes
+- No UI changes
+
+Proof:
+- A new/updated imp plan file exists under `docs/agent_memory/imp_plans/` capturing the Phase 0 decisions above.
+- `server/prompts/urlRemixV2.ts` contains clear contract comments referencing that plan.
+- `server/validation/urlRemixV2.zod.ts` contains clear contract comments referencing that plan.
+- App compiles and runs with no behavior changes.
