@@ -76,6 +76,7 @@ export const api = {
         200: z.object({ 
           message: z.string(), 
           url: z.string(),
+          pageId: z.string().nullable().optional(),
           extractedRecipe: z.object({
             title: z.string(),
             ingredients: z.array(z.string()),

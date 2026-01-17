@@ -1,0 +1,105 @@
+Goal: Implement **Phase 2** of persisted remix pages per `docs/agent_memory/imp_plans/persisted_page_urls.md`.
+
+Phase 2 adds backend persistence on the **URL Remix V2 success path**:
+- Persist the validated V2 payload into `remix_pages`
+- Return `pageId` at the **top level** of the response
+- If DB write fails, **do not fail** the request: return the payload with `pageId: null`
+- Keep retry/fallback behavior unchanged
+
+No frontend routing changes in this phase (Phase 4). No new endpoints yet (Phase 3).
+
+---
+
+Do:
+1) Read the implementation plan:
+   - `docs/agent_memory/imp_plans/persisted_page_urls.md`
+   Focus on Phase 2 requirements and the DB-write-failure behavior.
+
+2) Implement deterministic URL normalization + hashing utilities (server-side):
+   - Create a small helper (e.g., `server/remixPageId.ts` or similar) that provides:
+     - `normalizeUrl(inputUrl: string): string`
+       - trim whitespace
+       - lowercase hostname
+       - remove URL fragment (#...)
+       - remove common tracking params (utm_*, fbclid, gclid) if easy
+       - keep path + essential query params (do not overcomplicate)
+     - `hashHex(s: string): string` (sha256 hex; shorten to 16 chars for readability)
+   - Deterministic ID design (no dedupe, multiple runs per URL):
+     - `source_url_normalized = normalizeUrl(source_url)`
+     - `source_url_hash = hashHex(source_url_normalized)` (this is the “base”)
+     - `run_suffix = hashHex(source_url_normalized + ":" + created_at_iso)` (deterministic per run)
+     - `pageId = source_url_hash + "_" + run_suffix`
+   - Store both `source_url_normalized` and `source_url_hash` in DB.
+
+3) Persist on V2 success path in the existing `POST /api/recipes/process` handler:
+   - Identify the code path where:
+     - extraction succeeded
+     - V2 LLM generation succeeded
+     - Zod validation succeeded (this is key: persist ONLY validated V2 payload)
+   - Build the DB insert using Drizzle table `remixPages` from `shared/schema.ts`:
+     - id = pageId
+     - payload_version = 'v2'
+     - source_url = original input URL
+     - source_url_normalized = normalized
+     - source_url_hash = base hash
+     - source_domain = parsed hostname (optional but recommended)
+     - title = extractedRecipe.title (or best available title)
+     - created_at = now() (use DB default or set explicitly—either is fine)
+     - payload = full validated V2 payload JSON (store everything needed to render the page later)
+
+4) Response contract update:
+   - Add `pageId` at the **top level** of the success response returned from `/api/recipes/process`:
+     - If insert succeeds: `pageId: "<computed>"`
+     - If insert fails: `pageId: null`
+   - Keep all existing fields intact and unchanged (what_is_this, why_this_works, extractedRecipe, alternatives, etc.)
+
+5) DB-write-failure behavior (critical UX contract for later phases):
+   - If the DB insert throws/errors:
+     - Log an error with enough context:
+       - event name: `remix_pages_insert_fail`
+       - source_domain
+       - source_url_hash
+       - error message
+     - Return HTTP 200 with the generated payload and `pageId: null`
+     - Do NOT throw a 5xx for the request (generation already succeeded)
+   - Do not alter retry/fallback logic:
+     - Retry/validation/fallback applies to LLM output as it does today.
+     - DB insert failure should not trigger LLM retry.
+
+6) Update shared route typing if needed:
+   - Ensure the response type includes `pageId: string | null` at top level for the URL Remix process response.
+
+Out of Scope:
+- No new GET endpoints (`/api/remix-pages/...`) yet (Phase 3)
+- No wouter route changes (`/remix/:pageId`, `/library`) yet (Phase 4)
+- No UI changes, no navigation changes
+- No pruning/hardening yet (Phase 6)
+- No telemetry system changes beyond logging the insert failure event
+
+---
+
+Verification:
+1) Happy path save:
+   - Call `POST /api/recipes/process` with a valid recipe URL (ALT_RECIPES_V2=on).
+   - Confirm response includes `pageId` (non-null).
+   - Confirm DB row exists:
+     SELECT id, payload_version, source_url, source_url_normalized, source_url_hash, source_domain, title, created_at
+     FROM remix_pages
+     WHERE id = '<pageId>';
+
+2) Payload stored:
+   - Confirm payload JSONB contains expected keys:
+     - extractedRecipe.title
+     - what_is_this
+     - why_this_works
+     - alternatives (length 9 or 10–15 depending on current generator mode)
+
+3) DB failure path:
+   - Temporarily simulate DB failure (e.g., bad DATABASE_URL or force insert error in dev only).
+   - Confirm request still returns 200 with full payload AND `pageId: null`.
+   - Confirm log line `remix_pages_insert_fail` appears.
+
+Proof:
+- Persisted rows are created on validated V2 success.
+- Response includes top-level pageId when saved; null when not saved.
+- No behavior changes elsewhere; app compiles and runs.

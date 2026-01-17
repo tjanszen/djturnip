@@ -3,11 +3,13 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { recipeDTOV2Schema, type RecipeDTOV2 } from "@shared/schema";
+import { recipeDTOV2Schema, type RecipeDTOV2, remixPages } from "@shared/schema";
 import OpenAI from "openai";
 import { extractRecipeFromUrl } from "./recipeExtractor";
 import { V2_SYSTEM_PROMPT, buildV2UserPrompt } from "./prompts/urlRemixV2";
 import { validateV2Response } from "./validation/urlRemixV2.zod";
+import { computeRemixPageIdComponents } from "./remixPageId";
+import { db } from "./db";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -658,29 +660,7 @@ Requirements:
               
               console.log(`url_remix_v2_generate_success latency_ms=${latencyMs} total_cards=${validation.data.alternatives.length} basic=${basicCount} delight=${delightCount} attempt=${attempt} model=gpt-4o-mini`);
               
-              /**
-               * =============================================================================
-               * PERSISTED REMIX PAGES — PHASE 2 CONTRACT
-               * =============================================================================
-               * Reference: docs/agent_memory/imp_plans/persisted_page_urls.md
-               *
-               * CURRENT: Returns ephemeral payload (lost on refresh)
-               *
-               * PHASE 2 WILL:
-               * 1. Persist successful V2 payload to `remix_pages` table
-               * 2. Generate deterministic pageId: hash(normalizedUrl) + "_" + hash(url+timestamp)
-               * 3. Return `pageId` at top-level of response
-               *
-               * DB-WRITE-FAILURE BEHAVIOR:
-               * - If DB write fails, still return the payload to user
-               * - Set pageId: null in response
-               * - Log error: url_remix_v2_persist_failed
-               * - Frontend should NOT navigate to /remix/:pageId if pageId is null
-               *
-               * TODO Phase 2: Persist payload and return pageId at top-level
-               * =============================================================================
-               */
-              return res.status(200).json({
+              const responsePayload = {
                 message: "Recipe URL processed with V2 alternatives.",
                 url: input.url,
                 extractedRecipe: {
@@ -693,6 +673,37 @@ Requirements:
                 what_is_this: validation.data.what_is_this,
                 why_this_works: validation.data.why_this_works,
                 alternatives: validation.data.alternatives,
+              };
+              
+              let pageId: string | null = null;
+              
+              try {
+                const createdAt = new Date();
+                const idComponents = computeRemixPageIdComponents(input.url, createdAt);
+                
+                await db.insert(remixPages).values({
+                  id: idComponents.pageId,
+                  payloadVersion: "v2",
+                  sourceUrl: input.url,
+                  sourceUrlNormalized: idComponents.sourceUrlNormalized,
+                  sourceUrlHash: idComponents.sourceUrlHash,
+                  sourceDomain: idComponents.sourceDomain,
+                  title: recipe.title,
+                  createdAt: createdAt,
+                  payload: responsePayload,
+                });
+                
+                pageId = idComponents.pageId;
+                console.log(`remix_pages_insert_success pageId=${pageId} source_domain=${idComponents.sourceDomain || "unknown"}`);
+              } catch (dbErr) {
+                const idComponents = computeRemixPageIdComponents(input.url, new Date());
+                const errorMsg = dbErr instanceof Error ? dbErr.message : "Unknown error";
+                console.log(`remix_pages_insert_fail source_domain=${idComponents.sourceDomain || "unknown"} source_url_hash=${idComponents.sourceUrlHash} error="${errorMsg}"`);
+              }
+              
+              return res.status(200).json({
+                ...responsePayload,
+                pageId,
               });
             }
             
