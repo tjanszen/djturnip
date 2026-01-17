@@ -192,6 +192,6 @@ WHERE table_schema='public' AND table_name='remix_pages';
 - **Phase 1: COMPLETE** - `remix_pages` table created with indexes
 - **Phase 2: COMPLETE** - Persist on V2 success + return `pageId`
 - **Phase 3: COMPLETE** - GET endpoints for retrieval/listing
-- Phase 4: Add frontend routes `/remix/:pageId` and `/library`
+- **Phase 4: COMPLETE** - Frontend routes `/remix/:pageId` and `/library`
 - Phase 5: Library UI
 - Phase 6: Storage limits + hardening

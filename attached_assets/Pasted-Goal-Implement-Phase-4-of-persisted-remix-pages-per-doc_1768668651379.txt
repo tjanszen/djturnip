@@ -1,0 +1,89 @@
+Goal: Implement **Phase 4** of persisted remix pages per `docs/agent_memory/imp_plans/persisted_page_urls.md`.
+
+Phase 4 adds **frontend route-backed pages** using wouter:
+- `/remix/:pageId` renders a saved remix page by fetching from the backend
+- `/library` lists saved pages and links into `/remix/:pageId`
+- On successful URL remix generation, if `pageId` is present, navigate immediately to `/remix/:pageId`
+- Always fetch from DB on route mount (no reliance on in-memory state)
+- If `pageId` is null (DB write failed), stay on the current results view (do not navigate)
+
+This phase must not change backend behavior (Phases 1–3 already implemented). No pruning/hardening yet (Phase 6).
+
+---
+
+Do:
+1) Read the plan:
+   - `docs/agent_memory/imp_plans/persisted_page_urls.md`
+   Focus on Phase 4: route-backed results and library.
+
+2) Add wouter routes (client-side):
+   - `/remix/:pageId`
+   - `/library`
+   Ensure these routes do not break existing viewState flows (Fridge Cleanout, saved screen, etc.).
+
+3) Implement `/remix/:pageId` page (route-backed saved page):
+   - On mount, call `GET /api/remix-pages/:pageId`
+   - Show a simple loading state while fetching (spinner/text)
+   - On 200:
+     - Render the existing Remix Result layout using `payload` from the response
+       - Use the same section structure you already built (title, what is this, why this works, ingredients accordion, variations cards, etc.)
+   - On 404:
+     - Render a friendly “Not found” state with a button/link to go back to the search screen
+   - On other errors:
+     - Render a simple error message with retry button
+
+   Important:
+   - Always fetch from DB on mount even if there’s cached data in memory.
+
+4) Update URL Remix submit success behavior:
+   - In `handleRemixSubmit()` success handler:
+     - If response includes `pageId` (non-null):
+       - Navigate immediately to `/remix/${pageId}`
+     - If `pageId` is null:
+       - Keep current behavior (render results in-memory) and optionally show a subtle inline notice:
+         - “Couldn’t save this page. You can still view it now, but it won’t appear in your library.”
+
+   Do NOT remove existing in-memory rendering yet; it is still needed for the `pageId: null` edge case.
+
+5) Implement `/library` page:
+   - Fetch `GET /api/remix-pages?limit=50&offset=0`
+   - Render a list of items (newest first) with:
+     - Title
+     - Created date (human readable)
+     - Subtitle: “Generated from: domain.com” (use `sourceDomain`)
+   - Each item links to `/remix/:pageId`
+   - Handle empty state: “No pages yet — remix a recipe to get started.”
+
+   MVP pagination:
+   - Add “Load more” button that increments offset by limit (optional but recommended)
+   - Or keep it single-page for now (acceptable)
+
+6) Navigation/back behavior:
+   - From `/remix/:pageId`, browser back should return to the prior page (search or library)
+   - Add a visible “Back” button only if the design needs it; otherwise rely on browser back
+
+Out of Scope:
+- Any changes to backend endpoints
+- Any DB schema changes
+- Cursor pagination (stick to limit/offset)
+- Any pruning policy (Phase 6)
+- Any authentication or user accounts
+
+---
+
+Verification:
+1) Generate a remix with `ALT_RECIPES_V2=on`:
+   - If `pageId` is non-null, confirm the app navigates to `/remix/:pageId`
+   - Refresh the page: confirm it still renders correctly
+2) Visit `/library`:
+   - Confirm saved pages appear with “Generated from: domain.com”
+   - Click an entry: navigates to `/remix/:pageId` and renders
+3) Not found:
+   - Visit `/remix/does_not_exist` and confirm 404 state renders and back-to-search works
+4) Simulate DB failure (optional):
+   - Confirm `pageId: null` keeps results in-memory and does not navigate
+
+Proof:
+- Deep links work and survive refresh.
+- Library lists saved pages and links to them.
+- App compiles and existing flows (Fridge Cleanout, etc.) still function.
