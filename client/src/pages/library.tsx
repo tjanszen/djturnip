@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { Loader2, ArrowLeft, BookOpen, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { RemixPageListResponse } from "@shared/routes";
+
+type LibraryItem = RemixPageListResponse["items"][number];
 
 function formatDate(isoDate: string): string {
   const date = new Date(isoDate);
@@ -28,19 +29,53 @@ function formatDate(isoDate: string): string {
 
 export default function Library() {
   const [, navigate] = useLocation();
+  const [items, setItems] = useState<LibraryItem[]>([]);
+  const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
-  const limit = 50;
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const limit = 20;
 
-  const { data, isLoading, isError, refetch } = useQuery<RemixPageListResponse>({
-    queryKey: ["/api/remix-pages", { limit, offset }],
-    queryFn: async () => {
-      const res = await fetch(`/api/remix-pages?limit=${limit}&offset=${offset}`);
+  const fetchPage = async (pageOffset: number, append: boolean) => {
+    try {
+      if (append) {
+        setIsLoadingMore(true);
+      } else {
+        setIsLoading(true);
+      }
+      setIsError(false);
+
+      const res = await fetch(`/api/remix-pages?limit=${limit}&offset=${pageOffset}`);
       if (!res.ok) throw new Error("Failed to load library");
-      return res.json();
-    },
-  });
+      
+      const data: RemixPageListResponse = await res.json();
+      
+      if (append) {
+        setItems(prev => [...prev, ...data.items]);
+      } else {
+        setItems(data.items);
+      }
+      setTotal(data.total);
+      setOffset(pageOffset);
+    } catch {
+      setIsError(true);
+    } finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
+    }
+  };
 
-  const hasMore = data ? offset + data.items.length < data.total : false;
+  useEffect(() => {
+    fetchPage(0, false);
+  }, []);
+
+  const handleLoadMore = () => {
+    const nextOffset = offset + limit;
+    fetchPage(nextOffset, true);
+  };
+
+  const hasMore = items.length < total;
 
   return (
     <div className="min-h-screen bg-background">
@@ -66,16 +101,16 @@ export default function Library() {
           </div>
         )}
 
-        {isError && (
+        {isError && !isLoading && (
           <div className="text-center py-12">
             <p className="text-muted-foreground mb-4">Failed to load library</p>
-            <Button onClick={() => refetch()} data-testid="button-retry">
+            <Button onClick={() => fetchPage(0, false)} data-testid="button-retry">
               Try Again
             </Button>
           </div>
         )}
 
-        {data && data.items.length === 0 && (
+        {!isLoading && !isError && items.length === 0 && (
           <div className="text-center py-12">
             <BookOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <h2 className="text-lg font-medium text-foreground mb-2">No pages yet</h2>
@@ -83,14 +118,14 @@ export default function Library() {
               Remix a recipe to get started.
             </p>
             <Button onClick={() => navigate("/")} data-testid="button-start-remixing">
-              Start Remixing
+              Remix a Recipe
             </Button>
           </div>
         )}
 
-        {data && data.items.length > 0 && (
+        {!isLoading && !isError && items.length > 0 && (
           <div className="space-y-3">
-            {data.items.map((item) => (
+            {items.map((item) => (
               <Link key={item.pageId} href={`/remix/${item.pageId}`}>
                 <Card 
                   className="p-4 hover-elevate cursor-pointer"
@@ -121,10 +156,18 @@ export default function Library() {
               <div className="pt-4 text-center">
                 <Button 
                   variant="outline" 
-                  onClick={() => setOffset(prev => prev + limit)}
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
                   data-testid="button-load-more"
                 >
-                  Load More
+                  {isLoadingMore ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    "Load More"
+                  )}
                 </Button>
               </div>
             )}

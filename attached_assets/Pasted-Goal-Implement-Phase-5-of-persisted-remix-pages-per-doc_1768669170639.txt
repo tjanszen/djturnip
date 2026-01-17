@@ -1,0 +1,69 @@
+Goal: Implement **Phase 5** of persisted remix pages per `docs/agent_memory/imp_plans/persisted_page_urls.md`.
+
+Phase 5 focuses on **Library UX polish** (scanability + small usability improvements) without changing the persistence model or routes (Phases 1–4 are already complete).
+
+Do NOT change backend schemas or write paths in this phase. Avoid scope creep into pruning (Phase 6).
+
+---
+
+Do:
+1) Review the current Library implementation:
+   - `client/src/pages/library.tsx`
+   - Confirm it uses `GET /api/remix-pages?limit&offset` and renders `items[]`.
+
+2) Improve scanability and basic UX:
+   - Ensure each library item/card displays:
+     - **Title**
+     - **Created date** (human-readable)
+     - Subtitle: **“Generated from: domain.com”** (use `sourceDomain`; if missing, show “Generated from: unknown source” or omit subtitle)
+   - Make the entire row/card clickable (not just a small link) to improve usability.
+   - Add a small visual affordance (chevron/arrow) indicating navigation to the page (optional, but recommended).
+
+3) Library empty state + first-action guidance:
+   - If `items.length === 0`, show:
+     - “No pages yet — remix a recipe to get started.”
+     - A primary button: “Remix a recipe” that navigates back to Home (or focuses the URL input if that’s easy).
+
+4) Pagination behavior:
+   - Keep the existing “Load More” button.
+   - Add a loading/disabled state to the “Load More” button while fetching.
+   - Hide/disable “Load More” when there are no more results:
+     - Use `total` from the API response to determine if `offset + limit >= total`
+     - If `total` is missing for any reason, fallback to: hide “Load More” when the last fetch returned fewer than `limit` items.
+
+5) Add a minimal “View Library” entry point (if not already present):
+   - Add a link/button on Home (URL input screen) to navigate to `/library`
+   - Keep this subtle (secondary action) so it doesn’t distract from Remix.
+
+6) Confirm navigation correctness:
+   - Clicking an item routes to `/remix/:pageId`
+   - Browser back returns to the library list where the user left off (offset preserved if you store it in component state)
+   - No regressions to existing flows (Fridge Cleanout, etc.)
+
+Out of Scope:
+- Search/filter by domain (defer; can add later)
+- Any change to DB schema
+- Pruning/retention policy (Phase 6)
+- Auth/user accounts
+
+---
+
+Verification:
+1) With at least 2 saved pages in DB:
+   - Visit `/library`
+   - Confirm each item shows title, human-readable date, and “Generated from: domain.com”
+   - Click an item -> loads `/remix/:pageId`
+   - Browser back returns to `/library` with list intact
+
+2) Empty state:
+   - If DB is empty, `/library` shows the empty message + “Remix a recipe” button
+   - Clicking button returns to Home
+
+3) Pagination:
+   - Click “Load More” repeatedly until exhausted
+   - Confirm button disables while loading
+   - Confirm “Load More” hides/disables when no more items (based on total or short page)
+
+Proof:
+- Library is more readable and navigable without changing backend behavior.
+- App compiles and runs; existing flows continue to work.

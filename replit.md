@@ -193,5 +193,5 @@ WHERE table_schema='public' AND table_name='remix_pages';
 - **Phase 2: COMPLETE** - Persist on V2 success + return `pageId`
 - **Phase 3: COMPLETE** - GET endpoints for retrieval/listing
 - **Phase 4: COMPLETE** - Frontend routes `/remix/:pageId` and `/library`
-- Phase 5: Library UI
+- **Phase 5: COMPLETE** - Library UX polish (scanability, pagination, empty state, View Library link)
 - Phase 6: Storage limits + hardening

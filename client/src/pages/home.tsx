@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useProcessRecipe, useFridgeRecipes } from "@/hooks/use-recipes";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link2, Loader2, ChefHat, Utensils, Sparkles, ArrowLeft, Heart, RotateCcw, Clock, Refrigerator, TrendingUp, Star, Repeat, ChevronLeft, ChevronRight, Minus, Plus, X, User, Globe, ChevronDown, Trash2, Carrot, Apple, Egg, Salad, Check, Undo2 } from "lucide-react";
+import { Link2, Loader2, ChefHat, Utensils, Sparkles, ArrowLeft, Heart, RotateCcw, Clock, Refrigerator, TrendingUp, Star, Repeat, ChevronLeft, ChevronRight, Minus, Plus, X, User, Globe, ChevronDown, Trash2, Carrot, Apple, Egg, Salad, Check, Undo2, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -870,6 +870,19 @@ export default function Home() {
                       <span>Remix</span>
                     </Button>
                   </div>
+                </div>
+
+                <div className="text-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate("/library")}
+                    className="text-muted-foreground"
+                    data-testid="button-view-library"
+                  >
+                    <BookOpen className="w-4 h-4 mr-2" />
+                    View Library
+                  </Button>
                 </div>
               </div>
             </div>
