@@ -1,0 +1,59 @@
+Goal: Implement **Phase 0 only** of “Persisted Remix Pages + Library (Replit Postgres, Deterministic IDs)”, referencing the approved implementation plan at:
+
+- `docs/agent_memory/imp_plans/persisted_page_urls.md`
+
+Phase 0 is **documentation + semantic alignment only**.  
+Do NOT change application behavior, schemas, migrations, backend routes, frontend routing, prompts, or telemetry.
+
+---
+
+Do:
+1) Read the implementation plan:
+   - `docs/agent_memory/imp_plans/persisted_page_urls.md`
+
+2) Add clear, durable “contract comments” (no functional changes) in the following areas:
+   - Database configuration / initialization area:
+     - Note we are using **existing Replit Postgres** via `DATABASE_URL`
+   - URL Remix generation route (the handler for `POST /api/recipes/process`):
+     - Document that Phase 2 will persist successful V2 payloads to DB and return `pageId`
+     - Document the DB-write-failure behavior: return payload with `pageId: null` and do not navigate
+   - Frontend remix flow (where Remix success currently sets `viewState` / renders results):
+     - Document that Remix results will become route-backed:
+       - `/remix/:pageId` is the canonical saved page route
+       - `/library` will list all generated pages
+     - Document that `/remix/:pageId` should always fetch fresh from DB on mount (no reliance on in-memory state)
+
+3) Update repo documentation (minimal) to reduce ambiguity for future phases:
+   - Add a short section to `replit.md` (or the project’s main ops doc) titled:
+     - “Persisted Remix Pages (Planned)”
+   - Include:
+     - We use Replit Postgres (`DATABASE_URL`)
+     - Planned table: `remix_pages`
+     - Planned routes: `/remix/:pageId`, `/library`
+     - Plan reference: `docs/agent_memory/imp_plans/persisted_page_urls.md`
+
+4) Add explicit TODO markers by phase (comments only) in relevant files:
+   - “Phase 1: create remix_pages table + payload_version + source_url_hash indexes”
+   - “Phase 2: persist payload on V2 success + return pageId at top-level”
+   - “Phase 3: add GET /api/remix-pages endpoints”
+   - “Phase 4: add wouter routes /remix/:pageId and /library; always fetch from DB”
+
+---
+
+Out of Scope (Phase 0):
+- No migrations or DB table creation
+- No backend logic changes
+- No frontend routing/view changes
+- No endpoint additions
+- No prompt updates
+- No new telemetry
+
+---
+
+Proof:
+- App compiles and runs with **no behavior changes**.
+- Comments and docs clearly reference:
+  - `docs/agent_memory/imp_plans/persisted_page_urls.md`
+- A future engineer can read the comments and understand the intended evolution from:
+  “ephemeral in-memory remix results”
+  → “durable, deep-linkable pages stored in Postgres with a library view.”

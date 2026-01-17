@@ -658,6 +658,28 @@ Requirements:
               
               console.log(`url_remix_v2_generate_success latency_ms=${latencyMs} total_cards=${validation.data.alternatives.length} basic=${basicCount} delight=${delightCount} attempt=${attempt} model=gpt-4o-mini`);
               
+              /**
+               * =============================================================================
+               * PERSISTED REMIX PAGES — PHASE 2 CONTRACT
+               * =============================================================================
+               * Reference: docs/agent_memory/imp_plans/persisted_page_urls.md
+               *
+               * CURRENT: Returns ephemeral payload (lost on refresh)
+               *
+               * PHASE 2 WILL:
+               * 1. Persist successful V2 payload to `remix_pages` table
+               * 2. Generate deterministic pageId: hash(normalizedUrl) + "_" + hash(url+timestamp)
+               * 3. Return `pageId` at top-level of response
+               *
+               * DB-WRITE-FAILURE BEHAVIOR:
+               * - If DB write fails, still return the payload to user
+               * - Set pageId: null in response
+               * - Log error: url_remix_v2_persist_failed
+               * - Frontend should NOT navigate to /remix/:pageId if pageId is null
+               *
+               * TODO Phase 2: Persist payload and return pageId at top-level
+               * =============================================================================
+               */
               return res.status(200).json({
                 message: "Recipe URL processed with V2 alternatives.",
                 url: input.url,

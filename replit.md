@@ -152,3 +152,35 @@ ID-based ingredient references enable substitution without step text replacement
 - `openai`: OpenAI SDK for AI integrations
 - `framer-motion`: Animation library
 - `wouter`: Lightweight React router
+
+## Persisted Remix Pages (Planned)
+
+Reference: `docs/agent_memory/imp_plans/persisted_page_urls.md`
+
+### Overview
+URL Remix results will become deep-linkable, durable pages stored in PostgreSQL. Every successful generation is persisted automatically, enabling a library of generated recipe pages.
+
+### Database
+- **Provider**: Replit Postgres (existing `DATABASE_URL`)
+- **Planned Table**: `remix_pages`
+  - `id` (deterministic hash of normalized URL + timestamp suffix)
+  - `source_url`, `source_url_normalized`, `title`, `created_at`
+  - `payload` (JSONB — full V2 response)
+  - `payload_version` (e.g., "v2")
+  - Indexes: `created_at DESC`, `source_url_hash`
+
+### Planned Routes
+- `/remix/:pageId` — Deep-linkable saved page (fetches from DB on mount)
+- `/library` — List of all generated pages (newest first)
+
+### Planned Endpoints
+- `GET /api/remix-pages/:pageId` — Retrieve stored payload
+- `GET /api/remix-pages?limit=50` — List metadata for library view
+
+### Phase Summary
+- Phase 1: Create `remix_pages` table + migration
+- Phase 2: Persist on V2 success + return `pageId`
+- Phase 3: Add GET endpoints for retrieval/listing
+- Phase 4: Add frontend routes `/remix/:pageId` and `/library`
+- Phase 5: Library UI
+- Phase 6: Storage limits + hardening

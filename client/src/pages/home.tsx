@@ -576,6 +576,27 @@ export default function Home() {
         // No success toast - results screen communicates success implicitly
         // (see docs/agent_memory/imp_plans/remix_result_layout.md)
         
+        /**
+         * =============================================================================
+         * PERSISTED REMIX PAGES — PHASE 4 CONTRACT
+         * =============================================================================
+         * Reference: docs/agent_memory/imp_plans/persisted_page_urls.md
+         *
+         * CURRENT: Stores payload in React state (ephemeral, lost on refresh)
+         *
+         * PHASE 4 WILL:
+         * 1. Check if response includes `pageId` (from Phase 2 persistence)
+         * 2. If pageId exists: navigate to `/remix/:pageId` instead of storing in state
+         * 3. If pageId is null (DB write failed): fall back to current in-memory behavior
+         *
+         * ROUTE-BACKED RESULTS:
+         * - `/remix/:pageId` is the canonical saved page route
+         * - `/library` will list all generated pages
+         * - `/remix/:pageId` should always fetch fresh from DB on mount (no reliance on in-memory state)
+         *
+         * TODO Phase 4: Navigate to /remix/:pageId if pageId is present
+         * =============================================================================
+         */
         if (data.alternatives && data.alternatives.length > 0) {
           setAlternatives(data.alternatives);
           setExtractedIngredients(data.extractedRecipe?.ingredients || []);
@@ -629,6 +650,27 @@ export default function Home() {
         // No success toast - results screen communicates success implicitly
         // (see docs/agent_memory/imp_plans/remix_result_layout.md)
         
+        /**
+         * =============================================================================
+         * PERSISTED REMIX PAGES — PHASE 4 CONTRACT
+         * =============================================================================
+         * Reference: docs/agent_memory/imp_plans/persisted_page_urls.md
+         *
+         * CURRENT: Stores payload in React state (ephemeral, lost on refresh)
+         *
+         * PHASE 4 WILL:
+         * 1. Check if response includes `pageId` (from Phase 2 persistence)
+         * 2. If pageId exists: navigate to `/remix/:pageId` instead of storing in state
+         * 3. If pageId is null (DB write failed): fall back to current in-memory behavior
+         *
+         * ROUTE-BACKED RESULTS:
+         * - `/remix/:pageId` is the canonical saved page route
+         * - `/library` will list all generated pages
+         * - `/remix/:pageId` should always fetch fresh from DB on mount (no reliance on in-memory state)
+         *
+         * TODO Phase 4: Navigate to /remix/:pageId if pageId is present
+         * =============================================================================
+         */
         if (data.alternatives && data.alternatives.length > 0) {
           setAlternatives(data.alternatives);
           setExtractedIngredients(data.extractedRecipe?.ingredients || []);
