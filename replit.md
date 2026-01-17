@@ -177,8 +177,19 @@ URL Remix results will become deep-linkable, durable pages stored in PostgreSQL.
 - `GET /api/remix-pages/:pageId` — Retrieve stored payload
 - `GET /api/remix-pages?limit=50` — List metadata for library view
 
+### Migration Command
+```bash
+npm run db:push
+```
+
+### Verify Table Exists
+```sql
+SELECT table_name FROM information_schema.tables 
+WHERE table_schema='public' AND table_name='remix_pages';
+```
+
 ### Phase Summary
-- Phase 1: Create `remix_pages` table + migration
+- **Phase 1: COMPLETE** - `remix_pages` table created with indexes
 - Phase 2: Persist on V2 success + return `pageId`
 - Phase 3: Add GET endpoints for retrieval/listing
 - Phase 4: Add frontend routes `/remix/:pageId` and `/library`

@@ -1,0 +1,74 @@
+Goal: Implement **Phase 1** of persisted remix pages per `docs/agent_memory/imp_plans/persisted_page_urls.md` by creating the durable database schema in **existing Replit Postgres**.
+
+Phase 1 is **DB schema + migrations only**.
+Do NOT change runtime behavior of endpoints, prompts, or frontend routing in this phase.
+
+---
+
+Do:
+1) Read the implementation plan:
+   - `docs/agent_memory/imp_plans/persisted_page_urls.md`
+   Confirm Phase 1 requirements: `remix_pages` table, `payload_version`, `source_url_hash`, indexes.
+
+2) Add a migration that creates the `remix_pages` table with this schema (Postgres):
+   - `id` TEXT PRIMARY KEY
+   - `payload_version` TEXT NOT NULL DEFAULT 'v2'
+   - `source_url` TEXT NOT NULL
+   - `source_url_normalized` TEXT NOT NULL
+   - `source_url_hash` TEXT NOT NULL
+   - `source_domain` TEXT NULL
+   - `title` TEXT NOT NULL
+   - `created_at` TIMESTAMPTZ NOT NULL DEFAULT now()
+   - `payload` JSONB NOT NULL
+
+3) Add indexes:
+   - `CREATE INDEX remix_pages_created_at_idx ON remix_pages (created_at DESC);`
+   - `CREATE INDEX remix_pages_source_url_hash_idx ON remix_pages (source_url_hash);`
+
+4) Ensure migrations run in this repo’s established way:
+   - Inspect the project for existing migration tooling (e.g., drizzle/knex/prisma/sql scripts).
+   - Implement the table + indexes using the same approach.
+   - If there is no migration system, introduce the lightest possible approach consistent with the repo:
+     - a `server/db/migrations/` SQL file + a simple script/command to apply it at startup or via npm script
+     - but do NOT auto-run destructive migrations; keep it explicit
+
+5) Update documentation:
+   - In `replit.md`, add:
+     - the migration command (exact command)
+     - how to verify the table exists
+   - Keep it concise.
+
+Out of Scope:
+- No changes to `POST /api/recipes/process`
+- No persistence logic yet (that is Phase 2)
+- No new endpoints
+- No frontend route changes
+- No telemetry changes
+
+---
+
+Verification (must do and document briefly in PR notes / comments):
+1) Run migrations against the Replit Postgres DB.
+2) Confirm table exists:
+   - SQL:
+     SELECT table_name
+     FROM information_schema.tables
+     WHERE table_schema='public' AND table_name='remix_pages';
+
+3) Confirm columns exist:
+   - SQL:
+     SELECT column_name, data_type, is_nullable, column_default
+     FROM information_schema.columns
+     WHERE table_schema='public' AND table_name='remix_pages'
+     ORDER BY ordinal_position;
+
+4) Confirm indexes exist:
+   - SQL:
+     SELECT indexname, indexdef
+     FROM pg_indexes
+     WHERE schemaname='public' AND tablename='remix_pages';
+
+Proof:
+- `remix_pages` exists with the specified columns and defaults.
+- Both indexes exist.
+- App still compiles and runs with no behavior changes.

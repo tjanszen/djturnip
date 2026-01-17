@@ -1,4 +1,4 @@
-import { pgTable, text, serial, boolean, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, boolean, integer, timestamp, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
@@ -8,6 +8,43 @@ export const recipes = pgTable("recipes", {
   url: text("url").notNull(),
   isProcessed: boolean("is_processed").default(false),
 });
+
+/**
+ * =============================================================================
+ * REMIX PAGES TABLE
+ * =============================================================================
+ * Reference: docs/agent_memory/imp_plans/persisted_page_urls.md
+ * 
+ * Stores persisted URL Remix results for deep-linking and library browsing.
+ * Each successful V2 generation creates a row; multiple generations per URL allowed.
+ * 
+ * ID Strategy (deterministic, no-dedupe):
+ * - base = sha256(normalizedUrl)[0:12]
+ * - run = sha256(normalizedUrl + ":" + createdAtISO)[0:8]
+ * - pageId = base + "_" + run
+ * =============================================================================
+ */
+export const remixPages = pgTable("remix_pages", {
+  id: text("id").primaryKey(),
+  payloadVersion: text("payload_version").notNull().default("v2"),
+  sourceUrl: text("source_url").notNull(),
+  sourceUrlNormalized: text("source_url_normalized").notNull(),
+  sourceUrlHash: text("source_url_hash").notNull(),
+  sourceDomain: text("source_domain"),
+  title: text("title").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
+  payload: jsonb("payload").notNull(),
+}, (table) => [
+  index("remix_pages_created_at_idx").on(table.createdAt),
+  index("remix_pages_source_url_hash_idx").on(table.sourceUrlHash),
+]);
+
+export const insertRemixPageSchema = createInsertSchema(remixPages).omit({
+  createdAt: true,
+});
+
+export type RemixPage = typeof remixPages.$inferSelect;
+export type InsertRemixPage = z.infer<typeof insertRemixPageSchema>;
 
 export const insertRecipeSchema = createInsertSchema(recipes).pick({
   url: true,
