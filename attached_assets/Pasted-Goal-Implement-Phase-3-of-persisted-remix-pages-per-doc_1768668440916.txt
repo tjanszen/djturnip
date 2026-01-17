@@ -1,0 +1,83 @@
+Goal: Implement **Phase 3** of persisted remix pages per `docs/agent_memory/imp_plans/persisted_page_urls.md`.
+
+Phase 3 adds **read APIs** so persisted pages can be retrieved and listed:
+- `GET /api/remix-pages/:pageId` to fetch a saved page payload
+- `GET /api/remix-pages?limit=50&offset=0` to list saved pages (newest first)
+
+This phase is backend-only: no frontend routing changes yet (Phase 4).
+
+---
+
+Do:
+1) Read the implementation plan:
+   - `docs/agent_memory/imp_plans/persisted_page_urls.md`
+   Focus on Phase 3 requirements:
+   - MVP pagination is **limit + offset**
+   - Return metadata list suitable for a Library UI
+   - Fetch-by-id must return 404 when missing
+
+2) Add endpoint: `GET /api/remix-pages/:pageId`
+   - Query `remix_pages` by `id`
+   - If not found: return 404 with a small JSON error payload
+   - If found: return a JSON object that includes:
+     - `pageId` (id)
+     - `createdAt`
+     - `sourceUrl`
+     - `sourceDomain` (if present)
+     - `title`
+     - `payload` (the full stored JSONB)
+   - Keep response shape consistent and stable.
+
+3) Add endpoint: `GET /api/remix-pages`
+   - Accept query params:
+     - `limit` (default 50, clamp to max 100)
+     - `offset` (default 0, clamp to >=0)
+   - Return newest-first rows:
+     - ORDER BY `created_at` DESC, then `id` DESC (stable ordering)
+   - Response should include:
+     - `items`: array of metadata objects, each with:
+       - `pageId`, `title`, `createdAt`, `sourceUrl`, `sourceDomain`
+     - `limit`, `offset`
+     - `total` (optional; include if trivial with a COUNT query, otherwise omit for MVP)
+
+4) Use Drizzle table definition (already in `shared/schema.ts`)
+   - Keep SQL safe and simple
+   - Avoid selecting `payload` in the list endpoint (metadata only) to keep responses fast.
+
+5) Update shared route schemas/types:
+   - In `shared/routes.ts`, add schemas for:
+     - `GET /api/remix-pages/:pageId` response
+     - `GET /api/remix-pages` response
+   - Ensure types align with what the frontend will need in Phase 4/5.
+
+6) Add minimal logging:
+   - Log not-found accesses (optional)
+   - Log DB errors (must) and return 500 for these read endpoints if DB fails
+
+Out of Scope:
+- No wouter routes (`/remix/:pageId`, `/library`) yet
+- No UI changes
+- No changes to the generation endpoint beyond what Phase 2 already did
+- No pruning policy (Phase 6)
+
+---
+
+Verification:
+1) After generating at least one page in Phase 2, pick a known `pageId` from the response or DB.
+2) Fetch by id:
+   - GET /api/remix-pages/<pageId>
+   - Expect 200
+   - Confirm `payload` contains the stored keys (what_is_this, why_this_works, extractedRecipe, alternatives)
+3) Not found:
+   - GET /api/remix-pages/does_not_exist
+   - Expect 404
+4) List:
+   - GET /api/remix-pages?limit=10&offset=0
+   - Expect 200
+   - Confirm `items.length <= 10`
+   - Confirm newest-first ordering by createdAt
+   - Confirm list items do NOT include full payload
+
+Proof:
+- Both endpoints exist and behave as specified.
+- App compiles and runs.

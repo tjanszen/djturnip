@@ -128,6 +128,43 @@ export const api = {
       },
     },
   },
+  remixPages: {
+    get: {
+      method: 'GET' as const,
+      path: '/api/remix-pages/:pageId',
+      responses: {
+        200: z.object({
+          pageId: z.string(),
+          createdAt: z.string(),
+          sourceUrl: z.string(),
+          sourceDomain: z.string().nullable(),
+          title: z.string(),
+          payload: z.record(z.any()),
+        }),
+        404: z.object({
+          message: z.string(),
+        }),
+      },
+    },
+    list: {
+      method: 'GET' as const,
+      path: '/api/remix-pages',
+      responses: {
+        200: z.object({
+          items: z.array(z.object({
+            pageId: z.string(),
+            title: z.string(),
+            createdAt: z.string(),
+            sourceUrl: z.string(),
+            sourceDomain: z.string().nullable(),
+          })),
+          limit: z.number(),
+          offset: z.number(),
+          total: z.number(),
+        }),
+      },
+    },
+  },
 };
 
 export function buildUrl(path: string, params?: Record<string, string | number>): string {
@@ -147,3 +184,5 @@ export type RecipeAlternative = z.infer<typeof recipeAlternativeSchema>;
 export type ProcessRecipeResponse = z.infer<typeof api.recipes.process.responses[200]>;
 export type FridgeRecipesResponse = z.infer<typeof api.recipes.fridge.responses[200]>;
 export type GenerateSingleResponse = z.infer<typeof api.recipes.generateSingle.responses[200]>;
+export type RemixPageResponse = z.infer<typeof api.remixPages.get.responses[200]>;
+export type RemixPageListResponse = z.infer<typeof api.remixPages.list.responses[200]>;

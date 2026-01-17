@@ -10,6 +10,7 @@ import { V2_SYSTEM_PROMPT, buildV2UserPrompt } from "./prompts/urlRemixV2";
 import { validateV2Response } from "./validation/urlRemixV2.zod";
 import { computeRemixPageIdComponents } from "./remixPageId";
 import { db } from "./db";
+import { eq, desc, sql } from "drizzle-orm";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -849,6 +850,83 @@ STRICT REQUIREMENTS:
     } catch (error) {
       console.error("recipe_image_gen_fail", error);
       res.status(500).json({ error: "Failed to generate image" });
+    }
+  });
+
+  // GET /api/remix-pages/:pageId - Fetch a saved remix page by ID
+  app.get("/api/remix-pages/:pageId", async (req, res) => {
+    const { pageId } = req.params;
+    
+    try {
+      const result = await db
+        .select()
+        .from(remixPages)
+        .where(eq(remixPages.id, pageId))
+        .limit(1);
+      
+      if (result.length === 0) {
+        return res.status(404).json({ message: "Remix page not found" });
+      }
+      
+      const page = result[0];
+      return res.status(200).json({
+        pageId: page.id,
+        createdAt: page.createdAt.toISOString(),
+        sourceUrl: page.sourceUrl,
+        sourceDomain: page.sourceDomain,
+        title: page.title,
+        payload: page.payload,
+      });
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      console.log(`remix_pages_get_fail pageId=${pageId} error="${errorMsg}"`);
+      return res.status(500).json({ message: "Failed to fetch remix page" });
+    }
+  });
+
+  // GET /api/remix-pages - List saved remix pages (newest first)
+  app.get("/api/remix-pages", async (req, res) => {
+    const limitParam = parseInt(req.query.limit as string) || 50;
+    const offsetParam = parseInt(req.query.offset as string) || 0;
+    
+    const limit = Math.min(Math.max(1, limitParam), 100);
+    const offset = Math.max(0, offsetParam);
+    
+    try {
+      const [items, countResult] = await Promise.all([
+        db
+          .select({
+            id: remixPages.id,
+            title: remixPages.title,
+            createdAt: remixPages.createdAt,
+            sourceUrl: remixPages.sourceUrl,
+            sourceDomain: remixPages.sourceDomain,
+          })
+          .from(remixPages)
+          .orderBy(desc(remixPages.createdAt), desc(remixPages.id))
+          .limit(limit)
+          .offset(offset),
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(remixPages),
+      ]);
+      
+      return res.status(200).json({
+        items: items.map(item => ({
+          pageId: item.id,
+          title: item.title,
+          createdAt: item.createdAt.toISOString(),
+          sourceUrl: item.sourceUrl,
+          sourceDomain: item.sourceDomain,
+        })),
+        limit,
+        offset,
+        total: Number(countResult[0]?.count || 0),
+      });
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Unknown error";
+      console.log(`remix_pages_list_fail error="${errorMsg}"`);
+      return res.status(500).json({ message: "Failed to list remix pages" });
     }
   });
 
