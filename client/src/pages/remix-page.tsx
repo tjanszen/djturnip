@@ -113,7 +113,7 @@ export default function RemixPage() {
       <main className="max-w-2xl mx-auto px-4 py-6">
         <RecipeResultsLayout
           mode="readOnly"
-          title={payload.extractedRecipe?.title || data.title}
+          title={`${payload.extractedRecipe?.title || data.title} + ${payload.alternatives?.length || 0} Chef tips to make it better`}
           whatIsThis={payload.what_is_this}
           whyThisWorks={payload.why_this_works}
           ingredients={payload.extractedRecipe?.ingredients || []}

@@ -1,0 +1,71 @@
+Goal: Fix a **title regression bug** on the persisted remix page so the title format matches the Home page behavior.
+
+This is a **small, targeted UI fix**. No backend changes. No schema changes. No prompt changes.
+
+---
+
+Context:
+- The Home page correctly renders remix titles as:
+  
+    `${extractedTitle || "Recipe"} + ${alternatives.length} Chef tips to make it better`
+
+- The new persisted remix route (`/remix/:pageId`) introduced a regression:
+  - `client/src/pages/remix-page.tsx` currently renders **only the base recipe title**
+  - This causes saved pages to lose the `"X Chef tips to make it better"` suffix
+
+Root cause:
+- When the `/remix/:pageId` route was implemented, the title was reconstructed using only:
+  
+    `payload.extractedRecipe?.title || data.title`
+
+- The logic that appends `"X Chef tips to make it better"` was not carried over from the Home page.
+
+---
+
+Fix Required:
+Update `client/src/pages/remix-page.tsx` so the title is constructed **identically** to the Home page.
+
+Specifically:
+
+Replace the existing title logic (around line ~116):
+
+    title={payload.extractedRecipe?.title || data.title}
+
+With:
+
+    title={`${payload.extractedRecipe?.title || data.title} + ${payload.alternatives?.length || 0} Chef tips to make it better`}
+
+---
+
+Do:
+1) Open `client/src/pages/remix-page.tsx`
+2) Locate the title prop/render logic for the page header
+3) Update it to:
+   - Use the extracted recipe title when available
+   - Append `" + X Chef tips to make it better"`
+   - Derive `X` from `payload.alternatives.length`
+   - Default safely to `0` if alternatives is missing
+4) Do NOT change:
+   - Any backend code
+   - Any shared layout components
+   - Any Home page logic
+   - Any routing behavior
+
+---
+
+Verification:
+1) Generate a remix from the Home page:
+   - Confirm title shows:  
+     `Recipe Name + X Chef tips to make it better`
+2) Navigate to the persisted page at `/remix/:pageId`:
+   - Confirm the title matches the Home page exactly
+3) Refresh `/remix/:pageId`:
+   - Confirm the title remains correct
+4) Navigate back to Home and generate another remix:
+   - Confirm no regressions
+
+---
+
+Proof:
+- Persisted remix pages and in-memory remix pages display **identical title formatting**
+- App compiles and runs with no other behavior changes
