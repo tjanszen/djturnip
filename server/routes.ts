@@ -605,6 +605,9 @@ Requirements:
 
       await storage.createRecipe({ url: input.url });
 
+      // Hoisted extraction result - accessible in both V2 and V1 fallback paths
+      let extractionResult: Awaited<ReturnType<typeof extractRecipeFromUrl>> | null = null;
+
       // V2 Routing: Default path for URL Recipe Remix
       // V2 is now the default behavior (Phase 4)
       if (process.env.ALT_RECIPES_V2 !== "off") {
@@ -612,7 +615,7 @@ Requirements:
         console.log("url_remix_v2 enabled");
         
         // Phase 1: Extract recipe from URL
-        const extractionResult = await extractRecipeFromUrl(input.url);
+        extractionResult = await extractRecipeFromUrl(input.url);
         
         if (!extractionResult.success || !extractionResult.recipe) {
           // Extraction failed - return controlled error (policy: do NOT hallucinate)
@@ -793,10 +796,28 @@ STRICT REQUIREMENTS:
           console.error("Failed to parse OpenAI response:", parseError);
         }
 
+        // Check if we have extraction data from V2 attempt (fallback scenario)
+        // This happens when V2 extraction succeeded but V2 generation failed validation
+        const extractedRecipeFromV2 = (extractionResult?.success && extractionResult?.recipe) ? {
+          title: extractionResult.recipe.title,
+          ingredients: extractionResult.recipe.ingredients,
+          ingredientCount: extractionResult.recipe.ingredients.length,
+          instructionCount: extractionResult.recipe.instructions.length,
+          method: extractionResult.method,
+        } : undefined;
+
+        if (extractedRecipeFromV2) {
+          console.log(`url_remix_v1_fallback_includes_extraction title="${extractedRecipeFromV2.title}" ingredient_count=${extractedRecipeFromV2.ingredientCount}`);
+        }
+
         res.status(200).json({ 
           message: "Recipe URL processed with alternatives.",
           url: input.url,
           alternatives,
+          extractedRecipe: extractedRecipeFromV2,
+          pageId: null,
+          what_is_this: null,
+          why_this_works: null,
         });
       } else {
         res.status(200).json({ 

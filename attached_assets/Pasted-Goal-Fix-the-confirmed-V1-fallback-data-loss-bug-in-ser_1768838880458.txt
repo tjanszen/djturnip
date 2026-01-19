@@ -1,0 +1,92 @@
+Goal: Fix the confirmed **V1 fallback data loss bug** in `server/routes.ts` so that when V2 fails validation and falls back to V1, the response still includes the extracted recipe context required by the Remix page UI.
+
+Confirmed root cause (do not re-investigate):
+- Extraction succeeds (title/ingredients/instructions available)
+- V2 generation fails validation twice → falls back to V1
+- V1 fallback response currently returns only `{ message, url, alternatives }`
+- It discards `extractedRecipe` and any V2-only fields, causing the UI to miss:
+  - title (falls back to "Recipe")
+  - ingredients
+  - what_is_this / why_this_works
+
+Scope: backend response shaping only.
+Do NOT change extraction logic, retry policy, validation rules, or frontend rendering in this fix.
+
+---
+
+Do:
+1) Open `server/routes.ts` and locate the URL Remix handler and the V1 fallback response block (the one currently returning only message/url/alternatives; per evidence around lines ~796–800).
+
+2) Identify the variable holding extraction results from the successful extraction step (e.g., `extractionResult`, `extractedRecipe`, or similar). Confirm it includes:
+   - title
+   - ingredients list (raw strings)
+   - instruction count / instructions if available
+   - method used (json-ld/heuristic) (optional)
+
+3) Update the V1 fallback response to **merge through extracted recipe data**.
+   The fallback JSON response MUST include at minimum:
+   - `message`
+   - `url`
+   - `extractedRecipe`: {
+       `title`,
+       `ingredients` (or whatever field name your V2 UI expects),
+       `ingredientCount` (optional),
+       `instructionCount` (optional),
+       `method` (optional)
+     }
+   - `alternatives` (from the V1 LLM call)
+
+   Important:
+   - Preserve the existing V1 response keys for backward compatibility (`message`, `url`, `alternatives`).
+   - Do not invent `what_is_this` / `why_this_works` on V1 fallback. If those fields are required by UI, return them as `null` or omit them **consistently** (see step 4).
+
+4) Make the response contract consistent with frontend expectations:
+   - If the frontend expects `what_is_this` and `why_this_works` to exist (even as null), then in the fallback response include:
+     - `what_is_this: null`
+     - `why_this_works: null`
+   - Same for `pageId`:
+     - Since fallback is not persisted as a page (Phase 2 persists only validated V2), set:
+       - `pageId: null`
+   - Choose one approach and ensure `shared/routes.ts` schema matches it:
+     - either optional fields omitted, OR fields present but nullable
+   - Prefer: include `pageId: null`, `what_is_this: null`, `why_this_works: null` to keep client logic simpler and avoid “missing keys” rendering bugs.
+
+5) Update `shared/routes.ts` (and any other shared contract types) if needed so the fallback response validates:
+   - Ensure `extractedRecipe` is allowed on the process response in both V2 and fallback cases.
+   - Ensure `what_is_this` / `why_this_works` are nullable/optional in the process response schema if fallback returns null/omits.
+   - Ensure `pageId` remains nullable/optional as implemented.
+
+6) Add a log line on fallback that confirms extracted data is being carried through:
+   - e.g., `url_remix_v2_fallback_includes_extraction title="..." ingredient_count=...`
+   - Keep it concise.
+
+---
+
+Verification (must pass):
+1) Reproduce the known failing URL:
+   - https://www.budgetbytes.com/homemade-meatballs/
+   - Ensure ALT_RECIPES_V2 is on, so the flow attempts V2 then falls back.
+
+2) Confirm logs still show:
+   - extraction success
+   - V2 validation fail twice
+   - fallback to V1
+
+3) Confirm the **HTTP 200 response** now includes extracted data even on V1 fallback:
+   - Response contains `extractedRecipe.title` == "Homemade Meatballs Recipe" (or equivalent)
+   - Response contains `extractedRecipe.ingredients` with length 20 (or ingredientCount=20)
+   - Response contains `alternatives` (as before)
+   - Response includes `pageId: null` (expected)
+
+4) Confirm the UI renders on fallback:
+   - Title should show:
+     - "Homemade Meatballs Recipe + <N> Chef tips to make it better"
+     - (N is alternatives.length from fallback output)
+   - Ingredients section shows the extracted ingredients list
+   - What/Why sections:
+     - Either show nothing / placeholder if null, or hide gracefully (no blank bug state)
+
+Proof:
+- V1 fallback responses retain extraction context.
+- The Remix page no longer degrades to "Recipe + X..." for this URL.
+- No regressions for successful V2 pages, library, or persisted `/remix/:pageId` pages.
