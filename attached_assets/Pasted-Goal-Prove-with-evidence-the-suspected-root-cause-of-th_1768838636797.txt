@@ -1,0 +1,92 @@
+Goal: Prove (with evidence) the suspected root cause of the Remix page missing title / “What is this” / “Why this works” / ingredients for some URLs:
+
+**Hypothesis:** V2 extraction succeeds, but V2 generation fails validation and falls back to V1. The V1 fallback response discards the extracted recipe context and V2-only fields, returning only `{ message, url, alternatives }`. The frontend then cannot render title/ingredients/what_is_this/why_this_works.
+
+This task is investigation + proof only. Do NOT implement the fix yet.
+
+---
+
+Do:
+1) Reproduce with a known failing URL (the one reported by the user).
+   - Submit URL via the normal UI flow (Home -> Remix)
+   - Capture:
+     - Network response for `POST /api/recipes/process`
+     - Server logs for that request (include request id if available)
+
+2) Confirm the extraction step succeeded (evidence required).
+   In server logs, find lines showing extraction success:
+   - extraction method (json-ld/heuristic)
+   - extracted title
+   - ingredient count
+   - instruction count
+
+   Example evidence we need:
+   - `url_remix_v2_extract_success` with counts and title
+   OR equivalent log output.
+
+3) Confirm the V2 generation failed validation and retried (evidence required).
+   In logs, locate:
+   - `url_remix_v2_validation_fail` (attempt 1)
+   - `url_remix_v2_retry`
+   - `url_remix_v2_validation_fail` (attempt 2)
+   - `url_remix_v2_fallback_to_v1` with reason
+
+   Additionally, capture the first failing validation issue (e.g., details missing measurement regex).
+
+4) Confirm the response actually returned to the client is the V1 fallback shape (evidence required).
+   From the network response (or server response logs), verify:
+   - Response includes:
+     - `message`
+     - `url`
+     - `alternatives`
+   - Response does NOT include:
+     - `extractedRecipe`
+     - `what_is_this`
+     - `why_this_works`
+     - `pageId` (likely absent or null depending on implementation)
+   - Record the exact top-level keys returned.
+
+5) Confirm the UI is not “hiding” these fields (rule out frontend rendering as the main cause).
+   - Open React devtools or add a temporary console log (dev-only) at the render boundary for the results view.
+   - Print the received object keys.
+   - Show that the missing sections are missing because the data isn’t present, not because the UI collapsed them.
+
+6) Confirm the backend code path discards extracted data on fallback (code evidence required).
+   In `server/routes.ts`, locate the fallback-to-V1 logic:
+   - Identify where extracted recipe data is stored after extraction
+   - Identify where V1 fallback response is constructed
+   - Confirm whether the fallback response:
+     - uses only the V1 LLM output object, OR
+     - merges/threads through `extractedRecipe` + V2-only fields
+
+   Capture a short snippet (file + function name + lines) showing the response construction on fallback.
+
+---
+
+Deliverable: Proof Bundle (in your reply)
+Provide:
+- The failing URL used
+- The sequence of log events confirming:
+  - extraction success
+  - generation validation failures + retry
+  - fallback to V1
+- The response keys returned to client showing V1 shape
+- The code location showing extracted data isn’t merged into fallback response
+
+---
+
+Pass/Fail Criteria
+PASS if all of these are proven:
+- Extraction succeeds (title and counts present in logs)
+- V2 generation fails validation twice and triggers fallback
+- Client receives V1-shaped response missing extractedRecipe/what_is_this/why_this_works
+- Code confirms fallback response does not include extracted data
+
+FAIL if any link in the chain is not supported by evidence (e.g., extraction didn’t succeed, or response includes extractedRecipe but UI doesn’t render it).
+
+---
+
+Notes
+- Do not fix yet.
+- Do not change retry policy.
+- This is purely to confirm the hypothesis before implementing the merge-through fix.

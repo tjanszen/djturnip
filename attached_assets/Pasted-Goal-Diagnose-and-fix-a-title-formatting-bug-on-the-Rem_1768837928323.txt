@@ -1,0 +1,115 @@
+Goal: Diagnose and fix a **title formatting bug** on the Remix results pages where the title renders as:
+  "Recipe + 9 Chef tips to make it better"
+instead of:
+  "[Name of recipe] + [number of remixes/variations] Chef tips to make it better"
+
+This prompt is for **investigation + root cause + fix**. Keep the change minimal and safe.
+
+---
+
+Context
+Expected title format:
+  `${recipeName} + ${variationCount} Chef tips to make it better`
+
+Observed bug:
+- Title shows `Recipe + 9 Chef tips to make it better`
+- That indicates `recipeName` is falling back to `"Recipe"` (or `"Recipe"` default) even though the extracted recipe title should be available.
+
+Known implementation detail:
+- Home page uses something like:
+  `extractedTitle || "Recipe"`
+- Remix page (/remix/:pageId) should build the same title from persisted payload:
+  `payload.extractedRecipe?.title || data.title`
+
+But the persisted page still ends up with `"Recipe"` sometimes.
+
+---
+
+Do (Diagnosis)
+1) Reproduce the bug end-to-end:
+   - Generate a remix from a real recipe URL
+   - Navigate to `/remix/:pageId`
+   - Observe the title rendering as "Recipe + X Chef tips to make it better"
+
+2) Identify the **exact data source** used for the title in both views:
+   - Home in-memory results (likely `home.tsx`)
+   - Persisted page route (`client/src/pages/remix-page.tsx`)
+
+3) Inspect the network response for:
+   - `POST /api/recipes/process`
+   - `GET /api/remix-pages/:pageId`
+   Specifically verify whether the title exists at:
+   - `payload.extractedRecipe.title`
+   - `payload.extractedRecipe?.title`
+   - `data.title` (top-level metadata from DB fetch)
+   - any other field like `payload.title` or `payload.extractedRecipe?.name`
+
+4) Confirm whether the persisted payload stored in DB includes a title at all:
+   - Query the DB for a known `pageId` and inspect:
+     - `title` column
+     - `payload->'extractedRecipe'->>'title'`
+     - `payload->>'extractedRecipe'` shape
+   Goal: determine if the missing title is:
+   - a frontend field-path issue, OR
+   - a backend persistence issue (wrong title stored), OR
+   - an extraction issue (title missing sometimes), OR
+   - a mismatch between in-memory payload vs persisted payload shape.
+
+---
+
+Expected Root Cause Patterns (pick the actual one after inspection)
+A) **Field path mismatch**: persisted payload uses `extractedRecipe.name` or `payload.title`, not `extractedRecipe.title`
+B) **DB fetch shape mismatch**: `remix-page.tsx` is reading `payload` from the wrong layer (e.g., `data.payload.payload`)
+C) **Backend saved wrong title**: DB `title` column is empty or set to "Recipe"
+D) **Extractor sometimes returns blank title** and Home compensates differently than persisted page
+
+---
+
+Fix Requirements
+1) Make the title rendering robust and consistent across both pages:
+   - Use the best available title in priority order:
+     1) `payload.extractedRecipe?.title`
+     2) `payload.title` (if it exists)
+     3) `data.title` (DB column)
+     4) `"Recipe"` fallback
+
+2) Ensure the variation count uses the actual alternatives length:
+   - `payload.alternatives?.length ?? 0`
+
+3) Keep the final display format identical everywhere:
+   - `${resolvedTitle} + ${variationCount} Chef tips to make it better`
+
+4) If the bug is backend-side (title not stored correctly):
+   - Fix DB insert logic in `server/routes.ts` (Phase 2 persistence path) to store:
+     - `title = validatedPayload.extractedRecipe.title` (or correct field)
+   - AND keep the frontend fix as a defensive fallback.
+
+---
+
+Deliverables
+- A short root cause write-up in code comments or PR description:
+  - what was wrong
+  - how you verified it
+  - why the fix works
+- Minimal code change(s) in:
+  - `client/src/pages/remix-page.tsx` (almost certainly)
+  - plus backend `server/routes.ts` only if DB is storing the wrong title
+
+---
+
+Verification (pass/fail)
+1) Generate remix from a known recipe URL where extracted title is non-empty.
+2) Confirm Home results title shows:
+   - `"<Actual Recipe Title> + X Chef tips to make it better"`
+3) Navigate to `/remix/:pageId`:
+   - Title matches Home exactly (same recipe title, same count)
+4) Refresh `/remix/:pageId`:
+   - Title remains correct (proves it comes from persisted data)
+5) Try a URL that fails to extract title (if any):
+   - Title should gracefully fallback to:
+     - `"Recipe + X Chef tips to make it better"`
+   - This fallback should be rare and expected only for extraction failures.
+
+Proof:
+- Persisted remix pages consistently show the actual recipe name in the title when it exists in either the stored payload or DB metadata.
+- No regressions to Fridge Cleanout or other flows.
